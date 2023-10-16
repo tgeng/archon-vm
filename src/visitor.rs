@@ -96,9 +96,11 @@ pub trait Visitor {
 
     fn visit_case_tuple(&self, ctx: &mut Self::Context, t: &VTerm, bound_names: &Vec<String>, branch: &CTerm) -> Self::Result {
         let mut results = vec![self.visit_v_term(ctx, t)];
-        for bound_name in bound_names {
-            results.push(self.visit_c_term(self.with_binding(ctx, bound_name), branch));
+        let mut context = ctx;
+        for name in bound_names {
+            context = self.with_binding(context, name);
         }
+        results.push(self.visit_c_term(context, branch));
         self.combine(results)
     }
 
