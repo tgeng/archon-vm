@@ -3,119 +3,113 @@ use crate::term::{CTerm, VTerm};
 
 pub trait Visitor {
     type Context;
-    type Result;
 
-    fn combine(&self, results: Vec<Self::Result>) -> Self::Result;
-
-    fn with_binding<'a>(&self, ctx: &'a mut Self::Context, _name: &str) -> &'a mut Self::Context {
-        ctx
+    fn with_bindings<F>(&mut self, ctx: &Self::Context, _names: &[&str], action: F) where F: FnOnce(&Self::Context) {
+        action(ctx)
     }
 
-    fn visit_v_term(&self, ctx: &mut Self::Context, v_term: &VTerm) -> Self::Result {
+    fn visit_v_term(&mut self, ctx: &Self::Context, v_term: &mut VTerm) {
         match v_term {
-            VTerm::Var { name } => self.visit_var(ctx, name),
-            VTerm::Thunk { t } => self.visit_thunk(ctx, t),
-            VTerm::Int { value } => self.visit_int(ctx, value),
-            VTerm::Str { value } => self.visit_str(ctx, value),
-            VTerm::Tuple { values } => self.visit_tuple(ctx, values),
+            VTerm::Var { .. } => self.visit_var(ctx, v_term),
+            VTerm::Thunk { .. } => self.visit_thunk(ctx, v_term),
+            VTerm::Int { .. } => self.visit_int(ctx, v_term),
+            VTerm::Str { .. } => self.visit_str(ctx, v_term),
+            VTerm::Tuple { .. } => self.visit_tuple(ctx, v_term),
         }
     }
 
-    fn visit_var(&self, _ctx: &mut Self::Context, _name: &str) -> Self::Result {
-        self.combine(vec! {})
+    fn visit_var(&mut self, ctx: &Self::Context, v_term: &mut VTerm) {}
+    fn visit_thunk(&mut self, ctx: &Self::Context, v_term: &mut VTerm) {
+        let VTerm::Thunk { t } = v_term;
+        self.visit_c_term(ctx, t);
     }
-    fn visit_thunk(&self, ctx: &mut Self::Context, t: &CTerm) -> Self::Result {
-        self.visit_c_term(ctx, t)
-    }
-
-    fn visit_int(&self, _ctx: &mut Self::Context, _value: &i32) -> Self::Result {
-        self.combine(vec! {})
-    }
-
-    fn visit_str(&self, _ctx: &mut Self::Context, _value: &str) -> Self::Result {
-        self.combine(vec! {})
-    }
-
-    fn visit_tuple(&self, ctx: &mut Self::Context, values: &[VTerm]) -> Self::Result {
-        self.combine(values.iter().map(|v| self.visit_v_term(ctx, v)).collect())
+    fn visit_int(&mut self, ctx: &Self::Context, v_term: &mut VTerm) {}
+    fn visit_str(&mut self, ctx: &Self::Context, v_term: &mut VTerm) {}
+    fn visit_tuple(&mut self, ctx: &Self::Context, v_term: &mut VTerm) {
+        let VTerm::Tuple { values } = v_term;
+        for v in values {
+            self.visit_v_term(ctx, v);
+        }
     }
 
-    fn visit_c_term(&self, ctx: &mut Self::Context, c_term: &CTerm) -> Self::Result {
+    fn visit_c_term(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
         match c_term {
-            CTerm::Lambda { arg_name, body } => self.visit_lambda(ctx, arg_name, body),
-            CTerm::App { function, arg } => self.visit_app(ctx, function, arg),
-            CTerm::Return { value } => self.visit_return(ctx, value),
-            CTerm::Force { thunk } => self.visit_force(ctx, thunk),
-            CTerm::Let { t, bound_name, body } => self.visit_let(ctx, t, bound_name, body),
-            CTerm::Def { name } => self.visit_def(ctx, name),
-            CTerm::CaseInt { t, branches, default_branch } => self.visit_case_int(ctx, t, branches, default_branch),
-            CTerm::CaseTuple { t, bound_names, branch } => self.visit_case_tuple(ctx, t, bound_names, branch),
-            CTerm::CaseStr { t, branches, default_branch } => self.visit_case_str(ctx, t, branches, default_branch),
-            CTerm::Primitive { name, arity } => self.visit_primitive(ctx, name, arity),
+            CTerm::Lambda { .. } => self.visit_lambda(ctx, c_term),
+            CTerm::App { .. } => self.visit_app(ctx, c_term),
+            CTerm::Return { .. } => self.visit_return(ctx, c_term),
+            CTerm::Force { .. } => self.visit_force(ctx, c_term),
+            CTerm::Let { .. } => self.visit_let(ctx, c_term),
+            CTerm::Def { .. } => self.visit_def(ctx, c_term),
+            CTerm::CaseInt { .. } => self.visit_case_int(ctx, c_term),
+            CTerm::CaseTuple { .. } => self.visit_case_tuple(ctx, c_term),
+            CTerm::CaseStr { .. } => self.visit_case_str(ctx, c_term),
+            CTerm::Primitive { .. } => self.visit_primitive(ctx, c_term),
         }
     }
 
-    fn visit_lambda(&self, ctx: &mut Self::Context, arg_name: &str, body: &CTerm) -> Self::Result {
-        self.visit_c_term(self.with_binding(ctx, arg_name), body)
+    fn visit_lambda(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
+        let CTerm::Lambda { arg_name, body, } = c_term;
+        self.with_bindings(ctx, &[arg_name], |ctx| {
+            self.visit_c_term(ctx, body);
+        });
     }
 
-    fn visit_app(&self, ctx: &mut Self::Context, function: &CTerm, arg: &VTerm) -> Self::Result {
-        self.combine(vec![
-            self.visit_c_term(ctx, function),
-            self.visit_v_term(ctx, arg),
-        ])
+    fn visit_app(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
+        let CTerm::App { function, arg } = c_term;
+        self.visit_c_term(ctx, function);
+        self.visit_v_term(ctx, arg);
     }
 
-    fn visit_return(&self, ctx: &mut Self::Context, value: &VTerm) -> Self::Result {
-        self.visit_v_term(ctx, value)
+    fn visit_return(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
+        let CTerm::Return { value } = c_term;
+        self.visit_v_term(ctx, value);
     }
 
-    fn visit_force(&self, ctx: &mut Self::Context, thunk: &VTerm) -> Self::Result {
-        self.visit_v_term(ctx, thunk)
-    }
-    fn visit_let(&self, ctx: &mut Self::Context, t: &CTerm, bound_name: &str, body: &CTerm) -> Self::Result {
-        self.combine(vec![
-            self.visit_c_term(ctx, t),
-            self.visit_c_term(self.with_binding(ctx, bound_name), body),
-        ])
-    }
-    fn visit_def(&self, _ctx: &mut Self::Context, _name: &str) -> Self::Result {
-        self.combine(vec! {})
+    fn visit_force(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
+        let CTerm::Force { thunk } = c_term;
+        self.visit_v_term(ctx, thunk);
     }
 
-    fn visit_case_int(&self, ctx: &mut Self::Context, t: &VTerm, branches: &HashMap<i32, CTerm>, default_branch: &Option<Box<CTerm>>) -> Self::Result {
-        let mut results = vec![self.visit_v_term(ctx, t)];
-        for branch in branches.values() {
-            results.push(self.visit_c_term(ctx, branch));
-        }
-        if let Some(default_branch) = default_branch {
-            results.push(self.visit_c_term(ctx, default_branch));
-        }
-        self.combine(results)
+    fn visit_let(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
+        let CTerm::Let { t, body, bound_name } = c_term;
+        self.visit_c_term(ctx, t);
+        self.with_bindings(ctx, &[bound_name], |ctx| {
+            self.visit_c_term(ctx, body);
+        });
     }
 
-    fn visit_case_tuple(&self, ctx: &mut Self::Context, t: &VTerm, bound_names: &Vec<String>, branch: &CTerm) -> Self::Result {
-        let mut results = vec![self.visit_v_term(ctx, t)];
-        let mut context = ctx;
-        for name in bound_names {
-            context = self.with_binding(context, name);
-        }
-        results.push(self.visit_c_term(context, branch));
-        self.combine(results)
-    }
+    fn visit_def(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {}
 
-    fn visit_case_str(&self, ctx: &mut Self::Context, t: &VTerm, branches: &HashMap<String, CTerm>, default_branch: &Option<Box<CTerm>>) -> Self::Result {
-        let mut results = vec![self.visit_v_term(ctx, t)];
-        for branch in branches.values() {
-            results.push(self.visit_c_term(ctx, branch));
+    fn visit_case_int(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
+        let CTerm::CaseInt { t, branches, default_branch } = c_term;
+        self.visit_v_term(ctx, t);
+        for (_, branch) in branches.iter_mut() {
+            self.visit_c_term(ctx, branch);
         }
         if let Some(default_branch) = default_branch {
-            results.push(self.visit_c_term(ctx, default_branch));
+            self.visit_c_term(ctx, default_branch);
         }
-        self.combine(results)
     }
 
-    fn visit_primitive(&self, _ctx: &mut Self::Context, _name: &str, _arity: &i32) -> Self::Result {
-        self.combine(vec! {})
+    fn visit_case_tuple(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
+        let CTerm::CaseTuple { t, bound_names, branch } = c_term;
+        self.visit_v_term(ctx, t);
+        let bound_names_refs: Vec<&str> = bound_names.iter().map(|s| s.as_str()).collect();
+        self.with_bindings(ctx, &bound_names_refs, |ctx| {
+            self.visit_c_term(ctx, branch);
+        });
     }
+
+    fn visit_case_str(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
+        let CTerm::CaseStr { t, branches, default_branch } = c_term;
+        self.visit_v_term(ctx, t);
+        for (_, branch) in branches.iter_mut() {
+            self.visit_c_term(ctx, branch);
+        }
+        if let Some(default_branch) = default_branch {
+            self.visit_c_term(ctx, default_branch);
+        }
+    }
+
+    fn visit_primitive(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {}
 }
