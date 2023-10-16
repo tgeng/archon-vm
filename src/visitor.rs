@@ -19,7 +19,7 @@ pub trait Visitor {
         }
     }
 
-    fn visit_var(&self, _ctx: &Self::Context, name: &str) -> Self::Result {
+    fn visit_var(&self, _ctx: &Self::Context, _name: &str) -> Self::Result {
         self.combine(vec! {})
     }
     fn visit_thunk(&self, ctx: &Self::Context, t: &CTerm) -> Self::Result {
@@ -77,7 +77,7 @@ pub trait Visitor {
             self.visit_c_term(&self.with_binding(ctx, bound_name), body),
         ])
     }
-    fn visit_def(&self, _ctx: &Self::Context, name: &str) -> Self::Result {
+    fn visit_def(&self, _ctx: &Self::Context, _name: &str) -> Self::Result {
         self.combine(vec! {})
     }
 
@@ -111,7 +111,7 @@ pub trait Visitor {
         self.combine(results)
     }
 
-    fn visit_primitive(&self, _ctx: &Self::Context, name: &str, _arity: &i32) -> Self::Result {
+    fn visit_primitive(&self, _ctx: &Self::Context, _name: &str, _arity: &i32) -> Self::Result {
         self.combine(vec! {})
     }
 }
