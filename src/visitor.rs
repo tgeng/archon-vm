@@ -1,10 +1,9 @@
-use std::collections::HashMap;
 use crate::term::{CTerm, VTerm};
 
 pub trait Visitor {
     type Context;
 
-    fn with_bindings<F>(&mut self, ctx: &Self::Context, _names: &[&str], action: F) where F: FnOnce(&Self::Context) {
+    fn with_bindings<F>(ctx: &Self::Context, _names: &[&str], action: F) where F: FnOnce(&Self::Context) {
         action(ctx)
     }
 
@@ -18,15 +17,15 @@ pub trait Visitor {
         }
     }
 
-    fn visit_var(&mut self, ctx: &Self::Context, v_term: &mut VTerm) {}
+    fn visit_var(&mut self, _ctx: &Self::Context, _v_term: &mut VTerm) {}
     fn visit_thunk(&mut self, ctx: &Self::Context, v_term: &mut VTerm) {
-        let VTerm::Thunk { t } = v_term;
+        let VTerm::Thunk { t } = v_term else { unreachable!() };
         self.visit_c_term(ctx, t);
     }
-    fn visit_int(&mut self, ctx: &Self::Context, v_term: &mut VTerm) {}
-    fn visit_str(&mut self, ctx: &Self::Context, v_term: &mut VTerm) {}
+    fn visit_int(&mut self, _ctx: &Self::Context, _v_term: &mut VTerm) {}
+    fn visit_str(&mut self, _ctx: &Self::Context, _v_term: &mut VTerm) {}
     fn visit_tuple(&mut self, ctx: &Self::Context, v_term: &mut VTerm) {
-        let VTerm::Tuple { values } = v_term;
+        let VTerm::Tuple { values } = v_term else { unreachable!() };
         for v in values {
             self.visit_v_term(ctx, v);
         }
@@ -48,40 +47,40 @@ pub trait Visitor {
     }
 
     fn visit_lambda(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
-        let CTerm::Lambda { arg_name, body, } = c_term;
-        self.with_bindings(ctx, &[arg_name], |ctx| {
+        let CTerm::Lambda { arg_name, body, } = c_term else { unreachable!() };
+        Self::with_bindings(ctx, &[arg_name], |ctx| {
             self.visit_c_term(ctx, body);
         });
     }
 
     fn visit_app(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
-        let CTerm::App { function, arg } = c_term;
+        let CTerm::App { function, arg } = c_term else { unreachable!() };
         self.visit_c_term(ctx, function);
         self.visit_v_term(ctx, arg);
     }
 
     fn visit_return(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
-        let CTerm::Return { value } = c_term;
+        let CTerm::Return { value } = c_term else { unreachable!() };
         self.visit_v_term(ctx, value);
     }
 
     fn visit_force(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
-        let CTerm::Force { thunk } = c_term;
+        let CTerm::Force { thunk } = c_term else { unreachable!() };
         self.visit_v_term(ctx, thunk);
     }
 
     fn visit_let(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
-        let CTerm::Let { t, body, bound_name } = c_term;
+        let CTerm::Let { t, body, bound_name } = c_term else { unreachable!() };
         self.visit_c_term(ctx, t);
-        self.with_bindings(ctx, &[bound_name], |ctx| {
+        Self::with_bindings(ctx, &[bound_name], |ctx| {
             self.visit_c_term(ctx, body);
         });
     }
 
-    fn visit_def(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {}
+    fn visit_def(&mut self, _ctx: &Self::Context, _c_term: &mut CTerm) {}
 
     fn visit_case_int(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
-        let CTerm::CaseInt { t, branches, default_branch } = c_term;
+        let CTerm::CaseInt { t, branches, default_branch } = c_term else { unreachable!() };
         self.visit_v_term(ctx, t);
         for (_, branch) in branches.iter_mut() {
             self.visit_c_term(ctx, branch);
@@ -92,16 +91,16 @@ pub trait Visitor {
     }
 
     fn visit_case_tuple(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
-        let CTerm::CaseTuple { t, bound_names, branch } = c_term;
+        let CTerm::CaseTuple { t, bound_names, branch } = c_term else { unreachable!() };
         self.visit_v_term(ctx, t);
         let bound_names_refs: Vec<&str> = bound_names.iter().map(|s| s.as_str()).collect();
-        self.with_bindings(ctx, &bound_names_refs, |ctx| {
+        Self::with_bindings(ctx, &bound_names_refs, |ctx| {
             self.visit_c_term(ctx, branch);
         });
     }
 
     fn visit_case_str(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
-        let CTerm::CaseStr { t, branches, default_branch } = c_term;
+        let CTerm::CaseStr { t, branches, default_branch } = c_term else { unreachable!() };
         self.visit_v_term(ctx, t);
         for (_, branch) in branches.iter_mut() {
             self.visit_c_term(ctx, branch);
@@ -111,5 +110,5 @@ pub trait Visitor {
         }
     }
 
-    fn visit_primitive(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {}
+    fn visit_primitive(&mut self, _ctx: &Self::Context, _c_term: &mut CTerm) {}
 }
