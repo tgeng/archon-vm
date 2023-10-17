@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub enum VTerm {
     Var { name: String },
     Thunk { t: Box<CTerm> },
@@ -8,6 +9,7 @@ pub enum VTerm {
     Tuple { values: Vec<VTerm> },
 }
 
+#[derive(Debug)]
 pub enum CTerm {
     Lambda { arg_name: String, body: Box<CTerm> },
     App { function: Box<CTerm>, arg: VTerm },
