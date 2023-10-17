@@ -20,13 +20,13 @@ struct LambdaLifter {
 }
 
 impl LambdaLifter {
-    pub fn new() -> LambdaLifter {
+    fn new() -> LambdaLifter {
         LambdaLifter {
             counter: 0,
             new_lambdas: Vec::new(),
         }
     }
-    pub fn lift_lambdas_in_term(&mut self, name: &str, term: &mut CTerm) {
+    fn lift_lambdas_in_term(&mut self, name: &str, term: &mut CTerm) {
         self.visit_c_term(&name.to_string(), term);
     }
 }
