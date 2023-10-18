@@ -11,7 +11,6 @@ pub enum VTerm {
 
 #[derive(Debug)]
 pub enum CTerm {
-    Lambda { arg_name: String, body: Box<CTerm> },
     App { function: Box<CTerm>, arg: VTerm },
     Return { value: VTerm },
     Force { thunk: VTerm },
@@ -20,5 +19,5 @@ pub enum CTerm {
     CaseInt { t: VTerm, branches: HashMap<i32, CTerm>, default_branch: Option<Box<CTerm>> },
     CaseTuple { t: VTerm, bound_names: Vec<String>, branch: Box<CTerm> },
     CaseStr { t: VTerm, branches: HashMap<String, CTerm>, default_branch: Option<Box<CTerm>> },
-    Primitive { name: String, arity: i32 },
+    Primitive { name: &'static str, arity: u8 },
 }

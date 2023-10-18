@@ -33,7 +33,6 @@ pub trait Visitor {
 
     fn visit_c_term(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
         match c_term {
-            CTerm::Lambda { .. } => self.visit_lambda(ctx, c_term),
             CTerm::App { .. } => self.visit_app(ctx, c_term),
             CTerm::Return { .. } => self.visit_return(ctx, c_term),
             CTerm::Force { .. } => self.visit_force(ctx, c_term),
@@ -44,13 +43,6 @@ pub trait Visitor {
             CTerm::CaseStr { .. } => self.visit_case_str(ctx, c_term),
             CTerm::Primitive { .. } => self.visit_primitive(ctx, c_term),
         }
-    }
-
-    fn visit_lambda(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
-        let CTerm::Lambda { arg_name, body, } = c_term else { unreachable!() };
-        Self::with_bindings(ctx, &[arg_name], |ctx| {
-            self.visit_c_term(ctx, body);
-        });
     }
 
     fn visit_app(&mut self, ctx: &Self::Context, c_term: &mut CTerm) {
