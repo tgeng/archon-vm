@@ -3,7 +3,7 @@ mod signature;
 mod visitor;
 mod u_term;
 mod transpiler;
-// mod translator;
+mod error;
 
 fn main() {
     println!("Hello, world!");

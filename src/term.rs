@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum VTerm {
     Var { name: String },
     Thunk { t: Box<CTerm> },
@@ -9,7 +9,7 @@ pub enum VTerm {
     Tuple { values: Vec<VTerm> },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CTerm {
     App { function: Box<CTerm>, arg: VTerm },
     Return { value: VTerm },
