@@ -77,7 +77,7 @@ impl Transpiler {
                     CTerm::CaseStr { t, branches: transpiled_branches, default_branch: transpiled_default_branch }
                 })
             }
-            UTerm::CaseTuple { t, names, branch } => {
+            UTerm::CaseTuple { t, bound_names: names, branch } => {
                 let mut identifier_map = context.identifier_map.clone();
                 names.iter().for_each(|name| {
                     identifier_map.insert(name.to_string(), Either::Right(VTerm::Var { name: name.to_string() }));
@@ -255,7 +255,7 @@ impl Transpiler {
                     Self::get_free_vars(default_branch, bound_names, free_vars);
                 }
             }
-            UTerm::CaseTuple { t, names, branch } => {
+            UTerm::CaseTuple { t, bound_names: names, branch } => {
                 Self::get_free_vars(t, bound_names, free_vars);
                 let mut new_bound_names = bound_names.clone();
                 new_bound_names.extend(names.iter().map(|s| s.as_str()));

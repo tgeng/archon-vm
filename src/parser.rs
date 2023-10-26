@@ -1,3 +1,5 @@
+use std::thread::scope;
+use std::collections::HashMap;
 use nom::branch::alt;
 use nom::{InputLength, IResult};
 use nom::character::complete::{line_ending, space0, char, satisfy as char_satisfy, alphanumeric1, one_of, anychar};
@@ -7,21 +9,21 @@ use nom::error::{context};
 use nom::Parser;
 use nom::multi::{many0, many0_count, many1, many_m_n, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
-use crate::u_term::UTerm;
+use crate::u_term::{Def, UTerm};
 use nom_locate::{LocatedSpan};
 
 type Span<'a> = LocatedSpan<&'a str>;
 
 // keywords
 static KEYWORDS: &[&str] = &[
-    "let", "def", "case_int", "case_str", "case_tuple", "force", "thunk", "="
+    "let", "def", "case_int", "case_str", "case_tuple", "force", "thunk", "=>", "="
 ];
 
 // tokenizer
 
 #[derive(Debug, Clone)]
 enum Token {
-    Identifier(String, usize),
+    Normal(String, usize),
     Int(i64),
     Str(String),
     Indent(usize),
@@ -32,15 +34,15 @@ fn identifier_token(input: Span) -> IResult<Span, Token> {
             // alpha-numeric identifier
             char_satisfy(|c| c.is_alphabetic() || c == '_')
                 .and(take_while1(|c: char| c.is_alphanumeric() || c == '_'))
-                .map(|(head, tail)| Token::Identifier(format!("{}{}", head, tail), input.naive_get_utf8_column())),
+                .map(|(head, tail)| Token::Normal(format!("{}{}", head, tail), input.naive_get_utf8_column())),
             // specially handle some punctuations that should never be combined with others
-            one_of("(),\\").map(|c| Token::Identifier(c.to_string(), input.naive_get_utf8_column())),
+            one_of("(),\\").map(|c| Token::Normal(c.to_string(), input.naive_get_utf8_column())),
             // punctuation identifier
-            take_while1(|c: char| c.is_ascii_punctuation() && c != '`').map(|s: Span| Token::Identifier(s.to_string(), input.naive_get_utf8_column())),
+            take_while1(|c: char| c.is_ascii_punctuation() && c != '`').map(|s: Span| Token::Normal(s.to_string(), input.naive_get_utf8_column())),
             // backtick-quoted identifier
             delimited(
                 char('`'),
-                take_while1(|c| c != '`'), char('`')).map(|s: Span| Token::Identifier(s.to_string(), input.naive_get_utf8_column())),
+                take_while1(|c| c != '`'), char('`')).map(|s: Span| Token::Normal(s.to_string(), input.naive_get_utf8_column())),
         ),
     )(input)
 }
@@ -139,7 +141,10 @@ fn scoped<'a, F, R>(mut f: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, R> 
         } else {
             let token = input.tokens.first().unwrap();
             match token {
-                Token::Identifier(_, column) => f.parse(Input { tokens: input.tokens, current_indent: *column }),
+                Token::Normal(_, column) => match f.parse(Input { tokens: input.tokens, current_indent: *column }) {
+                    Ok((new_input, r)) => Ok((Input { tokens: new_input.tokens, current_indent: input.current_indent }, r)),
+                    Err(e) => Err(e)
+                },
                 _ => Err(nom::Err::Error(nom::error::Error { input, code: nom::error::ErrorKind::Satisfy }))
             }
         }
@@ -158,40 +163,79 @@ fn newline_opt(input: Input) -> IResult<Input, ()> {
     opt(newline)(input).map(|(input, _)| (input, ()))
 }
 
-fn id_token(s: &'static str) -> impl FnMut(Input) -> IResult<Input, ()> {
-    satisfy(move |token| matches!(token, Token::Identifier(name, _) if { name == s }))
+fn token(s: &'static str) -> impl FnMut(Input) -> IResult<Input, ()> {
+    satisfy(move |token| matches!(token, Token::Normal(name, _) if { name == s }))
 }
 
-fn identifier(input: Input) -> IResult<Input, UTerm> {
+fn id(input: Input) -> IResult<Input, String> {
     map_token(|token| match token {
-        Token::Identifier(name, _) if { KEYWORDS.iter().all(|k| k != name) } => Some(UTerm::Identifier { name: name.clone() }),
+        Token::Normal(name, _) if { KEYWORDS.iter().all(|k| k != name) } => Some(name.clone()),
         _ => None,
     })(input)
 }
 
-fn int(input: Input) -> IResult<Input, UTerm> {
+fn id_term(input: Input) -> IResult<Input, UTerm> {
+    map(id,
+        |name| UTerm::Identifier { name },
+    )(input)
+}
+
+fn int(input: Input) -> IResult<Input, i64> {
+    map_token(|token| match token {
+        Token::Int(value) => Some(*value),
+        _ => None,
+    })(input)
+}
+
+fn int_term(input: Input) -> IResult<Input, UTerm> {
     map_token(|token| match token {
         Token::Int(value) => Some(UTerm::Int { value: *value }),
         _ => None,
     })(input)
 }
 
-fn str(input: Input) -> IResult<Input, UTerm> {
+fn str(input: Input) -> IResult<Input, String> {
+    map_token(|token| match token {
+        Token::Str(value) => Some(value.clone()),
+        _ => None,
+    })(input)
+}
+
+fn str_term(input: Input) -> IResult<Input, UTerm> {
     map_token(|token| match token {
         Token::Str(value) => Some(UTerm::Str { value: value.clone() }),
         _ => None,
     })(input)
 }
 
+fn empty_tuple(input: Input) -> IResult<Input, UTerm> {
+    map(
+        pair(token("("), token(")")),
+        |_| UTerm::Tuple { values: vec![] },
+    )(input)
+}
+
+fn singleton_tuple(input: Input) -> IResult<Input, UTerm> {
+    map(
+        delimited(
+            pair(token("("), newline_opt),
+            atom,
+            pair(newline_opt, token(")"))),
+        |t| UTerm::Tuple { values: vec![t] },
+    )(input)
+}
+
 fn atom(input: Input) -> IResult<Input, UTerm> {
     alt((
-        identifier,
-        int,
-        str,
+        id_term,
+        int_term,
+        str_term,
+        empty_tuple,
+        singleton_tuple,
         delimited(
-            pair(id_token("("), newline_opt),
+            pair(token("("), newline_opt),
             u_term,
-            pair(newline_opt, id_token(")"))),
+            pair(newline_opt, token(")"))),
     ))(input)
 }
 
@@ -210,109 +254,118 @@ fn scoped_app(input: Input) -> IResult<Input, UTerm> {
 }
 
 fn expr(input: Input) -> IResult<Input, UTerm> {
-    scoped_app(input)
+    scoped(
+        scoped_app
+    )(input)
+}
+
+fn tuple_or_term(input: Input) -> IResult<Input, UTerm> {
+    map(
+        separated_list1(
+            delimited(newline_opt, token(","), newline_opt),
+            expr),
+        |values: Vec<UTerm>| {
+            if values.len() == 1 {
+                values.into_iter().next().unwrap()
+            } else {
+                UTerm::Tuple { values }
+            }
+        },
+    )(input)
+}
+
+fn lambda(input: Input) -> IResult<Input, UTerm> {
+    scoped(
+        map(
+            pair(
+                delimited(
+                    token("\\"),
+                    separated_list0(newline_opt, id),
+                    token("=>")),
+                expr),
+            |(arg_names, body)| UTerm::Lambda { arg_names, body: Box::new(body) },
+        ))(input)
+}
+
+fn case_int(input: Input) -> IResult<Input, UTerm> {
+    scoped(
+        map(
+            tuple((
+                preceded(token("case_int"), map(expr, Box::new)),
+                many0(map(scoped(tuple((preceded(newline, int), preceded(token("=>"), u_term)))), |(i, branch)| (i, branch))),
+                preceded(newline, scoped(preceded(pair(token("_"), token("=>")), opt(map(u_term, Box::new))))),
+            )),
+            |(t, branch_entries, default_branch)| {
+                let branches = HashMap::from_iter(branch_entries);
+                UTerm::CaseInt { t, branches, default_branch }
+            })
+    )(input)
+}
+
+fn case_str(input: Input) -> IResult<Input, UTerm> {
+    scoped(
+        map(
+            tuple((
+                preceded(token("case_str"), map(expr, Box::new)),
+                many0(map(scoped(tuple((preceded(newline, str), preceded(token("=>"), u_term)))), |(i, branch)| (i, branch))),
+                preceded(newline, scoped(preceded(pair(token("_"), token("=>")), opt(map(u_term, Box::new))))),
+            )),
+            |(t, branch_entries, default_branch)| {
+                let branches = HashMap::from_iter(branch_entries);
+                UTerm::CaseStr { t, branches, default_branch }
+            })
+    )(input)
+}
+
+fn case_tuple(input: Input) -> IResult<Input, UTerm> {
+    scoped(
+        map(
+            tuple((
+                preceded(token("case_tuple"), map(expr, Box::new)),
+                delimited(newline, many0(id), token("=>")),
+                preceded(newline_opt, scoped(map(u_term, Box::new))),
+            )),
+            |(t, bound_names, branch)| {
+                UTerm::CaseTuple { t, bound_names, branch }
+            })
+    )(input)
+}
+
+fn let_term(input: Input) -> IResult<Input, UTerm> {
+    map(
+        tuple((
+            scoped(pair(delimited(token("let"), id, token("=")), u_term)),
+            preceded(newline, u_term),
+        )),
+        |((name, t), body)| {
+            UTerm::Let { name, t: Box::new(t), body: Box::new(body) }
+        })(input)
+}
+
+fn defs_term(input: Input) -> IResult<Input, UTerm> {
+    map(
+        pair(
+            many1(
+                map(
+                    scoped(
+                        tuple((
+                            preceded(token("def"), id),
+                            many0(id),
+                            preceded(token("=>"), map(u_term, Box::new))))),
+                    |(name, args, block)| (name, Def { args, block }),
+                )
+            ), opt(preceded(newline, map(u_term, Box::new)))),
+        |(defs, body)| UTerm::Defs { defs: HashMap::from_iter(defs), body },
+    )(input)
 }
 
 fn u_term(input: Input) -> IResult<Input, UTerm> {
-    scoped(alt((atom, )))(input)
+    alt((
+        lambda,
+        case_int,
+        case_str,
+        case_tuple,
+        let_term,
+        defs_term,
+    ))(input)
 }
-
-
-// ==========================================
-//
-// fn empty_tuple(input: Span) -> IResult<Span, UTerm> {
-//     map(tag("(("), |_| UTerm::Tuple { values: vec![] })(input)
-// }
-//
-// #[derive(Debug, Clone)]
-// struct ParsingContext {}
-//
-// impl ParsingContext {
-//     fn indented<'a, F, R>(&'a self, mut f: F) -> impl FnMut(Span<'a>) -> R where F: FnMut(usize, Span<'a>) -> R {
-//         move |span: Span<'a>| {
-//             f(span.naive_get_utf8_column(), span)
-//         }
-//     }
-//
-//     fn newline<'a>(&self, indent: usize) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, ()> {
-//         map(
-//             many1(space0.and(line_ending))
-//                 .and(many_m_n(indent, indent, char(' ')))
-//                 .and(many1(char(' '))), // consume additional spaces
-//             |_| (),
-//         )
-//     }
-//
-//     fn sp<'a>(&self, indent: usize) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, ()> {
-//         alt((self.newline(indent), space1.map(|_| ())))
-//     }
-//
-//     fn u_term<'a>(&'a self, indent: usize, inside_parentheses: bool) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, UTerm> {
-//         move |s: Span<'a>| self.u_term_(s, indent, inside_parentheses)
-//     }
-//
-//     // Instead of returning an opaque type, we just declare a function to workaround rust's issue
-//     // with instantiating infinite opaque types due to recursive calls.
-//     fn u_term_<'a>(&'a self, s: Span<'a>, indent: usize, inside_parentheses: bool) -> IResult<Span<'a>, UTerm> {
-//         alt((
-//             self.lambda(),
-//             self.tuple_or_term(indent, inside_parentheses),
-//         ))(s)
-//     }
-//
-//     fn lambda<'a>(&'a self) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, UTerm> {
-//         self.atom(0)
-//     }
-//
-//     fn tuple_or_term<'a>(&'a self, indent: usize, inside_parentheses: bool) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, UTerm> {
-//         map(
-//             separated_list0(delimited(self.sp(indent), tag(","), self.sp(indent)), self.expr(indent)),
-//             move |values: Vec<UTerm>| {
-//                 if values.len() == 1 && !inside_parentheses {
-//                     values.into_iter().next().unwrap()
-//                 } else {
-//                     UTerm::Tuple { values }
-//                 }
-//             },
-//         )
-//     }
-//
-//     fn expr<'a>(&'a self, indent: usize) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, UTerm> {
-//         self.indented_app()
-//     }
-//
-//     fn indented_app<'a>(&'a self) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, UTerm> {
-//         self.indented(|indent, span| {
-//             map(
-//                 tuple((
-//                     self.atom(indent),
-//                     many0(preceded(self.newline(indent), self.u_term(indent, false))))),
-//                 |(f, args): (UTerm, Vec<UTerm>)| {
-//                     UTerm::App { function: Box::new(f), args }
-//                 })(span)
-//         })
-//     }
-//
-//     fn atom<'a>(&'a self, indent: usize) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, UTerm> {
-//         alt((
-//             identifier,
-//             int,
-//             str,
-//             delimited(
-//                 pair(char('('), self.sp(indent)),
-//                 self.u_term(indent, true),
-//                 pair(self.sp(indent), char(')')))))
-//     }
-// }
-//
-//
-// pub fn parse_u_term(input: &str) -> Result<UTerm, String> {
-//     let ctx = ParsingContext {};
-//     let r = ctx.indented(|indent, span| {
-//         ctx.u_term(indent, false)(span)
-//     })(Span::new(input));
-//     match r {
-//         Ok((_, result)) => Ok(result),
-//         err => Err(format!("Parse error: {:?}", err)),
-//     }
-// }
