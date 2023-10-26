@@ -3,14 +3,14 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub enum UTerm {
     Identifier { name: String },
-    Int { value: i32 },
+    Int { value: i64 },
     Str { value: String },
     Tuple { values: Vec<UTerm> },
     Lambda { arg_names: Vec<String>, body: Box<UTerm> },
     Thunk { t: Box<UTerm> },
     App { function: Box<UTerm>, args: Vec<UTerm> },
     Force { thunk: Box<UTerm> },
-    CaseInt { t: Box<UTerm>, branches: HashMap<i32, UTerm>, default_branch: Option<Box<UTerm>> },
+    CaseInt { t: Box<UTerm>, branches: HashMap<i64, UTerm>, default_branch: Option<Box<UTerm>> },
     CaseStr { t: Box<UTerm>, branches: HashMap<String, UTerm>, default_branch: Option<Box<UTerm>> },
     CaseTuple { t: Box<UTerm>, names: Vec<String>, branch: Box<UTerm> },
     Let { name: String, t: Box<UTerm>, body: Box<UTerm> },
