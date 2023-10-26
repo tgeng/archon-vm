@@ -1,18 +1,39 @@
-use std::thread::scope;
 use std::collections::HashMap;
 use nom::branch::alt;
 use nom::{InputLength, IResult};
-use nom::character::complete::{line_ending, space0, char, satisfy as char_satisfy, alphanumeric1, one_of, anychar};
-use nom::combinator::{cut, map, opt, peek, verify};
-use nom::bytes::complete::{take_while1, escaped, tag};
-use nom::error::{context};
+use nom::character::complete::{line_ending, space0, char, satisfy as char_satisfy, alphanumeric1, one_of};
+use nom::combinator::{cut, map, opt};
+use nom::bytes::complete::{take_while1, escaped};
+use nom::error::{context, ErrorKind, ParseError};
 use nom::Parser;
-use nom::multi::{many0, many0_count, many1, many_m_n, separated_list0, separated_list1};
+use nom::multi::{many0, many0_count, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use crate::u_term::{Def, UTerm};
 use nom_locate::{LocatedSpan};
+use crate::parser::Fixity::{Infix, Prefix, Postfix, Infixl, Infixr};
 
 type Span<'a> = LocatedSpan<&'a str>;
+
+#[derive(Debug, Clone, Copy)]
+enum Fixity {
+    Infix,
+    Infixl,
+    Infixr,
+    Prefix,
+    Postfix,
+}
+
+type OperatorAndName = (&'static str, &'static str);
+
+static PRECEDENCE: &[(&[OperatorAndName], Fixity)] = &[
+    (&[("+", "_int_pos"), ("-", "_int_neg")], Prefix),
+    (&[("*", "_int_mul"), ("/", "_int_div"), ("%", "_int_div")], Infixl),
+    (&[("+", "_int_add"), ("-", "_int_sub")], Infixl),
+    (&[(">", "_int_gt"), ("<", "_int_lt"), (">=", "_int_gte"), ("<=", "_int_lte"), ("==", "_int_eq"), ("!=", "_int_ne")], Infix),
+    (&[("!", "_bool_not")], Prefix),
+    (&[("&&", "_bool_and")], Infixl),
+    (&[("||", "_bool_or")], Infixl),
+];
 
 // keywords
 static KEYWORDS: &[&str] = &[
@@ -112,7 +133,7 @@ fn map_token<F, R>(f: F) -> impl FnMut(Input) -> IResult<Input, R> where F: Fn(&
             let token = input.tokens.first().unwrap();
             match f(token) {
                 Some(r) => Ok((Input { tokens: &input.tokens[1..], current_indent: input.current_indent }, r)),
-                None => Err(nom::Err::Error(nom::error::Error { input, code: nom::error::ErrorKind::Satisfy })),
+                None => Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::Satisfy })),
             }
         }
     }
@@ -126,7 +147,7 @@ fn satisfy<F>(f: F) -> impl FnMut(Input) -> IResult<Input, ()> where F: Fn(&Toke
             let token = input.tokens.first().unwrap();
             match f(token) {
                 true => Ok((Input { tokens: &input.tokens[1..], current_indent: input.current_indent }, ())),
-                false => Err(nom::Err::Error(nom::error::Error { input, code: nom::error::ErrorKind::Satisfy })),
+                false => Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::Satisfy })),
             }
         }
     }
@@ -145,7 +166,7 @@ fn scoped<'a, F, R>(mut f: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, R> 
                     Ok((new_input, r)) => Ok((Input { tokens: new_input.tokens, current_indent: input.current_indent }, r)),
                     Err(e) => Err(e)
                 },
-                _ => Err(nom::Err::Error(nom::error::Error { input, code: nom::error::ErrorKind::Satisfy }))
+                _ => Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::Satisfy }))
             }
         }
     }
@@ -253,11 +274,214 @@ fn scoped_app(input: Input) -> IResult<Input, UTerm> {
     )(input)
 }
 
-fn expr(input: Input) -> IResult<Input, UTerm> {
-    scoped(
-        scoped_app
-    )(input)
+fn scoped_app_boxed() -> BoxedUTermParser {
+    Box::new(move |input| scoped_app(input))
 }
+
+fn operator_id(operators: &'static [OperatorAndName]) -> impl FnMut(Input) -> IResult<Input, UTerm> {
+    map_token(|token| match token {
+        Token::Normal(name, _) => {
+            operators.iter()
+                .filter_map(|(op, fun_name)|
+                    if op == name {
+                        Some(fun_name)
+                    } else {
+                        None
+                    })
+                .next()
+                .map(|fun_name| UTerm::Identifier { name: fun_name.to_string() })
+        }
+        _ => None,
+    })
+}
+
+pub fn infixl<I, O1, O2, E, F, G>(mut operator: F, mut operand: G) -> impl FnMut(I) -> IResult<I, (O2, Vec<(O1, O2)>), E>
+    where
+        I: Clone + InputLength,
+        F: Parser<I, O1, E>,
+        G: Parser<I, O2, E>,
+        E: ParseError<I>,
+{
+    move |mut i: I| {
+        let head = match operand.parse(i.clone()) {
+            Err(e) => return Err(e),
+            Ok((i1, o)) => {
+                let len = i.input_len();
+                // infinite loop check: the parser must always consume
+                if i1.input_len() == len {
+                    return Err(nom::Err::Error(E::from_error_kind(i, ErrorKind::Many1)));
+                }
+                i = i1;
+                o
+            }
+        };
+        let mut res = Vec::with_capacity(4);
+        loop {
+            let len = i.input_len();
+            match operator.parse(i.clone()) {
+                Err(nom::Err::Error(_)) => return Ok((i, (head, res))),
+                Err(e) => return Err(e),
+                Ok((i1, o1)) => {
+                    // infinite loop check: the parser must always consume
+                    if i1.input_len() == len {
+                        return Err(nom::Err::Error(E::from_error_kind(i1, ErrorKind::Many1)));
+                    }
+
+                    match operand.parse(i1.clone()) {
+                        Err(nom::Err::Error(_)) => return Ok((i, (head, res))),
+                        Err(e) => return Err(e),
+                        Ok((i2, o2)) => {
+                            res.push((o1, o2));
+                            i = i2;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn infixr<I, O1, O2, E, F, G>(mut operator: F, mut operand: G) -> impl FnMut(I) -> IResult<I, (Vec<(O2, O1)>, O2), E>
+    where
+        I: Clone + InputLength,
+        F: Parser<I, O1, E>,
+        G: Parser<I, O2, E>,
+        E: ParseError<I>,
+{
+    move |mut i: I| {
+        let mut res = Vec::with_capacity(4);
+        i = loop {
+            let len = i.input_len();
+            match operator.parse(i.clone()) {
+                Err(nom::Err::Error(_)) => break i,
+                Err(e) => return Err(e),
+                Ok((i1, o1)) => {
+                    // infinite loop check: the parser must always consume
+                    if i1.input_len() == len {
+                        return Err(nom::Err::Error(E::from_error_kind(i1, ErrorKind::Many1)));
+                    }
+
+                    match operand.parse(i1.clone()) {
+                        Err(nom::Err::Error(_)) => break i,
+                        Err(e) => return Err(e),
+                        Ok((i2, o2)) => {
+                            res.push((o2, o1));
+                            i = i2;
+                        }
+                    }
+                }
+            }
+        };
+        match operand.parse(i.clone()) {
+            Err(e) => Err(e),
+            Ok((i1, o)) => {
+                let len = i.input_len();
+                // infinite loop check: the parser must always consume
+                if i1.input_len() == len {
+                    return Err(nom::Err::Error(E::from_error_kind(i, ErrorKind::Many1)));
+                }
+
+                Ok((i1, (res, o)))
+            }
+        }
+    }
+}
+
+pub fn infix<I, O1, O2, E, F, G>(mut operator: F, mut operand: G) -> impl FnMut(I) -> IResult<I, (O2, O1, O2), E>
+    where
+        I: Clone + InputLength,
+        F: Parser<I, O1, E>,
+        G: Parser<I, O2, E>,
+        E: ParseError<I>,
+{
+    move |mut i: I| {
+        let len = i.input_len();
+        let first = match operand.parse(i.clone()) {
+            Err(e) => return Err(e),
+            Ok((i1, o)) => {
+                // infinite loop check: the parser must always consume
+                if i1.input_len() == len {
+                    return Err(nom::Err::Error(E::from_error_kind(i, ErrorKind::Many1)));
+                }
+
+                i = i1;
+                o
+            }
+        };
+        let middle = match operator.parse(i.clone()) {
+            Err(e) => return Err(e),
+            Ok((i1, o)) => {
+                // infinite loop check: the parser must always consume
+                if i1.input_len() == len {
+                    return Err(nom::Err::Error(E::from_error_kind(i, ErrorKind::Many1)));
+                }
+
+                i = i1;
+                o
+            }
+        };
+        let last = match operand.parse(i.clone()) {
+            Err(e) => return Err(e),
+            Ok((i1, o)) => {
+                // infinite loop check: the parser must always consume
+                if i1.input_len() == len {
+                    return Err(nom::Err::Error(E::from_error_kind(i, ErrorKind::Many1)));
+                }
+
+                i = i1;
+                o
+            }
+        };
+        Ok((i, (first, middle, last)))
+    }
+}
+
+
+type BoxedUTermParser = Box<dyn FnMut(Input) -> IResult<Input, UTerm>>;
+
+fn operator_call(operators: &'static [OperatorAndName], fixity: Fixity, mut component: BoxedUTermParser) -> BoxedUTermParser {
+    Box::new(
+        move |input|
+            match fixity {
+                Infixl => map(
+                    infixl(delimited(newline_opt, operator_id(operators), newline_opt), |input| (*component)(input)),
+                    |(head, rest)| {
+                        rest.into_iter().fold(head, |acc, (op, arg)| UTerm::App { function: Box::new(op), args: vec![acc, arg] })
+                    },
+                )(input),
+                Infixr => map(
+                    infixr(delimited(newline_opt, operator_id(operators), newline_opt), |input| (*component)(input)),
+                    |(init, last)| {
+                        init.into_iter().rfold(last, |acc, (arg, op)| UTerm::App { function: Box::new(op), args: vec![acc, arg] })
+                    },
+                )(input),
+                Infix => map(
+                    infix(delimited(newline_opt, operator_id(operators), newline_opt), |input| (*component)(input)),
+                    |(first, middle, last)| UTerm::App { function: Box::new(middle), args: vec![first, last] },
+                )(input),
+                Prefix => map(
+                    pair(operator_id(operators), |input| (*component)(input)),
+                    |(operator, operand)| UTerm::App { function: Box::new(operator), args: vec![operand] },
+                )(input),
+                Postfix => map(
+                    pair(|input| (*component)(input), operator_id(operators)),
+                    |(operand, operator)| UTerm::App { function: Box::new(operator), args: vec![operand] },
+                )(input),
+            }
+    )
+}
+
+fn expr_impl(input: Input) -> IResult<Input, UTerm> {
+    let mut p = PRECEDENCE.iter().fold(scoped_app_boxed(), |f, (operators, fixity)| {
+        operator_call(operators, *fixity, f)
+    });
+    (*p)(input)
+}
+
+fn expr(input: Input) -> IResult<Input, UTerm> {
+    scoped(expr)(input)
+}
+
 
 fn tuple_or_term(input: Input) -> IResult<Input, UTerm> {
     map(

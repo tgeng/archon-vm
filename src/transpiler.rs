@@ -6,13 +6,13 @@ use crate::term::{CTerm, VTerm};
 use crate::u_term::{Def, UTerm};
 
 static PRIMITIVE_ARITY: phf::Map<&'static str, u8> = phf_map! {
-    "+" => 2,
-    "-" => 2,
-    "*" => 2,
-    "/" => 2,
-    "%" => 2,
-    "max" => 2,
-    "min" => 2,
+    "_int_pos" => 2,
+    "_int_neg" => 2,
+    "_int_add" => 2,
+    "_int_sub" => 2,
+    "_int_mul" => 2,
+    "_int_div" => 2,
+    "_int_mod" => 2,
 };
 
 struct Transpiler {
