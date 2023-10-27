@@ -48,7 +48,6 @@ impl Transpiler {
                     body: Some(Box::new(UTerm::Identifier { name: lambda_name })),
                 }, context)
             }
-            UTerm::Thunk { t } => CTerm::Return { value: VTerm::Thunk { t: Box::new(self.transpile(*t, context)) } },
             UTerm::App { function, args } => {
                 let (transpiled_args, transpiled_computations) = self.transpile_values(args, context);
                 let body = transpiled_args.into_iter().fold(self.transpile(*function, context), |f, arg| {
@@ -159,10 +158,6 @@ impl Transpiler {
                 let c_term = self.transpile(u_term, context);
                 (VTerm::Thunk { t: Box::new(c_term) }, None)
             }
-            UTerm::Thunk { t } => {
-                let c_term = self.transpile(*t, context);
-                (VTerm::Thunk { t: Box::new(c_term) }, None)
-            }
             UTerm::CaseInt { .. } |
             UTerm::CaseStr { .. } |
             UTerm::CaseTuple { .. } |
@@ -235,7 +230,6 @@ impl Transpiler {
                 new_bound_names.extend(arg_names.iter().map(|s| s.as_str()));
                 Self::get_free_vars(body, &new_bound_names, free_vars);
             }
-            UTerm::Thunk { t } => Self::get_free_vars(t, bound_names, free_vars),
             UTerm::App { function, args } => {
                 Self::get_free_vars(function, bound_names, free_vars);
                 args.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars));
