@@ -6,6 +6,7 @@ mod visitor;
 mod u_term;
 mod transpiler;
 mod parser;
+mod test_utils;
 
 fn main() {
     println!("Hello, world!");

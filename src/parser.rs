@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 use nom::branch::alt;
 use nom::{InputLength, IResult};
-use nom::character::complete::{line_ending, space0, char, satisfy as char_satisfy, alphanumeric1, one_of};
-use nom::combinator::{cut, map, opt};
+use nom::character::complete::{space0, char, satisfy as char_satisfy, alphanumeric1, one_of};
+use nom::combinator::{cut, map, map_res, opt};
 use nom::bytes::complete::{take_while1, escaped};
 use nom::error::{context, ErrorKind, ParseError};
 use nom::Parser;
-use nom::multi::{many0, many0_count, many1, separated_list0, separated_list1};
+use nom::multi::{many0, many1, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use crate::u_term::{Def, UTerm};
 use nom_locate::{LocatedSpan};
-use crate::parser::Fixity::{Infix, Prefix, Postfix, Infixl, Infixr};
+use crate::parser::Fixity::{*};
 
 type Span<'a> = LocatedSpan<&'a str>;
 
@@ -27,7 +27,7 @@ type OperatorAndName = (&'static str, &'static str);
 
 static PRECEDENCE: &[(&[OperatorAndName], Fixity)] = &[
     (&[("+", "_int_pos"), ("-", "_int_neg")], Prefix),
-    (&[("*", "_int_mul"), ("/", "_int_div"), ("%", "_int_div")], Infixl),
+    (&[("*", "_int_mul"), ("/", "_int_div"), ("%", "_int_mod")], Infixl),
     (&[("+", "_int_add"), ("-", "_int_sub")], Infixl),
     (&[(">", "_int_gt"), ("<", "_int_lt"), (">=", "_int_gte"), ("<=", "_int_lte"), ("==", "_int_eq"), ("!=", "_int_ne")], Infix),
     (&[("!", "_bool_not")], Prefix),
@@ -37,12 +37,12 @@ static PRECEDENCE: &[(&[OperatorAndName], Fixity)] = &[
 
 // keywords
 static KEYWORDS: &[&str] = &[
-    "let", "def", "case_int", "case_str", "case_tuple", "force", "thunk", "=>", "="
+    "let", "def", "case_int", "case_str", "case_tuple", "force", "thunk", "=>", "=", "(", ")", ",", "\\"
 ];
 
 // tokenizer
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum Token {
     Normal(String, usize),
     Int(i64),
@@ -54,12 +54,20 @@ fn identifier_token(input: Span) -> IResult<Span, Token> {
     alt((
             // alpha-numeric identifier
             char_satisfy(|c| c.is_alphabetic() || c == '_')
-                .and(take_while1(|c: char| c.is_alphanumeric() || c == '_'))
-                .map(|(head, tail)| Token::Normal(format!("{}{}", head, tail), input.naive_get_utf8_column())),
+                .and(opt(take_while1(|c: char| c.is_alphanumeric() || c == '_')))
+                .map(|(head, tail)| {
+                    let id_string = match tail {
+                        Some(tail) => format!("{}{}", head, tail),
+                        None => head.to_string(),
+                    };
+                    Token::Normal(id_string, input.naive_get_utf8_column())
+                }),
             // specially handle some punctuations that should never be combined with others
             one_of("(),\\").map(|c| Token::Normal(c.to_string(), input.naive_get_utf8_column())),
             // punctuation identifier
-            take_while1(|c: char| c.is_ascii_punctuation() && c != '`').map(|s: Span| Token::Normal(s.to_string(), input.naive_get_utf8_column())),
+            take_while1(|c: char| c.is_ascii_punctuation() &&
+                c != '`' && c != '"' && c != '(' && c != ')' && c != ',' && c != '\\')
+                .map(|s: Span| Token::Normal(s.to_string(), input.naive_get_utf8_column())),
             // backtick-quoted identifier
             delimited(
                 char('`'),
@@ -94,21 +102,44 @@ fn str_token(input: Span) -> IResult<Span, Token> {
 }
 
 fn indent_token(input: Span) -> IResult<Span, Token> {
-    map(
-        preceded(separated_list1(space0, line_ending), many0_count(char(' '))),
-        Token::Indent,
+    map_res(
+        many0(one_of(" \t\n\r")),
+        |whitespaces| {
+            let mut indent = 0;
+            let mut has_newline = false;
+            for c in whitespaces {
+                match c {
+                    ' ' => indent += 1,
+                    '\t' => indent += 4,
+                    '\n' => {
+                        indent = 0;
+                        has_newline = true;
+                    }
+                    '\r' => indent = 0,
+                    _ => panic!("unexpected whitespace character: {}", c),
+                }
+            }
+            if has_newline {
+                Ok(Token::Indent(indent))
+            } else {
+                Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::Space }))
+            }
+        },
     )(input)
 }
 
 fn tokens(input: Span) -> IResult<Span, Vec<Token>> {
-    separated_list0(
-        space0,
-        alt((
-            identifier_token,
-            int_token,
-            str_token,
-            indent_token,
-        )))(input)
+    preceded(
+        many0(one_of(" \t\n\r")),
+        separated_list0(
+            space0,
+            alt((
+                identifier_token,
+                int_token,
+                str_token,
+                indent_token,
+            ))),
+    )(input)
 }
 
 // parser
@@ -128,12 +159,12 @@ impl<'a> InputLength for Input<'a> {
 fn map_token<F, R>(f: F) -> impl FnMut(Input) -> IResult<Input, R> where F: Fn(&Token) -> Option<R> {
     move |input: Input| {
         if input.tokens.is_empty() {
-            Err(nom::Err::Incomplete(nom::Needed::Unknown))
+            Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::Eof }))
         } else {
             let token = input.tokens.first().unwrap();
             match f(token) {
                 Some(r) => Ok((Input { tokens: &input.tokens[1..], current_indent: input.current_indent }, r)),
-                None => Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::Satisfy })),
+                None => Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::MapRes })),
             }
         }
     }
@@ -142,7 +173,7 @@ fn map_token<F, R>(f: F) -> impl FnMut(Input) -> IResult<Input, R> where F: Fn(&
 fn satisfy<F>(f: F) -> impl FnMut(Input) -> IResult<Input, ()> where F: Fn(&Token) -> bool {
     move |input: Input| {
         if input.tokens.is_empty() {
-            Err(nom::Err::Incomplete(nom::Needed::Unknown))
+            Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::Eof }))
         } else {
             let token = input.tokens.first().unwrap();
             match f(token) {
@@ -158,7 +189,7 @@ fn satisfy<F>(f: F) -> impl FnMut(Input) -> IResult<Input, ()> where F: Fn(&Toke
 fn scoped<'a, F, R>(mut f: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, R> where F: Parser<Input<'a>, R, nom::error::Error<Input<'a>>> {
     move |input| {
         if input.tokens.is_empty() {
-            Err(nom::Err::Incomplete(nom::Needed::Unknown))
+            Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::Eof }))
         } else {
             let token = input.tokens.first().unwrap();
             match token {
@@ -166,7 +197,7 @@ fn scoped<'a, F, R>(mut f: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, R> 
                     Ok((new_input, r)) => Ok((Input { tokens: new_input.tokens, current_indent: input.current_indent }, r)),
                     Err(e) => Err(e)
                 },
-                _ => Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::Satisfy }))
+                _ => f.parse(input)
             }
         }
     }
@@ -176,7 +207,7 @@ fn newline(input: Input) -> IResult<Input, ()> {
     let current_indent = input.current_indent;
     // This local variable is needed to make rust's borrow checker happy. Otherwise it complains
     // `current_indent` does not live long enough.
-    let mut p = satisfy(|token| matches!(token,Token::Indent(column) if { *column >= current_indent } ));
+    let mut p = satisfy(|token| matches!(token,Token::Indent(column) if *column >= current_indent ));
     p(input)
 }
 
@@ -190,15 +221,16 @@ fn token(s: &'static str) -> impl FnMut(Input) -> IResult<Input, ()> {
 
 fn id(input: Input) -> IResult<Input, String> {
     map_token(|token| match token {
-        Token::Normal(name, _) if { KEYWORDS.iter().all(|k| k != name) } => Some(name.clone()),
+        Token::Normal(name, _)
+        if KEYWORDS.iter().all(|k| k != name) &&
+            PRECEDENCE.iter().all(|(names, ..)| names.iter().all(|(n, _)| n != name))
+        => Some(name.clone()),
         _ => None,
     })(input)
 }
 
 fn id_term(input: Input) -> IResult<Input, UTerm> {
-    map(id,
-        |name| UTerm::Identifier { name },
-    )(input)
+    map(id, |name| UTerm::Identifier { name })(input)
 }
 
 fn int(input: Input) -> IResult<Input, i64> {
@@ -209,10 +241,7 @@ fn int(input: Input) -> IResult<Input, i64> {
 }
 
 fn int_term(input: Input) -> IResult<Input, UTerm> {
-    map_token(|token| match token {
-        Token::Int(value) => Some(UTerm::Int { value: *value }),
-        _ => None,
-    })(input)
+    map(int, |value| UTerm::Int { value })(input)
 }
 
 fn str(input: Input) -> IResult<Input, String> {
@@ -223,10 +252,7 @@ fn str(input: Input) -> IResult<Input, String> {
 }
 
 fn str_term(input: Input) -> IResult<Input, UTerm> {
-    map_token(|token| match token {
-        Token::Str(value) => Some(UTerm::Str { value: value.clone() }),
-        _ => None,
-    })(input)
+    map(str, |value| UTerm::Str { value })(input)
 }
 
 fn empty_tuple(input: Input) -> IResult<Input, UTerm> {
@@ -263,12 +289,14 @@ fn atom(input: Input) -> IResult<Input, UTerm> {
 fn scoped_app(input: Input) -> IResult<Input, UTerm> {
     scoped(
         map(
-            separated_list1(newline, u_term),
-            |parts| {
-                let mut iter = parts.into_iter();
-                let f = iter.next().unwrap();
-                let args = iter.collect();
-                UTerm::App { function: Box::new(f), args }
+            tuple((atom, many0(atom), many0(preceded(newline, u_term)))),
+            |(f, args, more_args)| {
+                if args.is_empty() && more_args.is_empty() {
+                    f
+                } else {
+                    let all_args = args.into_iter().chain(more_args).collect();
+                    UTerm::App { function: Box::new(f), args: all_args }
+                }
             },
         )
     )(input)
@@ -293,6 +321,49 @@ fn operator_id(operators: &'static [OperatorAndName]) -> impl FnMut(Input) -> IR
         }
         _ => None,
     })
+}
+
+// TODO: use the provided one from nom after it supports empty separator. See
+// https://github.com/rust-bakery/nom/pull/1491
+pub fn separated_list0<I, O, O2, E, F, G>(
+    mut sep: G,
+    mut f: F,
+) -> impl FnMut(I) -> IResult<I, Vec<O>, E>
+    where
+        I: Clone + InputLength,
+        F: Parser<I, O, E>,
+        G: Parser<I, O2, E>,
+        E: ParseError<I>,
+{
+    move |mut i: I| {
+        let mut res = Vec::new();
+
+        match f.parse(i.clone()) {
+            Err(nom::Err::Error(_)) => return Ok((i, res)),
+            Err(e) => return Err(e),
+            Ok((i1, o)) => {
+                res.push(o);
+                i = i1;
+            }
+        }
+
+        loop {
+            match sep.parse(i.clone()) {
+                Err(nom::Err::Error(_)) => return Ok((i, res)),
+                Err(e) => return Err(e),
+                Ok((i1, _)) => {
+                    match f.parse(i1.clone()) {
+                        Err(nom::Err::Error(_)) => return Ok((i, res)),
+                        Err(e) => return Err(e),
+                        Ok((i2, o)) => {
+                            res.push(o);
+                            i = i2;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub fn infixl<I, O1, O2, E, F, G>(mut operator: F, mut operand: G) -> impl FnMut(I) -> IResult<I, (O2, Vec<(O1, O2)>), E>
@@ -387,7 +458,7 @@ pub fn infixr<I, O1, O2, E, F, G>(mut operator: F, mut operand: G) -> impl FnMut
     }
 }
 
-pub fn infix<I, O1, O2, E, F, G>(mut operator: F, mut operand: G) -> impl FnMut(I) -> IResult<I, (O2, O1, O2), E>
+pub fn infix<I, O1, O2, E, F, G>(mut operator: F, mut operand: G) -> impl FnMut(I) -> IResult<I, (O2, Option<(O1, O2)>), E>
     where
         I: Clone + InputLength,
         F: Parser<I, O1, E>,
@@ -409,7 +480,7 @@ pub fn infix<I, O1, O2, E, F, G>(mut operator: F, mut operand: G) -> impl FnMut(
             }
         };
         let middle = match operator.parse(i.clone()) {
-            Err(e) => return Err(e),
+            Err(_) => return Ok((i, (first, None))),
             Ok((i1, o)) => {
                 // infinite loop check: the parser must always consume
                 if i1.input_len() == len {
@@ -432,7 +503,7 @@ pub fn infix<I, O1, O2, E, F, G>(mut operator: F, mut operand: G) -> impl FnMut(
                 o
             }
         };
-        Ok((i, (first, middle, last)))
+        Ok((i, (first, Some((middle, last)))))
     }
 }
 
@@ -457,15 +528,24 @@ fn operator_call(operators: &'static [OperatorAndName], fixity: Fixity, mut comp
                 )(input),
                 Infix => map(
                     infix(delimited(newline_opt, operator_id(operators), newline_opt), |input| (*component)(input)),
-                    |(first, middle, last)| UTerm::App { function: Box::new(middle), args: vec![first, last] },
+                    |(first, middle_last)| match middle_last {
+                        None => first,
+                        Some((middle, last)) => UTerm::App { function: Box::new(middle), args: vec![first, last] }
+                    },
                 )(input),
                 Prefix => map(
-                    pair(operator_id(operators), |input| (*component)(input)),
-                    |(operator, operand)| UTerm::App { function: Box::new(operator), args: vec![operand] },
+                    pair(opt(operator_id(operators)), |input| (*component)(input)),
+                    |(operator, operand)| match operator {
+                        None => operand,
+                        Some(operator) => UTerm::App { function: Box::new(operator), args: vec![operand] },
+                    },
                 )(input),
                 Postfix => map(
-                    pair(|input| (*component)(input), operator_id(operators)),
-                    |(operand, operator)| UTerm::App { function: Box::new(operator), args: vec![operand] },
+                    pair(|input| (*component)(input), opt(operator_id(operators))),
+                    |(operand, operator)| match operator {
+                        None => operand,
+                        Some(operator) => UTerm::App { function: Box::new(operator), args: vec![operand] },
+                    },
                 )(input),
             }
     )
@@ -479,7 +559,7 @@ fn expr_impl(input: Input) -> IResult<Input, UTerm> {
 }
 
 fn expr(input: Input) -> IResult<Input, UTerm> {
-    scoped(expr)(input)
+    scoped(expr_impl)(input)
 }
 
 
@@ -576,7 +656,7 @@ fn defs_term(input: Input) -> IResult<Input, UTerm> {
                             preceded(token("def"), id),
                             many0(id),
                             preceded(token("=>"), map(u_term, Box::new))))),
-                    |(name, args, block)| (name, Def { args, block }),
+                    |(name, args, body)| (name, Def { args, body }),
                 )
             ), opt(preceded(newline, map(u_term, Box::new)))),
         |(defs, body)| UTerm::Defs { defs: HashMap::from_iter(defs), body },
@@ -585,6 +665,7 @@ fn defs_term(input: Input) -> IResult<Input, UTerm> {
 
 fn u_term(input: Input) -> IResult<Input, UTerm> {
     alt((
+        tuple_or_term,
         lambda,
         case_int,
         case_str,
@@ -592,4 +673,359 @@ fn u_term(input: Input) -> IResult<Input, UTerm> {
         let_term,
         defs_term,
     ))(input)
+}
+
+fn tokenize(input: &str) -> Result<Vec<Token>, String> {
+    let input = Span::new(input);
+    let (input, tokens) = tokens(input).map_err(|e| format!("lex error: {:?}", e))?;
+    if !input.is_empty() {
+        return Err(format!("lex error: unexpected character at ({:?}:{:?}): {:?}", input.location_line(), input.naive_get_utf8_column(), input.lines().next().unwrap()));
+    }
+    Ok(tokens)
+}
+
+pub fn parse_u_term(input: &str) -> Result<UTerm, String> {
+    let tokens = tokenize(input)?;
+    let input = Input { tokens: &tokens, current_indent: 0 };
+    let (input, term) = u_term(input).map_err(|e| format!("parse error: {:?}", e))?;
+    if input.tokens.iter().any(|token| !matches!(token, Token::Indent(_))) {
+        return Err(format!("parse error: unexpected token at {:?}", input.tokens.first()));
+    }
+    Ok(term)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::parser::{parse_u_term, Token, tokenize};
+    use crate::test_utils::debug_print;
+
+    #[test]
+    fn check_tokenize() -> Result<(), String> {
+        let result = tokenize(r#"a b "c" ++- (+) () ,.~
+  x
+    y
+
+  z"#)?;
+        assert_eq!(result, vec![
+            Token::Normal("a".to_string(), 1),
+            Token::Normal("b".to_string(), 3),
+            Token::Str("c".to_string()),
+            Token::Normal("++-".to_string(), 9),
+            Token::Normal("(".to_string(), 13),
+            Token::Normal("+".to_string(), 14),
+            Token::Normal(")".to_string(), 15),
+            Token::Normal("(".to_string(), 17),
+            Token::Normal(")".to_string(), 18),
+            Token::Normal(",".to_string(), 20),
+            Token::Normal(".~".to_string(), 21),
+            Token::Indent(2),
+            Token::Normal("x".to_string(), 3),
+            Token::Indent(4),
+            Token::Normal("y".to_string(), 5),
+            Token::Indent(2),
+            Token::Normal("z".to_string(), 3),
+        ]);
+        Ok(())
+    }
+
+    #[test]
+    fn check_literals() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("123")?), "Int {
+    value: 123,
+}");
+        assert_eq!(debug_print(parse_u_term(r#""abc""#)?), r#"Str {
+    value: "abc",
+}"#);
+        Ok(())
+    }
+
+    #[test]
+    fn check_parse_simple_expression() -> Result<(), String> {
+        let result = parse_u_term("a + b - c * d / -e % +f")?;
+        assert_eq!(debug_print(result), r#"App {
+    function: Identifier {
+        name: "_int_sub",
+    },
+    args: [
+        App {
+            function: Identifier {
+                name: "_int_add",
+            },
+            args: [
+                Identifier {
+                    name: "a",
+                },
+                Identifier {
+                    name: "b",
+                },
+            ],
+        },
+        App {
+            function: Identifier {
+                name: "_int_mod",
+            },
+            args: [
+                App {
+                    function: Identifier {
+                        name: "_int_div",
+                    },
+                    args: [
+                        App {
+                            function: Identifier {
+                                name: "_int_mul",
+                            },
+                            args: [
+                                Identifier {
+                                    name: "c",
+                                },
+                                Identifier {
+                                    name: "d",
+                                },
+                            ],
+                        },
+                        App {
+                            function: Identifier {
+                                name: "_int_neg",
+                            },
+                            args: [
+                                Identifier {
+                                    name: "e",
+                                },
+                            ],
+                        },
+                    ],
+                },
+                App {
+                    function: Identifier {
+                        name: "_int_pos",
+                    },
+                    args: [
+                        Identifier {
+                            name: "f",
+                        },
+                    ],
+                },
+            ],
+        },
+    ],
+}"#);
+        Ok(())
+    }
+
+    #[test]
+    fn check_empty_tuple() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("()")?), r#"Tuple {
+    values: [],
+}"#);
+        Ok(())
+    }
+
+
+    #[test]
+    fn check_singleton_tuple() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("(a)")?), r#"Tuple {
+    values: [
+        Identifier {
+            name: "a",
+        },
+    ],
+}"#);
+        Ok(())
+    }
+
+    #[test]
+    fn check_tuple() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("a, b, c")?), r#"Tuple {
+    values: [
+        Identifier {
+            name: "a",
+        },
+        Identifier {
+            name: "b",
+        },
+        Identifier {
+            name: "c",
+        },
+    ],
+}"#);
+        Ok(())
+    }
+
+    #[test]
+    fn check_expr_with_parentheses() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("(a + b) * c")?), r#"App {
+    function: Identifier {
+        name: "_int_mul",
+    },
+    args: [
+        App {
+            function: Identifier {
+                name: "_int_add",
+            },
+            args: [
+                Identifier {
+                    name: "a",
+                },
+                Identifier {
+                    name: "b",
+                },
+            ],
+        },
+        Identifier {
+            name: "c",
+        },
+    ],
+}"#);
+        Ok(())
+    }
+
+    #[test]
+    fn check_expr_with_parentheses2() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("f (g a)")?), r#"App {
+    function: Identifier {
+        name: "f",
+    },
+    args: [
+        App {
+            function: Identifier {
+                name: "g",
+            },
+            args: [
+                Identifier {
+                    name: "a",
+                },
+            ],
+        },
+    ],
+}"#);
+        Ok(())
+    }
+
+    #[test]
+    fn check_scoped_app() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("\
+f a b
+  g 1 2
+  h 3")?), r#"App {
+    function: Identifier {
+        name: "f",
+    },
+    args: [
+        Identifier {
+            name: "a",
+        },
+        Identifier {
+            name: "b",
+        },
+        App {
+            function: Identifier {
+                name: "g",
+            },
+            args: [
+                Int {
+                    value: 1,
+                },
+                Int {
+                    value: 2,
+                },
+            ],
+        },
+        App {
+            function: Identifier {
+                name: "h",
+            },
+            args: [
+                Int {
+                    value: 3,
+                },
+            ],
+        },
+    ],
+}"#);
+        Ok(())
+    }
+
+    #[test]
+    fn check_let() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("
+let x = 1
+x")?), r#"Let {
+    name: "x",
+    t: Int {
+        value: 1,
+    },
+    body: Identifier {
+        name: "x",
+    },
+}"#);
+        Ok(())
+    }
+
+    #[test]
+    fn check_def() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term(r#"
+def f x => x
+def g x y => x + y
+g (f 1) 2
+"#)?), r#"Defs {
+    defs: {
+        "f": Def {
+            args: [
+                "x",
+            ],
+            body: Identifier {
+                name: "x",
+            },
+        },
+    },
+    body: Some(
+        Defs {
+            defs: {
+                "g": Def {
+                    args: [
+                        "x",
+                        "y",
+                    ],
+                    body: App {
+                        function: Identifier {
+                            name: "_int_add",
+                        },
+                        args: [
+                            Identifier {
+                                name: "x",
+                            },
+                            Identifier {
+                                name: "y",
+                            },
+                        ],
+                    },
+                },
+            },
+            body: Some(
+                App {
+                    function: Identifier {
+                        name: "g",
+                    },
+                    args: [
+                        App {
+                            function: Identifier {
+                                name: "f",
+                            },
+                            args: [
+                                Int {
+                                    value: 1,
+                                },
+                            ],
+                        },
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+            ),
+        },
+    ),
+}"#);
+        Ok(())
+    }
 }

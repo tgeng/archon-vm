@@ -43,7 +43,7 @@ impl Transpiler {
                 self.transpile(UTerm::Defs {
                     defs: HashMap::from([(lambda_name.to_string(), Def {
                         args: arg_names.clone(),
-                        block: body.clone(),
+                        body: body.clone(),
                     })]),
                     body: Some(Box::new(UTerm::Identifier { name: lambda_name })),
                 }, context)
@@ -104,7 +104,7 @@ impl Transpiler {
                 let def_with_names: Vec<(Def, String, Vec<String>)> = defs.into_iter().map(|(name, def)| {
                     let mut free_vars = HashSet::new();
                     let identifier_names: HashSet<&str> = context.identifier_map.keys().map(|s| s.as_str()).collect();
-                    Self::get_free_vars(&def.block, &identifier_names, &mut free_vars);
+                    Self::get_free_vars(&def.body, &identifier_names, &mut free_vars);
                     let def_name = format!("{}${}", context.enclosing_def_name, name);
                     let mut free_var_vec: Vec<String> = free_vars.into_iter().map(|s| s.to_string()).collect();
                     free_var_vec.sort();
@@ -121,7 +121,7 @@ impl Transpiler {
                     def.args.iter().for_each(|arg| {
                         identifier_map.insert(arg.clone(), Either::Right(VTerm::Var { name: arg.clone() }));
                     });
-                    let def_body = self.transpile(*def.block, &Context {
+                    let def_body = self.transpile(*def.body, &Context {
                         enclosing_def_name: &name,
                         identifier_map: &identifier_map,
                     });
@@ -267,7 +267,7 @@ impl Transpiler {
                 defs.values().for_each(|def| {
                     let mut def_bound_names = new_bound_names.clone();
                     def_bound_names.extend(def.args.iter().map(|s| s.as_str()));
-                    Self::get_free_vars(&def.block, &def_bound_names, free_vars)
+                    Self::get_free_vars(&def.body, &def_bound_names, free_vars)
                 });
                 if let Some(body) = body {
                     Self::get_free_vars(body, &new_bound_names, free_vars);

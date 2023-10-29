@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UTerm {
     Identifier { name: String },
     Int { value: i64 },
@@ -16,8 +16,8 @@ pub enum UTerm {
     Defs { defs: HashMap<String, Def>, body: Option<Box<UTerm>> },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Def {
     pub args: Vec<String>,
-    pub block: Box<UTerm>,
+    pub body: Box<UTerm>,
 }
