@@ -45,87 +45,106 @@ static KEYWORDS: &[&str] = &[
 #[derive(Debug, Clone, PartialEq)]
 enum Token {
     Normal(String, usize),
-    Int(i64),
-    Str(String),
+    Int(i64, usize),
+    Str(String, usize),
     Indent(usize),
 }
 
+impl Token {
+    fn column(&self) -> usize {
+        match self {
+            Token::Normal(_, column) => *column,
+            Token::Int(_, column) => *column,
+            Token::Str(_, column) => *column,
+            Token::Indent(column) => *column,
+        }
+    }
+}
+
 fn identifier_token(input: Span) -> IResult<Span, Token> {
-    alt((
-            // alpha-numeric identifier
-            char_satisfy(|c| c.is_alphabetic() || c == '_')
-                .and(opt(take_while1(|c: char| c.is_alphanumeric() || c == '_')))
-                .map(|(head, tail)| {
-                    let id_string = match tail {
-                        Some(tail) => format!("{}{}", head, tail),
-                        None => head.to_string(),
-                    };
-                    Token::Normal(id_string, input.naive_get_utf8_column())
-                }),
-            // specially handle some punctuations that should never be combined with others
-            one_of("(),\\").map(|c| Token::Normal(c.to_string(), input.naive_get_utf8_column())),
-            // punctuation identifier
-            take_while1(|c: char| c.is_ascii_punctuation() &&
-                c != '`' && c != '"' && c != '(' && c != ')' && c != ',' && c != '\\')
-                .map(|s: Span| Token::Normal(s.to_string(), input.naive_get_utf8_column())),
-            // backtick-quoted identifier
-            delimited(
-                char('`'),
-                take_while1(|c| c != '`'), char('`')).map(|s: Span| Token::Normal(s.to_string(), input.naive_get_utf8_column())),
-        ),
-    )(input)
+    context(
+        "identifier_token",
+        alt((
+                // alpha-numeric identifier
+                char_satisfy(|c| c.is_alphabetic() || c == '_')
+                    .and(opt(take_while1(|c: char| c.is_alphanumeric() || c == '_')))
+                    .map(|(head, tail)| {
+                        let id_string = match tail {
+                            Some(tail) => format!("{}{}", head, tail),
+                            None => head.to_string(),
+                        };
+                        Token::Normal(id_string, input.naive_get_utf8_column() - 1)
+                    }),
+                // specially handle some punctuations that should never be combined with others
+                one_of("(),\\").map(|c| Token::Normal(c.to_string(), input.naive_get_utf8_column() - 1)),
+                // punctuation identifier
+                take_while1(|c: char| c.is_ascii_punctuation() &&
+                    c != '`' && c != '"' && c != '(' && c != ')' && c != ',' && c != '\\')
+                    .map(|s: Span| Token::Normal(s.to_string(), input.naive_get_utf8_column() - 1)),
+                // backtick-quoted identifier
+                delimited(
+                    char('`'),
+                    take_while1(|c| c != '`'), char('`')).map(|s: Span| Token::Normal(s.to_string(), input.naive_get_utf8_column() - 1)),
+            ),
+        ))(input)
 }
 
 fn int_token(input: Span) -> IResult<Span, Token> {
-    map(
-        take_while1(|c: char| c.is_ascii_digit()),
-        |s: Span| Token::Int(s.to_string().parse::<i64>().unwrap()),
-    )(input)
+    context(
+        "int_token",
+        map(
+            take_while1(|c: char| c.is_ascii_digit()),
+            |s: Span| Token::Int(s.to_string().parse::<i64>().unwrap(), s.naive_get_utf8_column() - 1),
+        ))(input)
 }
 
 fn str_token(input: Span) -> IResult<Span, Token> {
-    map(
-        context(
-            "string",
-            preceded(
-                char('\"'),
-                cut(
-                    terminated(
-                        escaped(
-                            alphanumeric1,
-                            '\\',
-                            one_of("\"\\")),
-                        char('\"')))),
-        ),
-        |s: Span| Token::Str(s.to_string()),
-    )(input)
+    context(
+        "str_token",
+        map(
+            context(
+                "string",
+                preceded(
+                    char('\"'),
+                    cut(
+                        terminated(
+                            escaped(
+                                alphanumeric1,
+                                '\\',
+                                one_of("\"\\")),
+                            char('\"')))),
+            ),
+            |s: Span| Token::Str(s.to_string(), s.naive_get_utf8_column() - 2), // offset quote
+        ))(input)
 }
 
 fn indent_token(input: Span) -> IResult<Span, Token> {
-    map_res(
-        many0(one_of(" \t\n\r")),
-        |whitespaces| {
-            let mut indent = 0;
-            let mut has_newline = false;
-            for c in whitespaces {
-                match c {
-                    ' ' => indent += 1,
-                    '\t' => indent += 4,
-                    '\n' => {
-                        indent = 0;
-                        has_newline = true;
+    context(
+        "indent_token",
+        map_res(
+            many0(one_of(" \t\n\r")),
+            |whitespaces| {
+                let mut indent = 0;
+                let mut has_newline = false;
+                for c in whitespaces {
+                    match c {
+                        ' ' => indent += 1,
+                        '\t' => indent += 4,
+                        '\n' => {
+                            indent = 0;
+                            has_newline = true;
+                        }
+                        '\r' => indent = 0,
+                        _ => panic!("unexpected whitespace character: {}", c),
                     }
-                    '\r' => indent = 0,
-                    _ => panic!("unexpected whitespace character: {}", c),
                 }
-            }
-            if has_newline {
-                Ok(Token::Indent(indent))
-            } else {
-                Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::Space }))
-            }
-        },
-    )(input)
+                if has_newline {
+                    Ok(Token::Indent(indent))
+                } else {
+                    Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::Space }))
+                }
+            },
+        ))(input)
 }
 
 fn tokens(input: Span) -> IResult<Span, Vec<Token>> {
@@ -192,12 +211,9 @@ fn scoped<'a, F, R>(mut f: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, R> 
             Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::Eof }))
         } else {
             let token = input.tokens.first().unwrap();
-            match token {
-                Token::Normal(_, column) => match f.parse(Input { tokens: input.tokens, current_indent: *column }) {
-                    Ok((new_input, r)) => Ok((Input { tokens: new_input.tokens, current_indent: input.current_indent }, r)),
-                    Err(e) => Err(e)
-                },
-                _ => f.parse(input)
+            match f.parse(Input { tokens: input.tokens, current_indent: token.column() + 1 }) {
+                Ok((new_input, r)) => Ok((Input { tokens: new_input.tokens, current_indent: input.current_indent }, r)),
+                Err(e) => Err(e),
             }
         }
     }
@@ -216,7 +232,12 @@ fn newline_opt(input: Input) -> IResult<Input, ()> {
 }
 
 fn token(s: &'static str) -> impl FnMut(Input) -> IResult<Input, ()> {
-    satisfy(move |token| matches!(token, Token::Normal(name, _) if { name == s }))
+    move |input| {
+        context(
+            s,
+            satisfy(move |token| matches!(token, Token::Normal(name, _) if { name == s })),
+        )(input)
+    }
 }
 
 fn id(input: Input) -> IResult<Input, String> {
@@ -230,50 +251,51 @@ fn id(input: Input) -> IResult<Input, String> {
 }
 
 fn id_term(input: Input) -> IResult<Input, UTerm> {
-    map(id, |name| UTerm::Identifier { name })(input)
+    context("id_term", map(id, |name| UTerm::Identifier { name }))(input)
 }
 
 fn int(input: Input) -> IResult<Input, i64> {
     map_token(|token| match token {
-        Token::Int(value) => Some(*value),
+        Token::Int(value, _) => Some(*value),
         _ => None,
     })(input)
 }
 
 fn int_term(input: Input) -> IResult<Input, UTerm> {
-    map(int, |value| UTerm::Int { value })(input)
+    context("int_term", map(int, |value| UTerm::Int { value }))(input)
 }
 
 fn str(input: Input) -> IResult<Input, String> {
     map_token(|token| match token {
-        Token::Str(value) => Some(value.clone()),
+        Token::Str(value, _) => Some(value.clone()),
         _ => None,
     })(input)
 }
 
 fn str_term(input: Input) -> IResult<Input, UTerm> {
-    map(str, |value| UTerm::Str { value })(input)
+    context("str_term", map(str, |value| UTerm::Str { value }))(input)
 }
 
+
 fn empty_tuple(input: Input) -> IResult<Input, UTerm> {
-    map(
+    context("empty_tuple", map(
         pair(token("("), token(")")),
         |_| UTerm::Tuple { values: vec![] },
-    )(input)
+    ))(input)
 }
 
 fn singleton_tuple(input: Input) -> IResult<Input, UTerm> {
-    map(
+    context("singleton_tuple", map(
         delimited(
             pair(token("("), newline_opt),
             atom,
             pair(newline_opt, token(")"))),
         |t| UTerm::Tuple { values: vec![t] },
-    )(input)
+    ))(input)
 }
 
 fn atom(input: Input) -> IResult<Input, UTerm> {
-    alt((
+    context("atom", alt((
         id_term,
         int_term,
         str_term,
@@ -283,11 +305,11 @@ fn atom(input: Input) -> IResult<Input, UTerm> {
             pair(token("("), newline_opt),
             u_term,
             pair(newline_opt, token(")"))),
-    ))(input)
+    )))(input)
 }
 
 fn scoped_app(input: Input) -> IResult<Input, UTerm> {
-    scoped(
+    context("scoped_app", scoped(
         map(
             tuple((atom, many0(atom), many0(preceded(newline, u_term)))),
             |(f, args, more_args)| {
@@ -299,7 +321,7 @@ fn scoped_app(input: Input) -> IResult<Input, UTerm> {
                 }
             },
         )
-    )(input)
+    ))(input)
 }
 
 fn scoped_app_boxed() -> BoxedUTermParser {
@@ -514,39 +536,39 @@ fn operator_call(operators: &'static [OperatorAndName], fixity: Fixity, mut comp
     Box::new(
         move |input|
             match fixity {
-                Infixl => map(
+                Infixl => context("infixl_operator", map(
                     infixl(delimited(newline_opt, operator_id(operators), newline_opt), |input| (*component)(input)),
                     |(head, rest)| {
                         rest.into_iter().fold(head, |acc, (op, arg)| UTerm::App { function: Box::new(op), args: vec![acc, arg] })
                     },
-                )(input),
-                Infixr => map(
+                ))(input),
+                Infixr => context("infixr_operator", map(
                     infixr(delimited(newline_opt, operator_id(operators), newline_opt), |input| (*component)(input)),
                     |(init, last)| {
                         init.into_iter().rfold(last, |acc, (arg, op)| UTerm::App { function: Box::new(op), args: vec![acc, arg] })
                     },
-                )(input),
-                Infix => map(
+                ))(input),
+                Infix => context("infix_operator", map(
                     infix(delimited(newline_opt, operator_id(operators), newline_opt), |input| (*component)(input)),
                     |(first, middle_last)| match middle_last {
                         None => first,
                         Some((middle, last)) => UTerm::App { function: Box::new(middle), args: vec![first, last] }
                     },
-                )(input),
-                Prefix => map(
+                ))(input),
+                Prefix => context("prefix_operator", map(
                     pair(opt(operator_id(operators)), |input| (*component)(input)),
                     |(operator, operand)| match operator {
                         None => operand,
                         Some(operator) => UTerm::App { function: Box::new(operator), args: vec![operand] },
                     },
-                )(input),
-                Postfix => map(
+                ))(input),
+                Postfix => context("postfix_operator", map(
                     pair(|input| (*component)(input), opt(operator_id(operators))),
                     |(operand, operator)| match operator {
                         None => operand,
                         Some(operator) => UTerm::App { function: Box::new(operator), args: vec![operand] },
                     },
-                )(input),
+                ))(input),
             }
     )
 }
@@ -559,12 +581,12 @@ fn expr_impl(input: Input) -> IResult<Input, UTerm> {
 }
 
 fn expr(input: Input) -> IResult<Input, UTerm> {
-    scoped(expr_impl)(input)
+    context("expr", scoped(expr_impl))(input)
 }
 
 
 fn tuple_or_term(input: Input) -> IResult<Input, UTerm> {
-    map(
+    context("tuple_or_term", map(
         separated_list1(
             delimited(newline_opt, token(","), newline_opt),
             expr),
@@ -575,11 +597,11 @@ fn tuple_or_term(input: Input) -> IResult<Input, UTerm> {
                 UTerm::Tuple { values }
             }
         },
-    )(input)
+    ))(input)
 }
 
 fn lambda(input: Input) -> IResult<Input, UTerm> {
-    scoped(
+    context("lambda", scoped(
         map(
             pair(
                 delimited(
@@ -588,26 +610,26 @@ fn lambda(input: Input) -> IResult<Input, UTerm> {
                     token("=>")),
                 expr),
             |(arg_names, body)| UTerm::Lambda { arg_names, body: Box::new(body) },
-        ))(input)
+        )))(input)
 }
 
 fn case_int(input: Input) -> IResult<Input, UTerm> {
-    scoped(
+    context("case_int", scoped(
         map(
             tuple((
                 preceded(token("case_int"), map(expr, Box::new)),
-                many0(map(scoped(tuple((preceded(newline, int), preceded(token("=>"), u_term)))), |(i, branch)| (i, branch))),
+                many0(map(preceded(newline, scoped(tuple((int, preceded(token("=>"), u_term))))), |(i, branch)| (i, branch))),
                 preceded(newline, scoped(preceded(pair(token("_"), token("=>")), opt(map(u_term, Box::new))))),
             )),
             |(t, branch_entries, default_branch)| {
                 let branches = HashMap::from_iter(branch_entries);
                 UTerm::CaseInt { t, branches, default_branch }
             })
-    )(input)
+    ))(input)
 }
 
 fn case_str(input: Input) -> IResult<Input, UTerm> {
-    scoped(
+    context("case_str", scoped(
         map(
             tuple((
                 preceded(token("case_str"), map(expr, Box::new)),
@@ -618,11 +640,11 @@ fn case_str(input: Input) -> IResult<Input, UTerm> {
                 let branches = HashMap::from_iter(branch_entries);
                 UTerm::CaseStr { t, branches, default_branch }
             })
-    )(input)
+    ))(input)
 }
 
 fn case_tuple(input: Input) -> IResult<Input, UTerm> {
-    scoped(
+    context("case_tuple", scoped(
         map(
             tuple((
                 preceded(token("case_tuple"), map(expr, Box::new)),
@@ -632,22 +654,22 @@ fn case_tuple(input: Input) -> IResult<Input, UTerm> {
             |(t, bound_names, branch)| {
                 UTerm::CaseTuple { t, bound_names, branch }
             })
-    )(input)
+    ))(input)
 }
 
 fn let_term(input: Input) -> IResult<Input, UTerm> {
-    map(
+    context("let_term", map(
         tuple((
             scoped(pair(delimited(token("let"), id, token("=")), u_term)),
             preceded(newline, u_term),
         )),
         |((name, t), body)| {
             UTerm::Let { name, t: Box::new(t), body: Box::new(body) }
-        })(input)
+        }))(input)
 }
 
 fn defs_term(input: Input) -> IResult<Input, UTerm> {
-    map(
+    context("defs_term", map(
         pair(
             many1(
                 map(
@@ -655,16 +677,16 @@ fn defs_term(input: Input) -> IResult<Input, UTerm> {
                         tuple((
                             preceded(token("def"), id),
                             many0(id),
-                            preceded(token("=>"), map(u_term, Box::new))))),
+                            preceded(preceded(token("=>"), newline_opt), map(u_term, Box::new))))),
                     |(name, args, body)| (name, Def { args, body }),
                 )
             ), opt(preceded(newline, map(u_term, Box::new)))),
         |(defs, body)| UTerm::Defs { defs: HashMap::from_iter(defs), body },
-    )(input)
+    ))(input)
 }
 
 fn u_term(input: Input) -> IResult<Input, UTerm> {
-    alt((
+    context("u_term", alt((
         tuple_or_term,
         lambda,
         case_int,
@@ -672,7 +694,7 @@ fn u_term(input: Input) -> IResult<Input, UTerm> {
         case_tuple,
         let_term,
         defs_term,
-    ))(input)
+    )))(input)
 }
 
 fn tokenize(input: &str) -> Result<Vec<Token>, String> {
@@ -707,23 +729,23 @@ mod tests {
 
   z"#)?;
         assert_eq!(result, vec![
-            Token::Normal("a".to_string(), 1),
-            Token::Normal("b".to_string(), 3),
-            Token::Str("c".to_string()),
-            Token::Normal("++-".to_string(), 9),
-            Token::Normal("(".to_string(), 13),
-            Token::Normal("+".to_string(), 14),
-            Token::Normal(")".to_string(), 15),
-            Token::Normal("(".to_string(), 17),
-            Token::Normal(")".to_string(), 18),
-            Token::Normal(",".to_string(), 20),
-            Token::Normal(".~".to_string(), 21),
+            Token::Normal("a".to_string(), 0),
+            Token::Normal("b".to_string(), 2),
+            Token::Str("c".to_string(), 4),
+            Token::Normal("++-".to_string(), 8),
+            Token::Normal("(".to_string(), 12),
+            Token::Normal("+".to_string(), 13),
+            Token::Normal(")".to_string(), 14),
+            Token::Normal("(".to_string(), 16),
+            Token::Normal(")".to_string(), 17),
+            Token::Normal(",".to_string(), 19),
+            Token::Normal(".~".to_string(), 20),
             Token::Indent(2),
-            Token::Normal("x".to_string(), 3),
+            Token::Normal("x".to_string(), 2),
             Token::Indent(4),
-            Token::Normal("y".to_string(), 5),
+            Token::Normal("y".to_string(), 4),
             Token::Indent(2),
-            Token::Normal("z".to_string(), 3),
+            Token::Normal("z".to_string(), 2),
         ]);
         Ok(())
     }
@@ -957,6 +979,29 @@ x")?), r#"Let {
     body: Identifier {
         name: "x",
     },
+}"#);
+        Ok(())
+    }
+
+    #[test]
+    fn check_case_int() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("case_int 1
+  1 => 2
+  _ => 3
+")?), r#"CaseInt {
+    t: Int {
+        value: 1,
+    },
+    branches: {
+        1: Int {
+            value: 2,
+        },
+    },
+    default_branch: Some(
+        Int {
+            value: 3,
+        },
+    ),
 }"#);
         Ok(())
     }

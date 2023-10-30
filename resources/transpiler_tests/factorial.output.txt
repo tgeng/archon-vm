@@ -1,0 +1,145 @@
+UTerm
+========
+Defs {
+    defs: {
+        "factorial": Def {
+            args: [
+                "n",
+            ],
+            body: CaseInt {
+                t: Identifier {
+                    name: "n",
+                },
+                branches: {
+                    0: Int {
+                        value: 1,
+                    },
+                },
+                default_branch: Some(
+                    App {
+                        function: Identifier {
+                            name: "_int_mul",
+                        },
+                        args: [
+                            Identifier {
+                                name: "n",
+                            },
+                            App {
+                                function: Identifier {
+                                    name: "factorial",
+                                },
+                                args: [
+                                    App {
+                                        function: Identifier {
+                                            name: "_int_sub",
+                                        },
+                                        args: [
+                                            Identifier {
+                                                name: "n",
+                                            },
+                                            Int {
+                                                value: 1,
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ),
+            },
+        },
+    },
+    body: Some(
+        App {
+            function: Identifier {
+                name: "factorial",
+            },
+            args: [
+                Int {
+                    value: 5,
+                },
+            ],
+        },
+    ),
+}
+
+Defs
+========
+[
+    (
+        "$factorial",
+        (
+            [
+                "n",
+            ],
+            CaseInt {
+                t: Var {
+                    name: "n",
+                },
+                branches: {
+                    0: Return {
+                        value: Int {
+                            value: 1,
+                        },
+                    },
+                },
+                default_branch: Some(
+                    Let {
+                        t: Let {
+                            t: App {
+                                function: App {
+                                    function: Primitive {
+                                        name: "_int_sub",
+                                        arity: 2,
+                                    },
+                                    arg: Var {
+                                        name: "n",
+                                    },
+                                },
+                                arg: Int {
+                                    value: 1,
+                                },
+                            },
+                            bound_name: "$factorial#0",
+                            body: App {
+                                function: Def {
+                                    name: "$factorial",
+                                },
+                                arg: Var {
+                                    name: "$factorial#0",
+                                },
+                            },
+                        },
+                        bound_name: "$factorial#1",
+                        body: App {
+                            function: App {
+                                function: Primitive {
+                                    name: "_int_mul",
+                                    arity: 2,
+                                },
+                                arg: Var {
+                                    name: "n",
+                                },
+                            },
+                            arg: Var {
+                                name: "$factorial#1",
+                            },
+                        },
+                    },
+                ),
+            },
+        ),
+    ),
+]
+
+CTerm
+========
+App {
+    function: Def {
+        name: "$factorial",
+    },
+    arg: Int {
+        value: 5,
+    },
+}

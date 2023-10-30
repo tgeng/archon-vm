@@ -1,0 +1,6 @@
+def factorial n =>
+  case_int n
+    0 => 1
+    _ => n * factorial (n - 1)
+
+factorial 5
