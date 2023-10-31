@@ -17,7 +17,8 @@ static PRIMITIVE_ARITY: phf::Map<&'static str, u8> = phf_map! {
 
 pub struct Transpiler {
     signature: Signature,
-    counter: u32,
+    local_counter: u32,
+    lambda_counter: u32,
 }
 
 struct Context<'a> {
@@ -49,7 +50,7 @@ impl Transpiler {
                 Self::squash_computations(CTerm::Return { value: VTerm::Tuple { values: transpiled_values } }, transpiled_computations)
             }
             UTerm::Lambda { arg_names, body } => {
-                let lambda_name = self.new_name(context.enclosing_def_name);
+                let lambda_name = self.new_lambda_name(context.enclosing_def_name);
                 self.transpile_impl(UTerm::Defs {
                     defs: HashMap::from([(lambda_name.to_string(), Def {
                         args: arg_names.clone(),
@@ -66,6 +67,7 @@ impl Transpiler {
                 Self::squash_computations(body, transpiled_computations)
             }
             UTerm::Force { thunk } => self.transpile_value_and_map(*thunk, context, |t| CTerm::Force { thunk: t }),
+            UTerm::Thunk { computation } => CTerm::Return { value: VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)) } },
             UTerm::CaseInt { t, branches, default_branch } => {
                 let mut transpiled_branches = HashMap::new();
                 for (value, branch) in branches {
@@ -160,7 +162,7 @@ impl Transpiler {
     fn transpile_value(&mut self, u_term: UTerm, context: &Context) -> (VTerm, Option<(String, CTerm)>) {
         match u_term {
             UTerm::Identifier { name } => match self.transpile_identifier(&name, context) {
-                Either::Left(c_term) => self.new_computation(c_term, context.enclosing_def_name),
+                Either::Left(c_term) => self.new_computation(c_term),
                 Either::Right(v_term) => (v_term, None),
             }
             UTerm::Int { value } => (VTerm::Int { value }, None),
@@ -168,12 +170,15 @@ impl Transpiler {
             UTerm::Tuple { .. } => {
                 match self.transpile_impl(u_term, context) {
                     CTerm::Return { value } => (value, None),
-                    c_term => self.new_computation(c_term, context.enclosing_def_name),
+                    c_term => self.new_computation(c_term),
                 }
             }
             UTerm::Lambda { .. } => {
                 let c_term = self.transpile_impl(u_term, context);
                 (VTerm::Thunk { t: Box::new(c_term) }, None)
+            }
+            UTerm::Thunk { computation } => {
+                (VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)) }, None)
             }
             UTerm::CaseInt { .. } |
             UTerm::CaseStr { .. } |
@@ -183,7 +188,7 @@ impl Transpiler {
             UTerm::Let { .. } |
             UTerm::Defs { .. } => {
                 let c_term = self.transpile_impl(u_term, context);
-                self.new_computation(c_term, context.enclosing_def_name)
+                self.new_computation(c_term)
             }
         }
     }
@@ -211,8 +216,8 @@ impl Transpiler {
         })
     }
 
-    fn new_computation(&mut self, c_term: CTerm, enclosing_def_name: &str) -> (VTerm, Option<(String, CTerm)>) {
-        let name = self.new_name(enclosing_def_name);
+    fn new_computation(&mut self, c_term: CTerm) -> (VTerm, Option<(String, CTerm)>) {
+        let name = self.new_local_name();
         (VTerm::Var { name: name.clone() }, Some((name, c_term)))
     }
 
@@ -228,9 +233,15 @@ impl Transpiler {
         }
     }
 
-    fn new_name(&mut self, enclosing_def_name: &str) -> String {
-        let name = format!("{}#{}", enclosing_def_name, self.counter);
-        self.counter += 1;
+    fn new_lambda_name(&mut self, enclosing_def_name: &str) -> String {
+        let name = format!("{}__lambda_{}", enclosing_def_name, self.lambda_counter);
+        self.lambda_counter += 1;
+        name
+    }
+
+    fn new_local_name(&mut self) -> String {
+        let name = format!("__local_{}", self.local_counter);
+        self.local_counter += 1;
         name
     }
 
@@ -252,6 +263,7 @@ impl Transpiler {
                 args.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars));
             }
             UTerm::Force { thunk } => Self::get_free_vars(thunk, bound_names, free_vars),
+            UTerm::Thunk { computation } => Self::get_free_vars(computation, bound_names, free_vars),
             UTerm::CaseInt { t, branches, default_branch } => {
                 Self::get_free_vars(t, bound_names, free_vars);
                 branches.values().for_each(|v| Self::get_free_vars(v, bound_names, free_vars));
@@ -306,10 +318,13 @@ mod tests {
         let u_term = parse_u_term(&fs::read_to_string(test_input_path).unwrap())?;
         let mut transpiler = Transpiler {
             signature: Signature::new(),
-            counter: 0,
+            lambda_counter: 0,
+            local_counter: 0,
         };
         let c_term = transpiler.transpile(u_term.clone());
-        let mut defs = transpiler.into_signature().into_defs().into_iter().collect::<Vec<_>>();
+        let mut signature = transpiler.into_signature();
+        signature.lift_thunks();
+        let mut defs = signature.into_defs().into_iter().collect::<Vec<_>>();
         defs.sort_by_key(|(name, _)| name.clone());
 
         let actual = format!("UTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}\n\nCTerm\n========\n{:#?}", u_term, defs, c_term);

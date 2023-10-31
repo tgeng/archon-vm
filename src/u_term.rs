@@ -9,6 +9,7 @@ pub enum UTerm {
     Lambda { arg_names: Vec<String>, body: Box<UTerm> },
     App { function: Box<UTerm>, args: Vec<UTerm> },
     Force { thunk: Box<UTerm> },
+    Thunk { computation: Box<UTerm> },
     CaseInt { t: Box<UTerm>, branches: HashMap<i64, UTerm>, default_branch: Option<Box<UTerm>> },
     CaseStr { t: Box<UTerm>, branches: HashMap<String, UTerm>, default_branch: Option<Box<UTerm>> },
     CaseTuple { t: Box<UTerm>, bound_names: Vec<String>, branch: Box<UTerm> },

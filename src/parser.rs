@@ -577,17 +577,20 @@ fn operator_call(operators: &'static [OperatorAndName], fixity: Fixity, mut comp
     )
 }
 
-fn expr_impl(input: Input) -> IResult<Input, UTerm> {
+fn computation_impl(input: Input) -> IResult<Input, UTerm> {
     let mut p = PRECEDENCE.iter().fold(scoped_app_boxed(), |f, (operators, fixity)| {
         operator_call(operators, *fixity, f)
     });
     (*p)(input)
 }
 
-fn expr(input: Input) -> IResult<Input, UTerm> {
-    context("expr", scoped(expr_impl))(input)
+fn computation(input: Input) -> IResult<Input, UTerm> {
+    context("computation", scoped(computation_impl))(input)
 }
 
+fn expr(input: Input) -> IResult<Input, UTerm> {
+    context("expr", computation)(input)
+}
 
 fn tuple_or_term(input: Input) -> IResult<Input, UTerm> {
     context("tuple_or_term", map(
@@ -690,15 +693,15 @@ fn defs_term(input: Input) -> IResult<Input, UTerm> {
 }
 
 fn u_term(input: Input) -> IResult<Input, UTerm> {
-    context("u_term", alt((
-        tuple_or_term,
-        lambda,
-        case_int,
-        case_str,
-        case_tuple,
-        let_term,
-        defs_term,
-    )))(input)
+    context(
+        "u_term",
+        map(
+            pair(opt(token("thunk")), alt((tuple_or_term, lambda, case_int, case_str, case_tuple, let_term, defs_term))),
+            |(thunk, t)| match thunk {
+                None => t,
+                Some(_) => UTerm::Thunk { computation: Box::new(t) },
+            },
+        ))(input)
 }
 
 fn tokenize(input: &str) -> Result<Vec<Token>, String> {
@@ -987,6 +990,29 @@ f a b
             name: "z",
         },
     ],
+}"#);
+        Ok(())
+    }
+
+    #[test]
+    fn check_thunk() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("thunk \\=> a b c")?), r#"Thunk {
+    computation: Lambda {
+        arg_names: [],
+        body: App {
+            function: Identifier {
+                name: "a",
+            },
+            args: [
+                Identifier {
+                    name: "b",
+                },
+                Identifier {
+                    name: "c",
+                },
+            ],
+        },
+    },
 }"#);
         Ok(())
     }

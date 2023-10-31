@@ -1,0 +1,108 @@
+UTerm
+========
+Defs {
+    defs: {
+        "f": Def {
+            args: [
+                "x",
+            ],
+            body: App {
+                function: Identifier {
+                    name: "_int_add",
+                },
+                args: [
+                    Identifier {
+                        name: "x",
+                    },
+                    Int {
+                        value: 1,
+                    },
+                ],
+            },
+        },
+    },
+    body: Some(
+        Let {
+            name: "t",
+            t: Thunk {
+                computation: Lambda {
+                    arg_names: [],
+                    body: App {
+                        function: Identifier {
+                            name: "f",
+                        },
+                        args: [
+                            Int {
+                                value: 1,
+                            },
+                        ],
+                    },
+                },
+            },
+            body: Force {
+                thunk: Identifier {
+                    name: "t",
+                },
+            },
+        },
+    ),
+}
+
+Defs
+========
+[
+    (
+        "$__lambda_0",
+        (
+            [],
+            App {
+                function: Def {
+                    name: "$f",
+                },
+                arg: Int {
+                    value: 1,
+                },
+            },
+        ),
+    ),
+    (
+        "$f",
+        (
+            [
+                "x",
+            ],
+            App {
+                function: App {
+                    function: Primitive {
+                        name: "_int_add",
+                        arity: 2,
+                    },
+                    arg: Var {
+                        name: "x",
+                    },
+                },
+                arg: Int {
+                    value: 1,
+                },
+            },
+        ),
+    ),
+]
+
+CTerm
+========
+Let {
+    t: Return {
+        value: Thunk {
+            t: Def {
+                name: "$__lambda_0",
+            },
+        },
+    },
+    bound_name: "t",
+    body: Force {
+        thunk: Var {
+            name: "t",
+        },
+    },
+}

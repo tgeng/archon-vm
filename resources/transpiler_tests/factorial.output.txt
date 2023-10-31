@@ -101,17 +101,17 @@ Defs
                                     value: 1,
                                 },
                             },
-                            bound_name: "$factorial#0",
+                            bound_name: "__local_0",
                             body: App {
                                 function: Def {
                                     name: "$factorial",
                                 },
                                 arg: Var {
-                                    name: "$factorial#0",
+                                    name: "__local_0",
                                 },
                             },
                         },
-                        bound_name: "$factorial#1",
+                        bound_name: "__local_1",
                         body: App {
                             function: App {
                                 function: Primitive {
@@ -123,7 +123,7 @@ Defs
                                 },
                             },
                             arg: Var {
-                                name: "$factorial#1",
+                                name: "__local_1",
                             },
                         },
                     },
