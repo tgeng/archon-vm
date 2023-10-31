@@ -308,10 +308,14 @@ fn atom(input: Input) -> IResult<Input, UTerm> {
     )))(input)
 }
 
+fn force(input: Input) -> IResult<Input, UTerm> {
+    context("force", map(preceded(token("force"), atom), |t| UTerm::Force { thunk: Box::new(t) }))(input)
+}
+
 fn scoped_app(input: Input) -> IResult<Input, UTerm> {
     context("scoped_app", scoped(
         map(
-            tuple((atom, many0(atom), many0(preceded(newline, u_term)))),
+            tuple((alt((atom, force)), many0(atom), many0(preceded(newline, u_term)))),
             |(f, args, more_args)| {
                 if args.is_empty() && more_args.is_empty() {
                     f
@@ -961,6 +965,26 @@ f a b
                     value: 3,
                 },
             ],
+        },
+    ],
+}"#);
+        Ok(())
+    }
+
+    #[test]
+    fn check_force() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("force x y z")?), r#"App {
+    function: Force {
+        thunk: Identifier {
+            name: "x",
+        },
+    },
+    args: [
+        Identifier {
+            name: "y",
+        },
+        Identifier {
+            name: "z",
         },
     ],
 }"#);
