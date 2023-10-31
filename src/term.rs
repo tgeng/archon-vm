@@ -11,7 +11,7 @@ pub enum VTerm {
 
 #[derive(Debug, Clone)]
 pub enum CTerm {
-    App { function: Box<CTerm>, arg: VTerm },
+    Redex { function: Box<CTerm>, args: Vec<VTerm> },
     Return { value: VTerm },
     Force { thunk: VTerm },
     Let { t: Box<CTerm>, bound_name: String, body: Box<CTerm> },

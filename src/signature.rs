@@ -59,7 +59,11 @@ impl<'a> Visitor for ThunkLifter<'a> {
 }
 
 fn replace_thunk(new_defs: &mut Vec<(String, Vec<String>, CTerm)>, thunk_def_name: String, arg_names: Vec<String>, thunk: &mut CTerm) {
-    let mut redex = arg_names.iter().fold(CTerm::Def { name: thunk_def_name.clone() }, |acc, arg_name| CTerm::App { function: Box::new(acc), arg: VTerm::Var { name: arg_name.clone() } });
+    let mut redex =
+        CTerm::Redex {
+            function: Box::new(CTerm::Def { name: thunk_def_name.clone() }),
+            args: arg_names.iter().map(|arg_name| VTerm::Var { name: arg_name.clone() }).collect(),
+        };
     std::mem::swap(thunk, &mut redex);
     new_defs.push((thunk_def_name, arg_names, redex));
 }

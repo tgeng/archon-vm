@@ -321,13 +321,14 @@ fn scoped_app(input: Input) -> IResult<Input, UTerm> {
                     f
                 } else {
                     let all_args = args.into_iter().chain(more_args).collect();
-                    UTerm::App { function: Box::new(f), args: all_args }
+                    UTerm::Redex { function: Box::new(f), args: all_args }
                 }
             },
         )
     ))(input)
 }
 
+#[allow(clippy::redundant_closure)]
 fn scoped_app_boxed() -> BoxedUTermParser {
     Box::new(move |input| scoped_app(input))
 }
@@ -543,34 +544,34 @@ fn operator_call(operators: &'static [OperatorAndName], fixity: Fixity, mut comp
                 Infixl => context("infixl_operator", map(
                     infixl(delimited(newline_opt, operator_id(operators), newline_opt), |input| (*component)(input)),
                     |(head, rest)| {
-                        rest.into_iter().fold(head, |acc, (op, arg)| UTerm::App { function: Box::new(op), args: vec![acc, arg] })
+                        rest.into_iter().fold(head, |acc, (op, arg)| UTerm::Redex { function: Box::new(op), args: vec![acc, arg] })
                     },
                 ))(input),
                 Infixr => context("infixr_operator", map(
                     infixr(delimited(newline_opt, operator_id(operators), newline_opt), |input| (*component)(input)),
                     |(init, last)| {
-                        init.into_iter().rfold(last, |acc, (arg, op)| UTerm::App { function: Box::new(op), args: vec![acc, arg] })
+                        init.into_iter().rfold(last, |acc, (arg, op)| UTerm::Redex { function: Box::new(op), args: vec![acc, arg] })
                     },
                 ))(input),
                 Infix => context("infix_operator", map(
                     infix(delimited(newline_opt, operator_id(operators), newline_opt), |input| (*component)(input)),
                     |(first, middle_last)| match middle_last {
                         None => first,
-                        Some((middle, last)) => UTerm::App { function: Box::new(middle), args: vec![first, last] }
+                        Some((middle, last)) => UTerm::Redex { function: Box::new(middle), args: vec![first, last] }
                     },
                 ))(input),
                 Prefix => context("prefix_operator", map(
                     pair(opt(operator_id(operators)), |input| (*component)(input)),
                     |(operator, operand)| match operator {
                         None => operand,
-                        Some(operator) => UTerm::App { function: Box::new(operator), args: vec![operand] },
+                        Some(operator) => UTerm::Redex { function: Box::new(operator), args: vec![operand] },
                     },
                 ))(input),
                 Postfix => context("postfix_operator", map(
                     pair(|input| (*component)(input), opt(operator_id(operators))),
                     |(operand, operator)| match operator {
                         None => operand,
-                        Some(operator) => UTerm::App { function: Box::new(operator), args: vec![operand] },
+                        Some(operator) => UTerm::Redex { function: Box::new(operator), args: vec![operand] },
                     },
                 ))(input),
             }
@@ -771,12 +772,12 @@ mod tests {
     #[test]
     fn check_parse_simple_expression() -> Result<(), String> {
         let result = parse_u_term("a + b - c * d / -e % +f")?;
-        assert_eq!(debug_print(result), r#"App {
+        assert_eq!(debug_print(result), r#"Redex {
     function: Identifier {
         name: "_int_sub",
     },
     args: [
-        App {
+        Redex {
             function: Identifier {
                 name: "_int_add",
             },
@@ -789,17 +790,17 @@ mod tests {
                 },
             ],
         },
-        App {
+        Redex {
             function: Identifier {
                 name: "_int_mod",
             },
             args: [
-                App {
+                Redex {
                     function: Identifier {
                         name: "_int_div",
                     },
                     args: [
-                        App {
+                        Redex {
                             function: Identifier {
                                 name: "_int_mul",
                             },
@@ -812,7 +813,7 @@ mod tests {
                                 },
                             ],
                         },
-                        App {
+                        Redex {
                             function: Identifier {
                                 name: "_int_neg",
                             },
@@ -824,7 +825,7 @@ mod tests {
                         },
                     ],
                 },
-                App {
+                Redex {
                     function: Identifier {
                         name: "_int_pos",
                     },
@@ -882,12 +883,12 @@ mod tests {
 
     #[test]
     fn check_expr_with_parentheses() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("(a + b) * c")?), r#"App {
+        assert_eq!(debug_print(parse_u_term("(a + b) * c")?), r#"Redex {
     function: Identifier {
         name: "_int_mul",
     },
     args: [
-        App {
+        Redex {
             function: Identifier {
                 name: "_int_add",
             },
@@ -910,12 +911,12 @@ mod tests {
 
     #[test]
     fn check_expr_with_parentheses2() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("f (g a)")?), r#"App {
+        assert_eq!(debug_print(parse_u_term("f (g a)")?), r#"Redex {
     function: Identifier {
         name: "f",
     },
     args: [
-        App {
+        Redex {
             function: Identifier {
                 name: "g",
             },
@@ -935,7 +936,7 @@ mod tests {
         assert_eq!(debug_print(parse_u_term("\
 f a b
   g 1 2
-  h 3")?), r#"App {
+  h 3")?), r#"Redex {
     function: Identifier {
         name: "f",
     },
@@ -946,7 +947,7 @@ f a b
         Identifier {
             name: "b",
         },
-        App {
+        Redex {
             function: Identifier {
                 name: "g",
             },
@@ -959,7 +960,7 @@ f a b
                 },
             ],
         },
-        App {
+        Redex {
             function: Identifier {
                 name: "h",
             },
@@ -976,7 +977,7 @@ f a b
 
     #[test]
     fn check_force() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("force x y z")?), r#"App {
+        assert_eq!(debug_print(parse_u_term("force x y z")?), r#"Redex {
     function: Force {
         thunk: Identifier {
             name: "x",
@@ -999,7 +1000,7 @@ f a b
         assert_eq!(debug_print(parse_u_term("thunk \\=> a b c")?), r#"Thunk {
     computation: Lambda {
         arg_names: [],
-        body: App {
+        body: Redex {
             function: Identifier {
                 name: "a",
             },
@@ -1081,7 +1082,7 @@ g (f 1) 2
                         "x",
                         "y",
                     ],
-                    body: App {
+                    body: Redex {
                         function: Identifier {
                             name: "_int_add",
                         },
@@ -1097,12 +1098,12 @@ g (f 1) 2
                 },
             },
             body: Some(
-                App {
+                Redex {
                     function: Identifier {
                         name: "g",
                     },
                     args: [
-                        App {
+                        Redex {
                             function: Identifier {
                                 name: "f",
                             },

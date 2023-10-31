@@ -16,7 +16,7 @@ Defs {
                     },
                 },
                 default_branch: Some(
-                    App {
+                    Redex {
                         function: Identifier {
                             name: "_int_mul",
                         },
@@ -24,12 +24,12 @@ Defs {
                             Identifier {
                                 name: "n",
                             },
-                            App {
+                            Redex {
                                 function: Identifier {
                                     name: "factorial",
                                 },
                                 args: [
-                                    App {
+                                    Redex {
                                         function: Identifier {
                                             name: "_int_sub",
                                         },
@@ -51,7 +51,7 @@ Defs {
         },
     },
     body: Some(
-        App {
+        Redex {
             function: Identifier {
                 name: "factorial",
             },
@@ -68,7 +68,7 @@ Defs
 ========
 [
     (
-        "$factorial",
+        "factorial",
         (
             [
                 "n",
@@ -87,44 +87,49 @@ Defs
                 default_branch: Some(
                     Let {
                         t: Let {
-                            t: App {
-                                function: App {
-                                    function: Primitive {
-                                        name: "_int_sub",
-                                        arity: 2,
-                                    },
-                                    arg: Var {
+                            t: Redex {
+                                function: Primitive {
+                                    name: "_int_sub",
+                                    arity: 2,
+                                },
+                                args: [
+                                    Var {
                                         name: "n",
                                     },
-                                },
-                                arg: Int {
-                                    value: 1,
-                                },
+                                    Int {
+                                        value: 1,
+                                    },
+                                ],
                             },
                             bound_name: "__local_0",
-                            body: App {
-                                function: Def {
-                                    name: "$factorial",
+                            body: Redex {
+                                function: Redex {
+                                    function: Def {
+                                        name: "factorial",
+                                    },
+                                    args: [],
                                 },
-                                arg: Var {
-                                    name: "__local_0",
-                                },
+                                args: [
+                                    Var {
+                                        name: "__local_0",
+                                    },
+                                ],
                             },
                         },
                         bound_name: "__local_1",
-                        body: App {
-                            function: App {
-                                function: Primitive {
-                                    name: "_int_mul",
-                                    arity: 2,
-                                },
-                                arg: Var {
+                        body: Redex {
+                            function: Primitive {
+                                name: "_int_mul",
+                                arity: 2,
+                            },
+                            args: [
+                                Var {
                                     name: "n",
                                 },
-                            },
-                            arg: Var {
-                                name: "__local_1",
-                            },
+                                Var {
+                                    name: "__local_1",
+                                },
+                            ],
                         },
                     },
                 ),
@@ -135,11 +140,16 @@ Defs
 
 CTerm
 ========
-App {
-    function: Def {
-        name: "$factorial",
+Redex {
+    function: Redex {
+        function: Def {
+            name: "factorial",
+        },
+        args: [],
     },
-    arg: Int {
-        value: 5,
-    },
+    args: [
+        Int {
+            value: 5,
+        },
+    ],
 }

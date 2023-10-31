@@ -33,7 +33,7 @@ pub trait Visitor {
 
     fn visit_c_term(&mut self, ctx: &mut Self::Context, c_term: &mut CTerm) {
         match c_term {
-            CTerm::App { .. } => self.visit_app(ctx, c_term),
+            CTerm::Redex { .. } => self.visit_redex(ctx, c_term),
             CTerm::Return { .. } => self.visit_return(ctx, c_term),
             CTerm::Force { .. } => self.visit_force(ctx, c_term),
             CTerm::Let { .. } => self.visit_let(ctx, c_term),
@@ -45,10 +45,10 @@ pub trait Visitor {
         }
     }
 
-    fn visit_app(&mut self, ctx: &mut Self::Context, c_term: &mut CTerm) {
-        let CTerm::App { function, arg } = c_term else { unreachable!() };
+    fn visit_redex(&mut self, ctx: &mut Self::Context, c_term: &mut CTerm) {
+        let CTerm::Redex { function, args } = c_term else { unreachable!() };
         self.visit_c_term(ctx, function);
-        self.visit_v_term(ctx, arg);
+        args.iter_mut().for_each(|arg| self.visit_v_term(ctx, arg));
     }
 
     fn visit_return(&mut self, ctx: &mut Self::Context, c_term: &mut CTerm) {

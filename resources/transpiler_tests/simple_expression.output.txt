@@ -1,6 +1,6 @@
 UTerm
 ========
-App {
+Redex {
     function: Identifier {
         name: "_int_add",
     },
@@ -20,17 +20,17 @@ Defs
 
 CTerm
 ========
-App {
-    function: App {
-        function: Primitive {
-            name: "_int_add",
-            arity: 2,
-        },
-        arg: Int {
+Redex {
+    function: Primitive {
+        name: "_int_add",
+        arity: 2,
+    },
+    args: [
+        Int {
             value: 1,
         },
-    },
-    arg: Int {
-        value: 2,
-    },
+        Int {
+            value: 2,
+        },
+    ],
 }

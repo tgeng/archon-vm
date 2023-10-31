@@ -6,7 +6,7 @@ Defs {
             args: [
                 "x",
             ],
-            body: App {
+            body: Redex {
                 function: Identifier {
                     name: "_int_add",
                 },
@@ -27,7 +27,7 @@ Defs {
             t: Thunk {
                 computation: Lambda {
                     arg_names: [],
-                    body: App {
+                    body: Redex {
                         function: Identifier {
                             name: "f",
                         },
@@ -52,38 +52,43 @@ Defs
 ========
 [
     (
-        "$__lambda_0",
+        "__lambda_0",
         (
             [],
-            App {
-                function: Def {
-                    name: "$f",
+            Redex {
+                function: Redex {
+                    function: Def {
+                        name: "f",
+                    },
+                    args: [],
                 },
-                arg: Int {
-                    value: 1,
-                },
+                args: [
+                    Int {
+                        value: 1,
+                    },
+                ],
             },
         ),
     ),
     (
-        "$f",
+        "f",
         (
             [
                 "x",
             ],
-            App {
-                function: App {
-                    function: Primitive {
-                        name: "_int_add",
-                        arity: 2,
-                    },
-                    arg: Var {
+            Redex {
+                function: Primitive {
+                    name: "_int_add",
+                    arity: 2,
+                },
+                args: [
+                    Var {
                         name: "x",
                     },
-                },
-                arg: Int {
-                    value: 1,
-                },
+                    Int {
+                        value: 1,
+                    },
+                ],
             },
         ),
     ),
@@ -94,8 +99,11 @@ CTerm
 Let {
     t: Return {
         value: Thunk {
-            t: Def {
-                name: "$__lambda_0",
+            t: Redex {
+                function: Def {
+                    name: "__lambda_0",
+                },
+                args: [],
             },
         },
     },

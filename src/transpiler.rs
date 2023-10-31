@@ -59,11 +59,9 @@ impl Transpiler {
                     body: Some(Box::new(UTerm::Identifier { name: lambda_name })),
                 }, context)
             }
-            UTerm::App { function, args } => {
+            UTerm::Redex { function, args } => {
                 let (transpiled_args, transpiled_computations) = self.transpile_values(args, context);
-                let body = transpiled_args.into_iter().fold(self.transpile_impl(*function, context), |f, arg| {
-                    CTerm::App { function: Box::new(f), arg }
-                });
+                let body = CTerm::Redex { function: Box::new(self.transpile_impl(*function, context)), args: transpiled_args };
                 Self::squash_computations(body, transpiled_computations)
             }
             UTerm::Force { thunk } => self.transpile_value_and_map(*thunk, context, |t| CTerm::Force { thunk: t }),
@@ -124,15 +122,18 @@ impl Transpiler {
                     def_names.iter().for_each(|v| {
                         free_vars.remove(v.as_str());
                     });
-                    let def_name = format!("{}${}", context.enclosing_def_name, name);
+                    let def_name = if context.enclosing_def_name.is_empty() {
+                        name.clone()
+                    } else {
+                        format!("{}${}", context.enclosing_def_name, name)
+                    };
                     let mut free_var_vec: Vec<String> = free_vars.into_iter().map(|s| s.to_string()).collect();
                     free_var_vec.sort();
-                    identifier_map_with_all_defs.insert(name, Either::Left(free_var_vec.iter().fold(CTerm::Def { name: def_name.clone() }, |body, arg| {
-                        CTerm::App {
-                            function: Box::new(body),
-                            arg: VTerm::Var { name: arg.to_string() },
-                        }
-                    })));
+                    let term = CTerm::Redex {
+                        function: Box::new(CTerm::Def { name: def_name.clone() }),
+                        args: free_var_vec.iter().map(|name| VTerm::Var { name: name.to_string() }).collect(),
+                    };
+                    identifier_map_with_all_defs.insert(name, Either::Left(term));
                     (def, def_name.clone(), free_var_vec)
                 }).collect();
                 def_with_names.into_iter().for_each(|(def, name, free_vars)| {
@@ -183,7 +184,7 @@ impl Transpiler {
             UTerm::CaseInt { .. } |
             UTerm::CaseStr { .. } |
             UTerm::CaseTuple { .. } |
-            UTerm::App { .. } |
+            UTerm::Redex { .. } |
             UTerm::Force { .. } |
             UTerm::Let { .. } |
             UTerm::Defs { .. } => {
@@ -258,7 +259,7 @@ impl Transpiler {
                 new_bound_names.extend(arg_names.iter().map(|s| s.as_str()));
                 Self::get_free_vars(body, &new_bound_names, free_vars);
             }
-            UTerm::App { function, args } => {
+            UTerm::Redex { function, args } => {
                 Self::get_free_vars(function, bound_names, free_vars);
                 args.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars));
             }
