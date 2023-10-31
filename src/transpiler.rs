@@ -30,11 +30,12 @@ impl Transpiler {
     fn into_signature(self) -> Signature {
         self.signature
     }
-    fn transpile(&mut self, u_term: UTerm) -> CTerm {
-        self.transpile_impl(u_term, &Context {
+    fn transpile(&mut self, u_term: UTerm) {
+        let main = self.transpile_impl(u_term, &Context {
             enclosing_def_name: "",
             identifier_map: &HashMap::new(),
-        })
+        });
+        self.signature.insert("main".to_string(), Vec::new(), main);
     }
 
     fn transpile_impl(&mut self, u_term: UTerm, context: &Context) -> CTerm {
@@ -114,7 +115,7 @@ impl Transpiler {
                 let mut identifier_map_with_all_defs = context.identifier_map.clone();
                 let def_with_names: Vec<(Def, String, Vec<String>)> = defs.into_iter().map(|(name, def)| {
                     let mut free_vars = HashSet::new();
-                    let identifier_names: HashSet<&str> = context.identifier_map.keys().map(|s| s.as_str()).collect();
+                    let identifier_names: HashSet<&str> = HashSet::new();
                     Self::get_free_vars(&def.body, &identifier_names, &mut free_vars);
                     def.args.iter().for_each(|v| {
                         free_vars.remove(v.as_str());
@@ -322,13 +323,13 @@ mod tests {
             lambda_counter: 0,
             local_counter: 0,
         };
-        let c_term = transpiler.transpile(u_term.clone());
+        transpiler.transpile(u_term.clone());
         let mut signature = transpiler.into_signature();
-        signature.lift_thunks();
+        signature.optimize();
         let mut defs = signature.into_defs().into_iter().collect::<Vec<_>>();
         defs.sort_by_key(|(name, _)| name.clone());
 
-        let actual = format!("UTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}\n\nCTerm\n========\n{:#?}", u_term, defs, c_term);
+        let actual = format!("UTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}", u_term, defs);
         let expected = match fs::read_to_string(test_output_path) {
             Ok(s) => s,
             Err(_) => {

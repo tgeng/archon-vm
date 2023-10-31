@@ -1,0 +1,3 @@
+let a = 1
+def f x => a + x
+f 2

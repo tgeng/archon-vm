@@ -22,7 +22,19 @@ impl Signature {
         self.defs.insert(name, (args, body));
     }
 
-    pub fn lift_thunks(&mut self) {
+    pub fn optimize(&mut self) {
+        self.lift_thunks();
+        self.normalize_redex();
+    }
+
+    fn normalize_redex(&mut self) {
+        let mut normalizer = RedexNormalizer {};
+        self.defs.iter_mut().for_each(|(_, (_, body))| {
+            normalizer.visit_c_term(&mut (), body);
+        });
+    }
+
+    fn lift_thunks(&mut self) {
         let mut new_defs: Vec<(String, Vec<String>, CTerm)> = Vec::new();
         self.defs.iter_mut().for_each(|(name, (_, body))| {
             let mut thunk_lifter = ThunkLifter { def_name: name, counter: 0, new_defs: &mut new_defs };
@@ -30,6 +42,43 @@ impl Signature {
         });
         for (name, args, body) in new_defs {
             self.insert(name, args, body)
+        }
+    }
+}
+
+struct RedexNormalizer {}
+
+impl Visitor for RedexNormalizer {
+    type Context = ();
+
+    fn visit_redex(&mut self, _ctx: &mut Self::Context, c_term: &mut CTerm) {
+        match c_term {
+            CTerm::Redex { function, args } => {
+                self.visit_c_term(_ctx, function);
+                if args.is_empty() {
+                    let mut placeholder = CTerm::Primitive { name: "", arity: 0 };
+                    std::mem::swap(&mut placeholder, function);
+                    *c_term = placeholder;
+                } else {
+                    let is_nested_redex = matches!(function.as_ref(), CTerm::Redex { .. });
+                    if is_nested_redex {
+                        let mut placeholder = CTerm::Primitive { name: "", arity: 0 };
+                        std::mem::swap(&mut placeholder, c_term);
+                        match placeholder {
+                            CTerm::Redex { function, args } => {
+                                match *function {
+                                    CTerm::Redex { function: sub_function, args: sub_args } => {
+                                        *c_term = CTerm::Redex { function: sub_function, args: sub_args.into_iter().chain(args).collect() };
+                                    }
+                                    _ => unreachable!(),
+                                }
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                }
+            }
+            _ => unreachable!(),
         }
     }
 }

@@ -1,0 +1,97 @@
+UTerm
+========
+Let {
+    name: "a",
+    t: Int {
+        value: 1,
+    },
+    body: Defs {
+        defs: {
+            "f": Def {
+                args: [
+                    "x",
+                ],
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                    },
+                    args: [
+                        Identifier {
+                            name: "a",
+                        },
+                        Identifier {
+                            name: "x",
+                        },
+                    ],
+                },
+            },
+        },
+        body: Some(
+            Redex {
+                function: Identifier {
+                    name: "f",
+                },
+                args: [
+                    Int {
+                        value: 2,
+                    },
+                ],
+            },
+        ),
+    },
+}
+
+Defs
+========
+[
+    (
+        "f",
+        (
+            [
+                "a",
+                "x",
+            ],
+            Redex {
+                function: Primitive {
+                    name: "_int_add",
+                    arity: 2,
+                },
+                args: [
+                    Var {
+                        name: "a",
+                    },
+                    Var {
+                        name: "x",
+                    },
+                ],
+            },
+        ),
+    ),
+    (
+        "main",
+        (
+            [],
+            Let {
+                t: Return {
+                    value: Int {
+                        value: 1,
+                    },
+                },
+                bound_name: "a",
+                body: Redex {
+                    function: Def {
+                        name: "f",
+                    },
+                    args: [
+                        Var {
+                            name: "a",
+                        },
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+            },
+        ),
+    ),
+]

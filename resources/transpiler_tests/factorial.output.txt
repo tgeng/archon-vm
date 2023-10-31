@@ -103,11 +103,8 @@ Defs
                             },
                             bound_name: "__local_0",
                             body: Redex {
-                                function: Redex {
-                                    function: Def {
-                                        name: "factorial",
-                                    },
-                                    args: [],
+                                function: Def {
+                                    name: "factorial",
                                 },
                                 args: [
                                     Var {
@@ -136,20 +133,20 @@ Defs
             },
         ),
     ),
+    (
+        "main",
+        (
+            [],
+            Redex {
+                function: Def {
+                    name: "factorial",
+                },
+                args: [
+                    Int {
+                        value: 5,
+                    },
+                ],
+            },
+        ),
+    ),
 ]
-
-CTerm
-========
-Redex {
-    function: Redex {
-        function: Def {
-            name: "factorial",
-        },
-        args: [],
-    },
-    args: [
-        Int {
-            value: 5,
-        },
-    ],
-}

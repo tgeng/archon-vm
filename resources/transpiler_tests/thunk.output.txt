@@ -23,25 +23,31 @@ Defs {
     },
     body: Some(
         Let {
-            name: "t",
-            t: Thunk {
-                computation: Lambda {
-                    arg_names: [],
-                    body: Redex {
-                        function: Identifier {
-                            name: "f",
-                        },
-                        args: [
-                            Int {
-                                value: 1,
+            name: "a",
+            t: Int {
+                value: 1,
+            },
+            body: Let {
+                name: "t",
+                t: Thunk {
+                    computation: Lambda {
+                        arg_names: [],
+                        body: Redex {
+                            function: Identifier {
+                                name: "f",
                             },
-                        ],
+                            args: [
+                                Identifier {
+                                    name: "a",
+                                },
+                            ],
+                        },
                     },
                 },
-            },
-            body: Force {
-                thunk: Identifier {
-                    name: "t",
+                body: Force {
+                    thunk: Identifier {
+                        name: "t",
+                    },
                 },
             },
         },
@@ -54,17 +60,17 @@ Defs
     (
         "__lambda_0",
         (
-            [],
+            [
+                "a",
+                "f",
+            ],
             Redex {
-                function: Redex {
-                    function: Def {
-                        name: "f",
-                    },
-                    args: [],
+                function: Def {
+                    name: "f",
                 },
                 args: [
-                    Int {
-                        value: 1,
+                    Var {
+                        name: "a",
                     },
                 ],
             },
@@ -92,25 +98,65 @@ Defs
             },
         ),
     ),
-]
-
-CTerm
-========
-Let {
-    t: Return {
-        value: Thunk {
-            t: Redex {
+    (
+        "main",
+        (
+            [],
+            Let {
+                t: Return {
+                    value: Int {
+                        value: 1,
+                    },
+                },
+                bound_name: "a",
+                body: Let {
+                    t: Return {
+                        value: Thunk {
+                            t: Redex {
+                                function: Def {
+                                    name: "main$__thunk_0",
+                                },
+                                args: [
+                                    Var {
+                                        name: "a",
+                                    },
+                                    Var {
+                                        name: "f",
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    bound_name: "t",
+                    body: Force {
+                        thunk: Var {
+                            name: "t",
+                        },
+                    },
+                },
+            },
+        ),
+    ),
+    (
+        "main$__thunk_0",
+        (
+            [
+                "a",
+                "f",
+            ],
+            Redex {
                 function: Def {
                     name: "__lambda_0",
                 },
-                args: [],
+                args: [
+                    Var {
+                        name: "a",
+                    },
+                    Var {
+                        name: "f",
+                    },
+                ],
             },
-        },
-    },
-    bound_name: "t",
-    body: Force {
-        thunk: Var {
-            name: "t",
-        },
-    },
-}
+        ),
+    ),
+]

@@ -16,21 +16,25 @@ Redex {
 
 Defs
 ========
-[]
-
-CTerm
-========
-Redex {
-    function: Primitive {
-        name: "_int_add",
-        arity: 2,
-    },
-    args: [
-        Int {
-            value: 1,
-        },
-        Int {
-            value: 2,
-        },
-    ],
-}
+[
+    (
+        "main",
+        (
+            [],
+            Redex {
+                function: Primitive {
+                    name: "_int_add",
+                    arity: 2,
+                },
+                args: [
+                    Int {
+                        value: 1,
+                    },
+                    Int {
+                        value: 2,
+                    },
+                ],
+            },
+        ),
+    ),
+]
