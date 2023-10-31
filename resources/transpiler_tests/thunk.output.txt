@@ -62,7 +62,6 @@ Defs
         (
             [
                 "a",
-                "f",
             ],
             Redex {
                 function: Def {
@@ -120,9 +119,6 @@ Defs
                                     Var {
                                         name: "a",
                                     },
-                                    Var {
-                                        name: "f",
-                                    },
                                 ],
                             },
                         },
@@ -142,7 +138,6 @@ Defs
         (
             [
                 "a",
-                "f",
             ],
             Redex {
                 function: Def {
@@ -151,9 +146,6 @@ Defs
                 args: [
                     Var {
                         name: "a",
-                    },
-                    Var {
-                        name: "f",
                     },
                 ],
             },

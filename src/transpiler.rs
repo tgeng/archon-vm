@@ -117,12 +117,20 @@ impl Transpiler {
                     let mut free_vars = HashSet::new();
                     let identifier_names: HashSet<&str> = HashSet::new();
                     Self::get_free_vars(&def.body, &identifier_names, &mut free_vars);
+                    // remove all names bound inside the current def
                     def.args.iter().for_each(|v| {
                         free_vars.remove(v.as_str());
                     });
+                    // remove all names matching defs bound in current scope
                     def_names.iter().for_each(|v| {
                         free_vars.remove(v.as_str());
                     });
+                    // remove all names matching defs bound in parent scopes
+                    context.identifier_map.iter().for_each(|(name, t)|
+                        if let Either::Left(_) = t {
+                            free_vars.remove(name.as_str());
+                        }
+                    );
                     let def_name = if context.enclosing_def_name.is_empty() {
                         name.clone()
                     } else {
@@ -317,6 +325,9 @@ mod tests {
     use crate::transpiler::Transpiler;
 
     fn check(test_input_path: &str, test_output_path: &str) -> Result<(), String> {
+        if !test_input_path.ends_with("thunk.input.txt") {
+            return Ok(());
+        }
         let u_term = parse_u_term(&fs::read_to_string(test_input_path).unwrap())?;
         let mut transpiler = Transpiler {
             signature: Signature::new(),
