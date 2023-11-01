@@ -8,37 +8,38 @@ pub trait HasFreeVar {
 
 impl HasFreeVar for CTerm {
     fn free_vars(&mut self) -> HashSet<String> {
-        let mut visitor = FreeVarVisitor { free_vars: HashSet::new() };
-        visitor.visit_c_term(&mut HashMap::new(), self);
+        let mut visitor = FreeVarVisitor { free_vars: HashSet::new(), binding_count: HashMap::new() };
+        visitor.visit_c_term(self);
         visitor.free_vars
     }
 }
 
 impl HasFreeVar for VTerm {
     fn free_vars(&mut self) -> HashSet<String> {
-        let mut visitor = FreeVarVisitor { free_vars: HashSet::new() };
-        visitor.visit_v_term(&mut HashMap::new(), self);
+        let mut visitor = FreeVarVisitor { free_vars: HashSet::new(), binding_count: HashMap::new() };
+        visitor.visit_v_term(self);
         visitor.free_vars
     }
 }
 
 struct FreeVarVisitor {
     free_vars: HashSet<String>,
+    binding_count: HashMap<String, usize>,
 }
 
 impl Visitor for FreeVarVisitor {
-    type Context = HashMap<String, usize>;
-
-    fn with_bindings<F>(ctx: &mut Self::Context, _names: &[&str], action: F) where F: FnOnce(&mut Self::Context) {
-        _names.iter().for_each(|s| { ctx.insert(s.to_string(), ctx.get(*s).cloned().unwrap_or(0) + 1); });
-        action(ctx);
-        _names.iter().for_each(|s| { ctx.insert(s.to_string(), ctx.get(*s).cloned().unwrap_or(0) - 1); });
+    fn add_binding(&mut self, name: &str) {
+        self.binding_count.insert(name.to_string(), self.binding_count.get(name).cloned().unwrap_or(0) + 1);
     }
 
-    fn visit_var(&mut self, _ctx: &mut Self::Context, _v_term: &mut VTerm) {
+    fn remove_binding(&mut self, name: &str) {
+        self.binding_count.insert(name.to_string(), self.binding_count.get(name).cloned().unwrap_or(0) - 1);
+    }
+
+    fn visit_var(&mut self, _v_term: &mut VTerm) {
         match _v_term {
             VTerm::Var { name } => {
-                if _ctx.get(name).cloned().unwrap_or(0) == 0 {
+                if self.binding_count.get(name).cloned().unwrap_or(0) == 0 {
                     self.free_vars.insert(name.clone());
                 }
             }

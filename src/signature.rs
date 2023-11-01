@@ -31,7 +31,7 @@ impl Signature {
     fn normalize_redex(&mut self) {
         let mut normalizer = RedexNormalizer {};
         self.defs.iter_mut().for_each(|(_, (_, body))| {
-            normalizer.visit_c_term(&mut (), body);
+            normalizer.visit_c_term(body);
         });
     }
 
@@ -39,7 +39,7 @@ impl Signature {
         let mut new_defs: Vec<(String, Vec<String>, CTerm)> = Vec::new();
         self.defs.iter_mut().for_each(|(name, (_, body))| {
             let mut thunk_lifter = ThunkLifter { def_name: name, counter: 0, new_defs: &mut new_defs };
-            thunk_lifter.visit_c_term(&mut (), body);
+            thunk_lifter.visit_c_term(body);
         });
         for (name, args, body) in new_defs {
             self.insert(name, args, body)
@@ -50,12 +50,10 @@ impl Signature {
 struct RedexNormalizer {}
 
 impl Visitor for RedexNormalizer {
-    type Context = ();
-
-    fn visit_redex(&mut self, _ctx: &mut Self::Context, c_term: &mut CTerm) {
+    fn visit_redex(&mut self, c_term: &mut CTerm) {
         match c_term {
             CTerm::Redex { function, args } => {
-                self.visit_c_term(_ctx, function);
+                self.visit_c_term(function);
                 if args.is_empty() {
                     let mut placeholder = CTerm::Primitive { name: "", arity: 0 };
                     std::mem::swap(&mut placeholder, function);
@@ -91,9 +89,7 @@ struct ThunkLifter<'a> {
 }
 
 impl<'a> Visitor for ThunkLifter<'a> {
-    type Context = ();
-
-    fn visit_thunk(&mut self, _ctx: &mut Self::Context, v_term: &mut VTerm) {
+    fn visit_thunk(&mut self, v_term: &mut VTerm) {
         let free_vars = v_term.free_vars();
         let mut arg_names: Vec<String> = free_vars.into_iter().collect();
         arg_names.sort();
