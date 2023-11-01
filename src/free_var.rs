@@ -28,8 +28,9 @@ struct FreeVarVisitor {
 }
 
 impl Visitor for FreeVarVisitor {
-    fn add_binding(&mut self, name: &str) {
+    fn add_binding(&mut self, name: &str) -> Option<String> {
         self.binding_count.insert(name.to_string(), self.binding_count.get(name).cloned().unwrap_or(0) + 1);
+        None
     }
 
     fn remove_binding(&mut self, name: &str) {

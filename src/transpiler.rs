@@ -325,9 +325,6 @@ mod tests {
     use crate::transpiler::Transpiler;
 
     fn check(test_input_path: &str, test_output_path: &str) -> Result<(), String> {
-        if !test_input_path.ends_with("thunk.input.txt") {
-            return Ok(());
-        }
         let u_term = parse_u_term(&fs::read_to_string(test_input_path).unwrap())?;
         let mut transpiler = Transpiler {
             signature: Signature::new(),

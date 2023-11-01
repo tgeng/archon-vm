@@ -1,7 +1,7 @@
 use crate::term::{CTerm, VTerm};
 
 pub trait Visitor {
-    fn add_binding(&mut self, _name: &str) {}
+    fn add_binding(&mut self, _name: &str) -> Option<String> { None }
 
     fn remove_binding(&mut self, _name: &str) {}
 
@@ -62,9 +62,13 @@ pub trait Visitor {
     fn visit_let(&mut self, c_term: &mut CTerm) {
         let CTerm::Let { t, body, bound_name } = c_term else { unreachable!() };
         self.visit_c_term(t);
-        self.add_binding(bound_name);
+        let old_name = bound_name.clone();
+        match self.add_binding(bound_name) {
+            Some(new_name) => *bound_name = new_name,
+            None => {}
+        }
         self.visit_c_term(body);
-        self.remove_binding(bound_name);
+        self.remove_binding(&old_name);
     }
 
     fn visit_def(&mut self, _c_term: &mut CTerm) {}
@@ -83,12 +87,15 @@ pub trait Visitor {
     fn visit_case_tuple(&mut self, c_term: &mut CTerm) {
         let CTerm::CaseTuple { t, bound_names, branch } = c_term else { unreachable!() };
         self.visit_v_term(t);
-        let bound_names_refs: Vec<&str> = bound_names.iter().map(|s| s.as_str()).collect();
-        for name in bound_names_refs.iter() {
-            self.add_binding(name);
+        let old_names = bound_names.clone();
+        for name in bound_names.iter_mut() {
+            match self.add_binding(name) {
+                Some(new_name) => *name = new_name,
+                None => {}
+            }
         }
         self.visit_c_term(branch);
-        for name in bound_names_refs.iter() {
+        for name in old_names.iter() {
             self.remove_binding(name);
         }
     }

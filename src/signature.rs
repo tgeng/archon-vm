@@ -26,6 +26,7 @@ impl Signature {
     pub fn optimize(&mut self) {
         self.lift_thunks();
         self.normalize_redex();
+        self.rename_local_vars();
     }
 
     fn normalize_redex(&mut self) {
@@ -43,6 +44,54 @@ impl Signature {
         });
         for (name, args, body) in new_defs {
             self.insert(name, args, body)
+        }
+    }
+
+    fn rename_local_vars(&mut self) {
+        self.defs.iter_mut().for_each(|(_, (args, body))| {
+            let mut renamer = LocalVarRenamer { bindings: HashMap::new(), counter: 0 };
+            for arg in args {
+                renamer.add_binding(arg);
+            }
+            renamer.visit_c_term(body);
+        });
+    }
+}
+
+struct LocalVarRenamer {
+    bindings: HashMap<String, Vec<String>>,
+    counter: usize,
+}
+
+impl Visitor for LocalVarRenamer {
+    fn add_binding(&mut self, name: &str) -> Option<String> {
+        let names = self.bindings.entry(name.to_owned()).or_default();
+        if names.is_empty() {
+            names.push(name.to_owned());
+            None
+        } else {
+            let index = names.len();
+            let new_name = format!("{}${}", name, index);
+            names.push(new_name.clone());
+            Some(new_name)
+        }
+    }
+
+    fn remove_binding(&mut self, name: &str) {
+        self.bindings.get_mut(name).unwrap().pop();
+    }
+
+    fn visit_var(&mut self, v_term: &mut VTerm) {
+        match v_term {
+            VTerm::Var { name } => {
+                if let Some(bindings) = self.bindings.get_mut(name) {
+                    if !bindings.is_empty() {
+                        let index = bindings.len();
+                        *name = bindings.get(index - 1).unwrap().clone();
+                    }
+                }
+            }
+            _ => unreachable!(),
         }
     }
 }

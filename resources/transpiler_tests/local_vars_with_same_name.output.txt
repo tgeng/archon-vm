@@ -1,0 +1,77 @@
+UTerm
+========
+Defs {
+    defs: {
+        "f": Def {
+            args: [
+                "x",
+            ],
+            body: Let {
+                name: "x",
+                t: Int {
+                    value: 1,
+                },
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                    },
+                    args: [
+                        Identifier {
+                            name: "x",
+                        },
+                        Int {
+                            value: 1,
+                        },
+                    ],
+                },
+            },
+        },
+    },
+    body: None,
+}
+
+Defs
+========
+[
+    (
+        "f",
+        (
+            [
+                "x",
+            ],
+            Let {
+                t: Return {
+                    value: Int {
+                        value: 1,
+                    },
+                },
+                bound_name: "x$1",
+                body: Redex {
+                    function: Primitive {
+                        name: "_int_add",
+                        arity: 2,
+                    },
+                    args: [
+                        Var {
+                            name: "x$1",
+                        },
+                        Int {
+                            value: 1,
+                        },
+                    ],
+                },
+            },
+        ),
+    ),
+    (
+        "main",
+        (
+            [],
+            Return {
+                value: Tuple {
+                    values: [],
+                },
+            },
+        ),
+    ),
+]
