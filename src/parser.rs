@@ -668,7 +668,7 @@ fn case_tuple(input: Input) -> IResult<Input, UTerm> {
 fn let_term(input: Input) -> IResult<Input, UTerm> {
     context("let_term", map(
         tuple((
-            scoped(pair(delimited(token("let"), id, token("=")), u_term)),
+            scoped(pair(delimited(token("let"), id, token("=")), preceded(newline_opt, u_term))),
             preceded(newline, u_term),
         )),
         |((name, t), body)| {

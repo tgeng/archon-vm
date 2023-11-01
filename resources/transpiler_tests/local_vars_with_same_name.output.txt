@@ -7,9 +7,25 @@ Defs {
                 "x",
             ],
             body: Let {
-                name: "x",
-                t: Int {
-                    value: 1,
+                name: "y",
+                t: Let {
+                    name: "x",
+                    t: Int {
+                        value: 1,
+                    },
+                    body: Redex {
+                        function: Identifier {
+                            name: "_int_add",
+                        },
+                        args: [
+                            Identifier {
+                                name: "x",
+                            },
+                            Int {
+                                value: 1,
+                            },
+                        ],
+                    },
                 },
                 body: Redex {
                     function: Identifier {
@@ -20,7 +36,7 @@ Defs {
                             name: "x",
                         },
                         Int {
-                            value: 1,
+                            value: 2,
                         },
                     ],
                 },
@@ -40,12 +56,29 @@ Defs
                 "x",
             ],
             Let {
-                t: Return {
-                    value: Int {
-                        value: 1,
+                t: Let {
+                    t: Return {
+                        value: Int {
+                            value: 1,
+                        },
+                    },
+                    bound_name: "x$1",
+                    body: Redex {
+                        function: Primitive {
+                            name: "_int_add",
+                            arity: 2,
+                        },
+                        args: [
+                            Var {
+                                name: "x$1",
+                            },
+                            Int {
+                                value: 1,
+                            },
+                        ],
                     },
                 },
-                bound_name: "x$1",
+                bound_name: "y",
                 body: Redex {
                     function: Primitive {
                         name: "_int_add",
@@ -53,10 +86,10 @@ Defs
                     },
                     args: [
                         Var {
-                            name: "x$1",
+                            name: "x",
                         },
                         Int {
-                            value: 1,
+                            value: 2,
                         },
                     ],
                 },
