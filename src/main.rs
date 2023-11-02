@@ -1,4 +1,5 @@
 #![feature(trait_alias)]
+#![feature(box_patterns)]
 #![allow(dead_code)]
 
 mod term;

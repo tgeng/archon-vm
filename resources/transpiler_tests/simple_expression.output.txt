@@ -1,17 +1,29 @@
 UTerm
 ========
-Redex {
-    function: Identifier {
-        name: "_int_add",
+Let {
+    name: "a",
+    t: Int {
+        value: 1,
     },
-    args: [
-        Int {
-            value: 1,
-        },
-        Int {
+    body: Let {
+        name: "b",
+        t: Int {
             value: 2,
         },
-    ],
+        body: Redex {
+            function: Identifier {
+                name: "_int_add",
+            },
+            args: [
+                Identifier {
+                    name: "a",
+                },
+                Identifier {
+                    name: "b",
+                },
+            ],
+        },
+    },
 }
 
 Defs
@@ -21,19 +33,35 @@ Defs
         "main",
         (
             [],
-            Redex {
-                function: Primitive {
-                    name: "_int_add",
-                    arity: 2,
-                },
-                args: [
-                    Int {
+            Let {
+                t: Return {
+                    value: Int {
                         value: 1,
                     },
-                    Int {
-                        value: 2,
+                },
+                bound_index: 0,
+                body: Let {
+                    t: Return {
+                        value: Int {
+                            value: 2,
+                        },
                     },
-                ],
+                    bound_index: 1,
+                    body: Redex {
+                        function: Primitive {
+                            name: "_int_add",
+                            arity: 2,
+                        },
+                        args: [
+                            Var {
+                                index: 0,
+                            },
+                            Var {
+                                index: 1,
+                            },
+                        ],
+                    },
+                },
             },
         ),
     ),

@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use either::Either;
+use either::{Either, Left, Right};
 use phf::{phf_map};
 use crate::signature::Signature;
 use crate::term::{CTerm, VTerm};
@@ -17,13 +17,14 @@ static PRIMITIVE_ARITY: phf::Map<&'static str, u8> = phf_map! {
 
 pub struct Transpiler {
     signature: Signature,
-    local_counter: u32,
-    lambda_counter: u32,
+    local_counter: usize,
+    lambda_counter: usize,
 }
 
 struct Context<'a> {
     enclosing_def_name: &'a str,
-    identifier_map: &'a HashMap<String, Either<CTerm, VTerm>>,
+    def_map: &'a HashMap<String, CTerm>,
+    var_map: &'a HashMap<String, usize>,
 }
 
 impl Transpiler {
@@ -33,16 +34,17 @@ impl Transpiler {
     fn transpile(&mut self, u_term: UTerm) {
         let main = self.transpile_impl(u_term, &Context {
             enclosing_def_name: "",
-            identifier_map: &HashMap::new(),
+            def_map: &HashMap::new(),
+            var_map: &HashMap::new(),
         });
-        self.signature.insert("main".to_string(), Vec::new(), main);
+        self.signature.insert("main".to_string(), vec![], main);
     }
 
     fn transpile_impl(&mut self, u_term: UTerm, context: &Context) -> CTerm {
         match u_term {
             UTerm::Identifier { name } => match self.transpile_identifier(&name, context) {
-                Either::Left(c) => c,
-                Either::Right(v) => CTerm::Return { value: v },
+                Left(c) => c,
+                Right(v) => CTerm::Return { value: v },
             },
             UTerm::Int { value } => CTerm::Return { value: VTerm::Int { value } },
             UTerm::Str { value } => CTerm::Return { value: VTerm::Str { value } },
@@ -88,31 +90,40 @@ impl Transpiler {
                 })
             }
             UTerm::CaseTuple { t, bound_names: names, branch } => {
-                let mut identifier_map = context.identifier_map.clone();
-                names.iter().for_each(|name| {
-                    identifier_map.insert(name.to_string(), Either::Right(VTerm::Var { name: name.to_string() }));
-                });
+                let mut var_map = context.var_map.clone();
+                let bound_indexes: Vec<_> = names.iter().map(|name| {
+                    let index = self.new_local_index();
+                    var_map.insert(name.to_string(), index);
+                    index
+                }).collect();
                 let transpiled_branch = self.transpile_impl(*branch, &Context {
                     enclosing_def_name: context.enclosing_def_name,
-                    identifier_map: &identifier_map,
+                    def_map: context.def_map,
+                    var_map: &var_map,
                 });
                 self.transpile_value_and_map(*t, context, |t| {
-                    CTerm::CaseTuple { t, bound_names: names.clone(), branch: Box::new(transpiled_branch) }
+                    CTerm::CaseTuple {
+                        t,
+                        bound_indexes,
+                        branch: Box::new(transpiled_branch),
+                    }
                 })
             }
             UTerm::Let { name, t, body } => {
                 let transpiled_t = self.transpile_impl(*t, context);
-                let mut identifier_map = context.identifier_map.clone();
-                identifier_map.insert(name.to_string(), Either::Right(VTerm::Var { name: name.clone() }));
+                let mut var_map = context.var_map.clone();
+                let bound_index = self.new_local_index();
+                var_map.insert(name.to_string(), bound_index);
                 let transpiled_body = self.transpile_impl(*body, &Context {
                     enclosing_def_name: context.enclosing_def_name,
-                    identifier_map: &identifier_map,
+                    def_map: context.def_map,
+                    var_map: &var_map,
                 });
-                CTerm::Let { t: Box::new(transpiled_t), bound_name: name.to_string(), body: Box::new(transpiled_body) }
+                CTerm::Let { t: Box::new(transpiled_t), bound_index, body: Box::new(transpiled_body) }
             }
             UTerm::Defs { defs, body } => {
                 let def_names: Vec<String> = defs.keys().map(|s| s.to_string()).collect();
-                let mut identifier_map_with_all_defs = context.identifier_map.clone();
+                let mut def_map = context.def_map.clone();
                 let def_with_names: Vec<(Def, String, Vec<String>)> = defs.into_iter().map(|(name, def)| {
                     let mut free_vars = HashSet::new();
                     let identifier_names: HashSet<&str> = HashSet::new();
@@ -126,54 +137,54 @@ impl Transpiler {
                         free_vars.remove(v.as_str());
                     });
                     // remove all names matching defs bound in parent scopes
-                    context.identifier_map.iter().for_each(|(name, t)|
-                        if let Either::Left(_) = t {
-                            free_vars.remove(name.as_str());
-                        }
-                    );
+                    context.def_map.iter().for_each(|(name, _)| { free_vars.remove(name.as_str()); });
                     let def_name = if context.enclosing_def_name.is_empty() {
                         name.clone()
                     } else {
                         format!("{}${}", context.enclosing_def_name, name)
                     };
-                    let mut free_var_vec: Vec<String> = free_vars.into_iter().map(|s| s.to_string()).collect();
+                    let mut free_var_vec: Vec<String> = free_vars.into_iter().map(|s| s.to_owned()).collect();
                     free_var_vec.sort();
                     let term = CTerm::Redex {
                         function: Box::new(CTerm::Def { name: def_name.clone() }),
-                        args: free_var_vec.iter().map(|name| VTerm::Var { name: name.to_string() }).collect(),
+                        args: free_var_vec.iter().map(|name| VTerm::Var { index: *context.var_map.get(name).unwrap() }).collect(),
                     };
-                    identifier_map_with_all_defs.insert(name, Either::Left(term));
+                    def_map.insert(name, term);
                     (def, def_name.clone(), free_var_vec)
                 }).collect();
                 def_with_names.into_iter().for_each(|(def, name, free_vars)| {
-                    let mut identifier_map = identifier_map_with_all_defs.clone();
-                    def.args.iter().for_each(|arg| {
-                        identifier_map.insert(arg.clone(), Either::Right(VTerm::Var { name: arg.clone() }));
-                    });
+                    let mut var_map = HashMap::new();
+                    let bound_indexes: Vec<_> = free_vars.iter().chain(def.args.iter()).map(|arg| {
+                        let index = self.new_local_index();
+                        var_map.insert(arg.clone(), index);
+                        index
+                    }).collect();
                     let def_body = self.transpile_impl(*def.body, &Context {
                         enclosing_def_name: &name,
-                        identifier_map: &identifier_map,
+                        def_map: &def_map,
+                        var_map: &var_map,
                     });
                     let mut free_var_strings: Vec<String> = free_vars.iter().map(|s| s.to_string()).collect();
                     free_var_strings.extend(def.args.clone());
-                    self.signature.defs.insert(name.clone(), (free_var_strings, def_body));
+                    self.signature.defs.insert(name.clone(), (bound_indexes, def_body));
                 });
                 match body {
                     None => CTerm::Return { value: VTerm::Tuple { values: Vec::new() } },
                     Some(body) => self.transpile_impl(*body, &Context {
                         enclosing_def_name: context.enclosing_def_name,
-                        identifier_map: &identifier_map_with_all_defs,
+                        var_map: context.var_map,
+                        def_map: &def_map,
                     })
                 }
             }
         }
     }
 
-    fn transpile_value(&mut self, u_term: UTerm, context: &Context) -> (VTerm, Option<(String, CTerm)>) {
+    fn transpile_value(&mut self, u_term: UTerm, context: &Context) -> (VTerm, Option<(usize, CTerm)>) {
         match u_term {
             UTerm::Identifier { name } => match self.transpile_identifier(&name, context) {
-                Either::Left(c_term) => self.new_computation(c_term),
-                Either::Right(v_term) => (v_term, None),
+                Left(c_term) => self.new_computation(c_term),
+                Right(v_term) => (v_term, None),
             }
             UTerm::Int { value } => (VTerm::Int { value }, None),
             UTerm::Str { value } => (VTerm::Str { value }, None),
@@ -203,40 +214,42 @@ impl Transpiler {
         }
     }
 
-    fn transpile_values(&mut self, u_terms: Vec<UTerm>, context: &Context) -> (Vec<VTerm>, Vec<Option<(String, CTerm)>>) {
+    fn transpile_values(&mut self, u_terms: Vec<UTerm>, context: &Context) -> (Vec<VTerm>, Vec<Option<(usize, CTerm)>>) {
         u_terms.into_iter().map(|v| self.transpile_value(v, context)).unzip()
     }
 
     fn transpile_value_and_map<F>(&mut self, u_term: UTerm, context: &Context, f: F) -> CTerm where F: FnOnce(VTerm) -> CTerm {
         let (v_term, computation) = self.transpile_value(u_term, context);
         if let Some((name, computation)) = computation {
-            CTerm::Let { t: Box::new(computation), bound_name: name, body: Box::new(f(v_term)) }
+            CTerm::Let { t: Box::new(computation), bound_index: name, body: Box::new(f(v_term)) }
         } else {
             f(v_term)
         }
     }
 
-    fn squash_computations(body: CTerm, computations: Vec<Option<(String, CTerm)>>) -> CTerm {
-        computations.into_iter().fold(body, |c, o| {
-            if let Some((name, t)) = o {
-                CTerm::Let { t: Box::new(t), bound_name: name, body: Box::new(c) }
+    fn squash_computations(body: CTerm, computations: Vec<Option<(usize, CTerm)>>) -> CTerm {
+        computations.into_iter().rfold(body, |c, o| {
+            if let Some((bound_index, t)) = o {
+                CTerm::Let { t: Box::new(t), bound_index, body: Box::new(c) }
             } else {
                 c
             }
         })
     }
 
-    fn new_computation(&mut self, c_term: CTerm) -> (VTerm, Option<(String, CTerm)>) {
-        let name = self.new_local_name();
-        (VTerm::Var { name: name.clone() }, Some((name, c_term)))
+    fn new_computation(&mut self, c_term: CTerm) -> (VTerm, Option<(usize, CTerm)>) {
+        let index = self.new_local_index();
+        (VTerm::Var { index }, Some((index, c_term)))
     }
 
     fn transpile_identifier(&self, name: &str, context: &Context) -> Either<CTerm, VTerm> {
-        if let Some(term) = context.identifier_map.get(name) {
-            term.clone()
+        if let Some(term) = context.def_map.get(name) {
+            Left(term.clone())
+        } else if let Some(index) = context.var_map.get(name) {
+            Right(VTerm::Var { index: *index })
         } else if let Some(tuple) = PRIMITIVE_ARITY.get_entry(name) {
             let (name, arity) = tuple;
-            Either::Left(CTerm::Primitive { name, arity: *arity })
+            Left(CTerm::Primitive { name, arity: *arity })
         } else {
             // properly returning a Result is better but very annoying since that requires transposing out of various collection
             panic!("Unknown identifier: {}", name)
@@ -249,10 +262,10 @@ impl Transpiler {
         name
     }
 
-    fn new_local_name(&mut self) -> String {
-        let name = format!("__local_{}", self.local_counter);
+    fn new_local_index(&mut self) -> usize {
+        let new_local_index = self.local_counter;
         self.local_counter += 1;
-        name
+        new_local_index
     }
 
     fn get_free_vars<'a>(u_term: &'a UTerm, bound_names: &HashSet<&'a str>, free_vars: &mut HashSet<&'a str>) {

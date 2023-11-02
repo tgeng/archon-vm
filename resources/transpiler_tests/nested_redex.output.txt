@@ -48,8 +48,8 @@ Defs
         "f",
         (
             [
-                "a",
-                "x",
+                1,
+                2,
             ],
             Redex {
                 function: Primitive {
@@ -58,10 +58,10 @@ Defs
                 },
                 args: [
                     Var {
-                        name: "a",
+                        index: 0,
                     },
                     Var {
-                        name: "x",
+                        index: 1,
                     },
                 ],
             },
@@ -77,14 +77,14 @@ Defs
                         value: 1,
                     },
                 },
-                bound_name: "a",
+                bound_index: 0,
                 body: Redex {
                     function: Def {
                         name: "f",
                     },
                     args: [
                         Var {
-                            name: "a",
+                            index: 0,
                         },
                         Int {
                             value: 2,

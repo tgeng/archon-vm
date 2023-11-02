@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::thread::scope;
 use nom::branch::alt;
 use nom::{InputLength, IResult};
 use nom::character::complete::{space0, char, satisfy as char_satisfy, alphanumeric1, one_of};
@@ -578,19 +579,15 @@ fn operator_call(operators: &'static [OperatorAndName], fixity: Fixity, mut comp
     )
 }
 
-fn computation_impl(input: Input) -> IResult<Input, UTerm> {
+fn expr_impl(input: Input) -> IResult<Input, UTerm> {
     let mut p = PRECEDENCE.iter().fold(scoped_app_boxed(), |f, (operators, fixity)| {
         operator_call(operators, *fixity, f)
     });
     (*p)(input)
 }
 
-fn computation(input: Input) -> IResult<Input, UTerm> {
-    context("computation", scoped(computation_impl))(input)
-}
-
 fn expr(input: Input) -> IResult<Input, UTerm> {
-    context("expr", computation)(input)
+    context("expr", scoped(expr_impl))(input)
 }
 
 fn tuple_or_term(input: Input) -> IResult<Input, UTerm> {
@@ -693,16 +690,22 @@ fn defs_term(input: Input) -> IResult<Input, UTerm> {
     ))(input)
 }
 
-fn u_term(input: Input) -> IResult<Input, UTerm> {
+fn computaiton(input: Input) -> IResult<Input, UTerm> {
+    alt((tuple_or_term, lambda, case_int, case_str, case_tuple, let_term, defs_term))(input)
+}
+
+fn thunk(input: Input) -> IResult<Input, UTerm> {
     context(
-        "u_term",
-        map(
-            pair(opt(token("thunk")), alt((tuple_or_term, lambda, case_int, case_str, case_tuple, let_term, defs_term))),
-            |(thunk, t)| match thunk {
-                None => t,
-                Some(_) => UTerm::Thunk { computation: Box::new(t) },
-            },
+        "thunk",
+        scoped(
+            map(
+                preceded(preceded(token("thunk"), newline_opt), computaiton),
+                |t| UTerm::Thunk { computation: Box::new(t) })
         ))(input)
+}
+
+fn u_term(input: Input) -> IResult<Input, UTerm> {
+    context("u_term", alt((thunk, computaiton)))(input)
 }
 
 fn tokenize(input: &str) -> Result<Vec<Token>, String> {

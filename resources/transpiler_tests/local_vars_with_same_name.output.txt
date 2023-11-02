@@ -53,7 +53,7 @@ Defs
         "f",
         (
             [
-                "x",
+                0,
             ],
             Let {
                 t: Let {
@@ -62,7 +62,7 @@ Defs
                             value: 1,
                         },
                     },
-                    bound_name: "x$1",
+                    bound_index: 1,
                     body: Redex {
                         function: Primitive {
                             name: "_int_add",
@@ -70,7 +70,7 @@ Defs
                         },
                         args: [
                             Var {
-                                name: "x$1",
+                                index: 1,
                             },
                             Int {
                                 value: 1,
@@ -78,7 +78,7 @@ Defs
                         ],
                     },
                 },
-                bound_name: "y",
+                bound_index: 2,
                 body: Redex {
                     function: Primitive {
                         name: "_int_add",
@@ -86,7 +86,7 @@ Defs
                     },
                     args: [
                         Var {
-                            name: "x",
+                            index: 0,
                         },
                         Int {
                             value: 2,

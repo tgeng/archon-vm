@@ -4,8 +4,7 @@ use crate::term::{CTerm, VTerm};
 use crate::visitor::Visitor;
 
 pub struct Signature {
-    pub defs: HashMap<String, (Vec<String>, CTerm)>,
-
+    pub defs: HashMap<String, (Vec<usize>, CTerm)>,
 }
 
 impl Signature {
@@ -15,18 +14,17 @@ impl Signature {
         }
     }
 
-    pub fn into_defs(self) -> HashMap<String, (Vec<String>, CTerm)> {
+    pub fn into_defs(self) -> HashMap<String, (Vec<usize>, CTerm)> {
         self.defs
     }
 
-    pub fn insert(&mut self, name: String, args: Vec<String>, body: CTerm) {
+    pub fn insert(&mut self, name: String, args: Vec<usize>, body: CTerm) {
         self.defs.insert(name, (args, body));
     }
 
     pub fn optimize(&mut self) {
-        self.lift_thunks();
         self.normalize_redex();
-        self.rename_local_vars();
+        self.lift_thunks();
     }
 
     fn normalize_redex(&mut self) {
@@ -37,57 +35,57 @@ impl Signature {
     }
 
     fn lift_thunks(&mut self) {
-        let mut new_defs: Vec<(String, Vec<String>, CTerm)> = Vec::new();
+        self.rename_local_vars();
+        let mut new_defs: Vec<(String, Vec<usize>, CTerm)> = Vec::new();
         self.defs.iter_mut().for_each(|(name, (_, body))| {
-            let mut thunk_lifter = ThunkLifter { def_name: name, counter: 0, new_defs: &mut new_defs };
+            let mut thunk_lifter = ThunkLifter { def_name: name, thunk_counter: 0, new_defs: &mut new_defs };
             thunk_lifter.visit_c_term(body);
         });
-        for (name, args, body) in new_defs {
+        for (name, args, mut body) in new_defs.into_iter() {
+            Self::rename_local_vars_in_def(&args, &mut body);
             self.insert(name, args, body)
         }
     }
 
     fn rename_local_vars(&mut self) {
         self.defs.iter_mut().for_each(|(_, (args, body))| {
-            let mut renamer = LocalVarRenamer { bindings: HashMap::new(), counter: 0 };
-            for arg in args {
-                renamer.add_binding(arg);
-            }
-            renamer.visit_c_term(body);
+            Self::rename_local_vars_in_def(args, body);
         });
+    }
+
+    fn rename_local_vars_in_def(args: &Vec<usize>, body: &mut CTerm) {
+        let mut renamer = DistinctVarRenamer { bindings: HashMap::new(), counter: 0 };
+        for i in args {
+            renamer.add_binding(*i);
+        }
+        renamer.visit_c_term(body);
     }
 }
 
-struct LocalVarRenamer {
-    bindings: HashMap<String, Vec<String>>,
+struct DistinctVarRenamer {
+    bindings: HashMap<usize, Vec<usize>>,
     counter: usize,
 }
 
-impl Visitor for LocalVarRenamer {
-    fn add_binding(&mut self, name: &str) -> Option<String> {
-        let names = self.bindings.entry(name.to_owned()).or_default();
-        if names.is_empty() {
-            names.push(name.to_owned());
-            None
-        } else {
-            let index = names.len();
-            let new_name = format!("{}${}", name, index);
-            names.push(new_name.clone());
-            Some(new_name)
-        }
+impl Visitor for DistinctVarRenamer {
+    fn add_binding(&mut self, index: usize) -> usize {
+        let indexes = self.bindings.entry(index).or_default();
+        let new_index = self.counter;
+        indexes.push(new_index);
+        self.counter += 1;
+        new_index
     }
 
-    fn remove_binding(&mut self, name: &str) {
-        self.bindings.get_mut(name).unwrap().pop();
+    fn remove_binding(&mut self, index: usize) {
+        self.bindings.get_mut(&index).unwrap().pop();
     }
 
     fn visit_var(&mut self, v_term: &mut VTerm) {
         match v_term {
-            VTerm::Var { name } => {
+            VTerm::Var { index: name } => {
                 if let Some(bindings) = self.bindings.get_mut(name) {
                     if !bindings.is_empty() {
-                        let index = bindings.len();
-                        *name = bindings.get(index - 1).unwrap().clone();
+                        *name = *bindings.last().unwrap();
                     }
                 }
             }
@@ -133,32 +131,51 @@ impl Visitor for RedexNormalizer {
 
 struct ThunkLifter<'a> {
     def_name: &'a str,
-    counter: usize,
-    new_defs: &'a mut Vec<(String, Vec<String>, CTerm)>,
+    thunk_counter: usize,
+    new_defs: &'a mut Vec<(String, Vec<usize>, CTerm)>,
 }
 
 impl<'a> Visitor for ThunkLifter<'a> {
     fn visit_thunk(&mut self, v_term: &mut VTerm) {
-        let free_vars = v_term.free_vars();
-        let mut arg_names: Vec<String> = free_vars.into_iter().collect();
-        arg_names.sort();
+        if let VTerm::Thunk { t: box CTerm::Redex { function: box CTerm::Def { .. }, .. } | box CTerm::Def { .. } } = v_term {
+            // There is no need to lift the thunk if it's already a simple function call.
+            return;
+        }
+        let mut free_vars: Vec<_> = v_term.free_vars().into_iter().collect();
+        free_vars.sort();
 
-        let thunk_def_name = format!("{}$__thunk_{}", self.def_name, self.counter);
-        self.counter += 1;
+        let thunk_def_name = format!("{}$__thunk_{}", self.def_name, self.thunk_counter);
+        self.thunk_counter += 1;
 
-        replace_thunk(self.new_defs, thunk_def_name, arg_names, match v_term {
+        replace_thunk(self.new_defs, thunk_def_name, free_vars, match v_term {
             VTerm::Thunk { t } => t,
             _ => unreachable!(),
         });
     }
 }
 
-fn replace_thunk(new_defs: &mut Vec<(String, Vec<String>, CTerm)>, thunk_def_name: String, arg_names: Vec<String>, thunk: &mut CTerm) {
+fn replace_thunk(new_defs: &mut Vec<(String, Vec<usize>, CTerm)>, thunk_def_name: String, free_vars: Vec<usize>, thunk: &mut CTerm) {
+    VarNameReplacer { index_mapping: free_vars.iter().enumerate().map(|(i, v)| (*v, i)).collect() }
+        .visit_c_term(thunk);
     let mut redex =
         CTerm::Redex {
             function: Box::new(CTerm::Def { name: thunk_def_name.clone() }),
-            args: arg_names.iter().map(|arg_name| VTerm::Var { name: arg_name.clone() }).collect(),
+            args: free_vars.iter().map(|i| VTerm::Var { index: *i }).collect(),
         };
     std::mem::swap(thunk, &mut redex);
-    new_defs.push((thunk_def_name, arg_names, redex));
+    new_defs.push((thunk_def_name, (0..free_vars.len()).collect(), redex));
+}
+
+struct VarNameReplacer {
+    index_mapping: HashMap<usize, usize>,
+}
+
+impl Visitor for VarNameReplacer {
+    fn visit_var(&mut self, v_term: &mut VTerm) {
+        if let VTerm::Var { index } = v_term {
+            if let Some(new_index) = self.index_mapping.get(index) {
+                *index = *new_index;
+            }
+        }
+    }
 }

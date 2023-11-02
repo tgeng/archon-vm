@@ -1,9 +1,9 @@
 use crate::term::{CTerm, VTerm};
 
 pub trait Visitor {
-    fn add_binding(&mut self, _name: &str) -> Option<String> { None }
+    fn add_binding(&mut self, name: usize) -> usize { name }
 
-    fn remove_binding(&mut self, _name: &str) {}
+    fn remove_binding(&mut self, _name: usize) {}
 
     fn visit_v_term(&mut self, v_term: &mut VTerm) {
         match v_term {
@@ -60,15 +60,12 @@ pub trait Visitor {
     }
 
     fn visit_let(&mut self, c_term: &mut CTerm) {
-        let CTerm::Let { t, body, bound_name } = c_term else { unreachable!() };
+        let CTerm::Let { t, body, bound_index: bound_name } = c_term else { unreachable!() };
         self.visit_c_term(t);
-        let old_name = bound_name.clone();
-        match self.add_binding(bound_name) {
-            Some(new_name) => *bound_name = new_name,
-            None => {}
-        }
+        let old_name = *bound_name;
+        *bound_name = self.add_binding(*bound_name);
         self.visit_c_term(body);
-        self.remove_binding(&old_name);
+        self.remove_binding(old_name);
     }
 
     fn visit_def(&mut self, _c_term: &mut CTerm) {}
@@ -85,18 +82,15 @@ pub trait Visitor {
     }
 
     fn visit_case_tuple(&mut self, c_term: &mut CTerm) {
-        let CTerm::CaseTuple { t, bound_names, branch } = c_term else { unreachable!() };
+        let CTerm::CaseTuple { t, bound_indexes, branch } = c_term else { unreachable!() };
         self.visit_v_term(t);
-        let old_names = bound_names.clone();
-        for name in bound_names.iter_mut() {
-            match self.add_binding(name) {
-                Some(new_name) => *name = new_name,
-                None => {}
-            }
+        let old_indexes = bound_indexes.clone();
+        for index in bound_indexes.iter_mut() {
+            *index = self.add_binding(*index)
         }
         self.visit_c_term(branch);
-        for name in old_names.iter() {
-            self.remove_binding(name);
+        for index in old_indexes.iter() {
+            self.remove_binding(*index);
         }
     }
 

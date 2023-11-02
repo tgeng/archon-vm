@@ -71,11 +71,11 @@ Defs
         "factorial",
         (
             [
-                "n",
+                0,
             ],
             CaseInt {
                 t: Var {
-                    name: "n",
+                    index: 0,
                 },
                 branches: {
                     0: Return {
@@ -94,26 +94,26 @@ Defs
                                 },
                                 args: [
                                     Var {
-                                        name: "n",
+                                        index: 0,
                                     },
                                     Int {
                                         value: 1,
                                     },
                                 ],
                             },
-                            bound_name: "__local_0",
+                            bound_index: 1,
                             body: Redex {
                                 function: Def {
                                     name: "factorial",
                                 },
                                 args: [
                                     Var {
-                                        name: "__local_0",
+                                        index: 1,
                                     },
                                 ],
                             },
                         },
-                        bound_name: "__local_1",
+                        bound_index: 2,
                         body: Redex {
                             function: Primitive {
                                 name: "_int_mul",
@@ -121,10 +121,10 @@ Defs
                             },
                             args: [
                                 Var {
-                                    name: "n",
+                                    index: 0,
                                 },
                                 Var {
-                                    name: "__local_1",
+                                    index: 2,
                                 },
                             ],
                         },

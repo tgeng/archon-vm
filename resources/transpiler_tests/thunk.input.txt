@@ -1,4 +1,10 @@
-def f x => x + 1
-let a = 1
-let t = thunk \=> f a
-force t
+def f x y z => x + y + z
+let a = 0
+let b = 1
+let c = 2
+let d = 3
+let t = thunk \=> f d a b
+let t2 = thunk
+           let e = 4
+           e + 5
+force t + force t2
