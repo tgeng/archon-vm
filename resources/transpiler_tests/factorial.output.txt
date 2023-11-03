@@ -69,11 +69,11 @@ Defs
 [
     (
         "factorial",
-        (
-            [
+        FunctionDefinition {
+            args: [
                 0,
             ],
-            CaseInt {
+            body: CaseInt {
                 t: Var {
                     index: 0,
                 },
@@ -131,13 +131,14 @@ Defs
                     },
                 ),
             },
-        ),
+            var_bound: 3,
+        },
     ),
     (
         "main",
-        (
-            [],
-            Redex {
+        FunctionDefinition {
+            args: [],
+            body: Redex {
                 function: Def {
                     name: "factorial",
                 },
@@ -147,6 +148,7 @@ Defs
                     },
                 ],
             },
-        ),
+            var_bound: 0,
+        },
     ),
 ]

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use either::{Either, Left, Right};
 use phf::{phf_map};
-use crate::signature::Signature;
+use crate::signature::{FunctionDefinition, Signature};
 use crate::term::{CTerm, VTerm};
 use crate::u_term::{Def, UTerm};
 
@@ -37,7 +37,11 @@ impl Transpiler {
             def_map: &HashMap::new(),
             var_map: &HashMap::new(),
         });
-        self.signature.insert("main".to_string(), vec![], main);
+        self.signature.insert("main".to_string(), FunctionDefinition {
+            args: vec![],
+            body: main,
+            var_bound: 0,
+        });
     }
 
     fn transpile_impl(&mut self, u_term: UTerm, context: &Context) -> CTerm {
@@ -166,7 +170,7 @@ impl Transpiler {
                     });
                     let mut free_var_strings: Vec<String> = free_vars.iter().map(|s| s.to_string()).collect();
                     free_var_strings.extend(def.args.clone());
-                    self.signature.defs.insert(name.clone(), (bound_indexes, def_body));
+                    self.signature.defs.insert(name.clone(), FunctionDefinition { args: bound_indexes, body: def_body, var_bound: self.local_counter });
                 });
                 match body {
                     None => CTerm::Return { value: VTerm::Tuple { values: Vec::new() } },

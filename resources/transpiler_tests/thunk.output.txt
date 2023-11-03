@@ -131,13 +131,13 @@ Defs
 [
     (
         "__lambda_0",
-        (
-            [
+        FunctionDefinition {
+            args: [
                 0,
                 1,
                 2,
             ],
-            Redex {
+            body: Redex {
                 function: Def {
                     name: "f",
                 },
@@ -153,17 +153,18 @@ Defs
                     },
                 ],
             },
-        ),
+            var_bound: 3,
+        },
     ),
     (
         "f",
-        (
-            [
+        FunctionDefinition {
+            args: [
                 0,
                 1,
                 2,
             ],
-            Let {
+            body: Let {
                 t: Redex {
                     function: Primitive {
                         name: "_int_add",
@@ -194,13 +195,14 @@ Defs
                     ],
                 },
             },
-        ),
+            var_bound: 4,
+        },
     ),
     (
         "main",
-        (
-            [],
-            Let {
+        FunctionDefinition {
+            args: [],
+            body: Let {
                 t: Return {
                     value: Int {
                         value: 0,
@@ -298,13 +300,14 @@ Defs
                     },
                 },
             },
-        ),
+            var_bound: 9,
+        },
     ),
     (
         "main$__thunk_0",
-        (
-            [],
-            Let {
+        FunctionDefinition {
+            args: [],
+            body: Let {
                 t: Return {
                     value: Int {
                         value: 4,
@@ -326,6 +329,7 @@ Defs
                     ],
                 },
             },
-        ),
+            var_bound: 1,
+        },
     ),
 ]

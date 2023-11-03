@@ -46,12 +46,12 @@ Defs
 [
     (
         "f",
-        (
-            [
+        FunctionDefinition {
+            args: [
                 0,
                 1,
             ],
-            Redex {
+            body: Redex {
                 function: Primitive {
                     name: "_int_add",
                     arity: 2,
@@ -65,13 +65,14 @@ Defs
                     },
                 ],
             },
-        ),
+            var_bound: 2,
+        },
     ),
     (
         "main",
-        (
-            [],
-            Let {
+        FunctionDefinition {
+            args: [],
+            body: Let {
                 t: Return {
                     value: Int {
                         value: 1,
@@ -92,6 +93,7 @@ Defs
                     ],
                 },
             },
-        ),
+            var_bound: 1,
+        },
     ),
 ]

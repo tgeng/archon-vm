@@ -31,9 +31,9 @@ Defs
 [
     (
         "main",
-        (
-            [],
-            Let {
+        FunctionDefinition {
+            args: [],
+            body: Let {
                 t: Return {
                     value: Int {
                         value: 1,
@@ -63,6 +63,7 @@ Defs
                     },
                 },
             },
-        ),
+            var_bound: 2,
+        },
     ),
 ]

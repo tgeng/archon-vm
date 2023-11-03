@@ -51,11 +51,11 @@ Defs
 [
     (
         "f",
-        (
-            [
+        FunctionDefinition {
+            args: [
                 0,
             ],
-            Let {
+            body: Let {
                 t: Let {
                     t: Return {
                         value: Int {
@@ -94,17 +94,19 @@ Defs
                     ],
                 },
             },
-        ),
+            var_bound: 3,
+        },
     ),
     (
         "main",
-        (
-            [],
-            Return {
+        FunctionDefinition {
+            args: [],
+            body: Return {
                 value: Tuple {
                     values: [],
                 },
             },
-        ),
+            var_bound: 0,
+        },
     ),
 ]
