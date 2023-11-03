@@ -1,6 +1,7 @@
 use std::collections::{HashMap};
 use crate::free_var::HasFreeVar;
 use crate::term::{CTerm, VTerm};
+use crate::transformer::Transformer;
 use crate::visitor::Visitor;
 
 #[derive(Debug, Clone)]
@@ -39,7 +40,7 @@ impl Signature {
     fn normalize_redex(&mut self) {
         let mut normalizer = RedexNormalizer {};
         self.defs.iter_mut().for_each(|(_, FunctionDefinition { body, .. })| {
-            normalizer.visit_c_term(body);
+            normalizer.transform_c_term(body);
         });
     }
 
@@ -48,7 +49,7 @@ impl Signature {
         let mut new_defs: Vec<(String, FunctionDefinition)> = Vec::new();
         self.defs.iter_mut().for_each(|(name, FunctionDefinition { body, .. })| {
             let mut thunk_lifter = ThunkLifter { def_name: name, thunk_counter: 0, new_defs: &mut new_defs };
-            thunk_lifter.visit_c_term(body);
+            thunk_lifter.transform_c_term(body);
         });
         for (name, FunctionDefinition { mut args, mut body, var_bound: mut max_arg_size }) in new_defs.into_iter() {
             Self::rename_local_vars_in_def(&mut args, &mut body, &mut max_arg_size);
@@ -71,7 +72,7 @@ impl Signature {
         for i in args.iter_mut() {
             *i = renamer.add_binding(*i);
         }
-        renamer.visit_c_term(body);
+        renamer.transform_c_term(body);
         *max_arg_size = renamer.counter;
     }
 }
@@ -81,7 +82,7 @@ struct DistinctVarRenamer {
     counter: usize,
 }
 
-impl Visitor for DistinctVarRenamer {
+impl Transformer for DistinctVarRenamer {
     fn add_binding(&mut self, index: usize) -> usize {
         let indexes = self.bindings.entry(index).or_default();
         let new_index = self.counter;
@@ -94,7 +95,7 @@ impl Visitor for DistinctVarRenamer {
         self.bindings.get_mut(&index).unwrap().pop();
     }
 
-    fn visit_var(&mut self, v_term: &mut VTerm) {
+    fn transform_var(&mut self, v_term: &mut VTerm) {
         match v_term {
             VTerm::Var { index: name } => {
                 if let Some(bindings) = self.bindings.get_mut(name) {
@@ -110,11 +111,11 @@ impl Visitor for DistinctVarRenamer {
 
 struct RedexNormalizer {}
 
-impl Visitor for RedexNormalizer {
-    fn visit_redex(&mut self, c_term: &mut CTerm) {
+impl Transformer for RedexNormalizer {
+    fn transform_redex(&mut self, c_term: &mut CTerm) {
         match c_term {
             CTerm::Redex { function, args } => {
-                self.visit_c_term(function);
+                self.transform_c_term(function);
                 if args.is_empty() {
                     let mut placeholder = CTerm::Primitive { name: "", arity: 0 };
                     std::mem::swap(&mut placeholder, function);
@@ -149,8 +150,8 @@ struct ThunkLifter<'a> {
     new_defs: &'a mut Vec<(String, FunctionDefinition)>,
 }
 
-impl<'a> Visitor for ThunkLifter<'a> {
-    fn visit_thunk(&mut self, v_term: &mut VTerm) {
+impl<'a> Transformer for ThunkLifter<'a> {
+    fn transform_thunk(&mut self, v_term: &mut VTerm) {
         if let VTerm::Thunk { t: box CTerm::Redex { function: box CTerm::Def { .. }, .. } | box CTerm::Def { .. } } = v_term {
             // There is no need to lift the thunk if it's already a simple function call.
             return;
@@ -170,7 +171,7 @@ impl<'a> Visitor for ThunkLifter<'a> {
 
 fn replace_thunk(new_defs: &mut Vec<(String, FunctionDefinition)>, thunk_def_name: String, free_vars: Vec<usize>, thunk: &mut CTerm) {
     VarNameReplacer { index_mapping: free_vars.iter().enumerate().map(|(i, v)| (*v, i)).collect() }
-        .visit_c_term(thunk);
+        .transform_c_term(thunk);
     let mut redex =
         CTerm::Redex {
             function: Box::new(CTerm::Def { name: thunk_def_name.clone() }),
@@ -188,8 +189,8 @@ struct VarNameReplacer {
     index_mapping: HashMap<usize, usize>,
 }
 
-impl Visitor for VarNameReplacer {
-    fn visit_var(&mut self, v_term: &mut VTerm) {
+impl Transformer for VarNameReplacer {
+    fn transform_var(&mut self, v_term: &mut VTerm) {
         if let VTerm::Var { index } = v_term {
             if let Some(new_index) = self.index_mapping.get(index) {
                 *index = *new_index;

@@ -28,16 +28,15 @@ struct FreeVarVisitor {
 }
 
 impl Visitor for FreeVarVisitor {
-    fn add_binding(&mut self, name: usize) -> usize {
+    fn add_binding(&mut self, name: usize) {
         self.binding_count.insert(name, self.binding_count.get(&name).cloned().unwrap_or(0) + 1);
-        name
     }
 
     fn remove_binding(&mut self, name: usize) {
         self.binding_count.insert(name, self.binding_count.get(&name).cloned().unwrap_or(0) - 1);
     }
 
-    fn visit_var(&mut self, _v_term: &mut VTerm) {
+    fn visit_var(&mut self, _v_term: &VTerm) {
         match _v_term {
             VTerm::Var { index: name } => {
                 if self.binding_count.get(name).cloned().unwrap_or(0) == 0 {
