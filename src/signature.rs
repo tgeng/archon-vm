@@ -41,8 +41,8 @@ impl Signature {
             let mut thunk_lifter = ThunkLifter { def_name: name, thunk_counter: 0, new_defs: &mut new_defs };
             thunk_lifter.visit_c_term(body);
         });
-        for (name, args, mut body) in new_defs.into_iter() {
-            Self::rename_local_vars_in_def(&args, &mut body);
+        for (name, mut args, mut body) in new_defs.into_iter() {
+            Self::rename_local_vars_in_def(&mut args, &mut body);
             self.insert(name, args, body)
         }
     }
@@ -53,10 +53,10 @@ impl Signature {
         });
     }
 
-    fn rename_local_vars_in_def(args: &Vec<usize>, body: &mut CTerm) {
+    fn rename_local_vars_in_def(args: &mut [usize], body: &mut CTerm) {
         let mut renamer = DistinctVarRenamer { bindings: HashMap::new(), counter: 0 };
-        for i in args {
-            renamer.add_binding(*i);
+        for i in args.iter_mut() {
+            *i = renamer.add_binding(*i);
         }
         renamer.visit_c_term(body);
     }

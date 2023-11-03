@@ -133,9 +133,9 @@ Defs
         "__lambda_0",
         (
             [
-                8,
-                9,
-                10,
+                0,
+                1,
+                2,
             ],
             Redex {
                 function: Def {
