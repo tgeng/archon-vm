@@ -14,3 +14,4 @@ cranelift = "0.101.3"
 cranelift-module = "0.101.3"
 cranelift-jit = "0.101.3"
 cranelift-native = "0.101.3"
+cbpv-runtime = { path = "runtime" }

@@ -103,11 +103,12 @@ impl<M: Module> Compiler<M> {
             module: &mut self.module,
             function_builder: &mut function_builder,
             local_vars: &mut vars,
-            current_type: INT,
-            is_tail: true,
             base_address,
         };
-        translator.translate_c_term(&function_definition.body);
+        translator.translate_c_term(&function_definition.body, TranslationContext {
+            current_type: INT,
+            is_tail: true,
+        });
     }
 }
 
