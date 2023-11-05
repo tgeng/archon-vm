@@ -15,3 +15,6 @@ cranelift-module = "0.101.3"
 cranelift-jit = "0.101.3"
 cranelift-native = "0.101.3"
 cbpv-runtime = { path = "runtime" }
+strum = "0.25.0"
+strum_macros = "0.25.3"
+enum-map = "2.7.0"
