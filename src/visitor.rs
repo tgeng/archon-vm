@@ -11,7 +11,7 @@ pub trait Visitor {
             VTerm::Thunk { .. } => self.visit_thunk(v_term),
             VTerm::Int { .. } => self.visit_int(v_term),
             VTerm::Str { .. } => self.visit_str(v_term),
-            VTerm::Tuple { .. } => self.visit_tuple(v_term),
+            VTerm::Array { .. } => self.visit_tuple(v_term),
         }
     }
 
@@ -23,7 +23,7 @@ pub trait Visitor {
     fn visit_int(&mut self, _v_term: &VTerm) {}
     fn visit_str(&mut self, _v_term: &VTerm) {}
     fn visit_tuple(&mut self, v_term: &VTerm) {
-        let VTerm::Tuple { values } = v_term else { unreachable!() };
+        let VTerm::Array { values } = v_term else { unreachable!() };
         for v in values {
             self.visit_v_term(v);
         }
@@ -37,7 +37,7 @@ pub trait Visitor {
             CTerm::Let { .. } => self.visit_let(c_term),
             CTerm::Def { .. } => self.visit_def(c_term),
             CTerm::CaseInt { .. } => self.visit_case_int(c_term),
-            CTerm::CaseTuple { .. } => self.visit_case_tuple(c_term),
+            CTerm::ArrayGet { .. } => self.visit_projection(c_term),
             CTerm::CaseStr { .. } => self.visit_case_str(c_term),
             CTerm::Primitive { .. } => self.visit_primitive(c_term),
         }
@@ -80,16 +80,10 @@ pub trait Visitor {
         }
     }
 
-    fn visit_case_tuple(&mut self, c_term: &CTerm) {
-        let CTerm::CaseTuple { t, bound_indexes, branch } = c_term else { unreachable!() };
-        self.visit_v_term(t);
-        for index in bound_indexes.iter() {
-            self.add_binding(*index)
-        }
-        self.visit_c_term(branch);
-        for index in bound_indexes.iter() {
-            self.remove_binding(*index);
-        }
+    fn visit_projection(&mut self, c_term: &CTerm) {
+        let CTerm::ArrayGet { array, index } = c_term else { unreachable!() };
+        self.visit_v_term(array);
+        self.visit_v_term(index);
     }
 
     fn visit_case_str(&mut self, c_term: &CTerm) {

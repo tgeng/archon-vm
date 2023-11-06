@@ -52,9 +52,9 @@ impl Transpiler {
             },
             UTerm::Int { value } => CTerm::Return { value: VTerm::Int { value } },
             UTerm::Str { value } => CTerm::Return { value: VTerm::Str { value } },
-            UTerm::Tuple { values } => {
+            UTerm::Array { values } => {
                 let (transpiled_values, transpiled_computations) = self.transpile_values(values, context);
-                Self::squash_computations(CTerm::Return { value: VTerm::Tuple { values: transpiled_values } }, transpiled_computations)
+                Self::squash_computations(CTerm::Return { value: VTerm::Array { values: transpiled_values } }, transpiled_computations)
             }
             UTerm::Lambda { arg_names, body } => {
                 let lambda_name = self.new_lambda_name(context.enclosing_def_name);
@@ -93,23 +93,13 @@ impl Transpiler {
                     CTerm::CaseStr { t, branches: transpiled_branches, default_branch: transpiled_default_branch }
                 })
             }
-            UTerm::CaseTuple { t, bound_names: names, branch } => {
-                let mut var_map = context.var_map.clone();
-                let bound_indexes: Vec<_> = names.iter().map(|name| {
-                    let index = self.new_local_index();
-                    var_map.insert(name.to_string(), index);
-                    index
-                }).collect();
-                let transpiled_branch = self.transpile_impl(*branch, &Context {
-                    enclosing_def_name: context.enclosing_def_name,
-                    def_map: context.def_map,
-                    var_map: &var_map,
-                });
-                self.transpile_value_and_map(*t, context, |t| {
-                    CTerm::CaseTuple {
-                        t,
-                        bound_indexes,
-                        branch: Box::new(transpiled_branch),
+            UTerm::ArrayGet { box array, box index } => {
+                let (index, index_computation) = self.transpile_value(index, context);
+                self.transpile_value_and_map(array, context, |array| {
+                    if let Some((name, index_c_term)) = index_computation {
+                        CTerm::Let { t: Box::new(index_c_term), bound_index: name, body: Box::new(CTerm::ArrayGet { array: array, index }) }
+                    } else {
+                        CTerm::ArrayGet { array, index }
                     }
                 })
             }
@@ -173,7 +163,7 @@ impl Transpiler {
                     self.signature.defs.insert(name.clone(), FunctionDefinition { args: bound_indexes, body: def_body, var_bound: self.local_counter });
                 });
                 match body {
-                    None => CTerm::Return { value: VTerm::Tuple { values: Vec::new() } },
+                    None => CTerm::Return { value: VTerm::Array { values: Vec::new() } },
                     Some(body) => self.transpile_impl(*body, &Context {
                         enclosing_def_name: context.enclosing_def_name,
                         var_map: context.var_map,
@@ -192,7 +182,7 @@ impl Transpiler {
             }
             UTerm::Int { value } => (VTerm::Int { value }, None),
             UTerm::Str { value } => (VTerm::Str { value }, None),
-            UTerm::Tuple { .. } => {
+            UTerm::Array { .. } => {
                 match self.transpile_impl(u_term, context) {
                     CTerm::Return { value } => (value, None),
                     c_term => self.new_computation(c_term),
@@ -207,7 +197,7 @@ impl Transpiler {
             }
             UTerm::CaseInt { .. } |
             UTerm::CaseStr { .. } |
-            UTerm::CaseTuple { .. } |
+            UTerm::ArrayGet { .. } |
             UTerm::Redex { .. } |
             UTerm::Force { .. } |
             UTerm::Let { .. } |
@@ -279,7 +269,7 @@ impl Transpiler {
             }
             UTerm::Int { .. } => {}
             UTerm::Str { .. } => {}
-            UTerm::Tuple { values } => values.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars)),
+            UTerm::Array { values } => values.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars)),
             UTerm::Lambda { arg_names, body } => {
                 let mut new_bound_names = bound_names.clone();
                 new_bound_names.extend(arg_names.iter().map(|s| s.as_str()));
@@ -305,11 +295,9 @@ impl Transpiler {
                     Self::get_free_vars(default_branch, bound_names, free_vars);
                 }
             }
-            UTerm::CaseTuple { t, bound_names: names, branch } => {
-                Self::get_free_vars(t, bound_names, free_vars);
-                let mut new_bound_names = bound_names.clone();
-                new_bound_names.extend(names.iter().map(|s| s.as_str()));
-                Self::get_free_vars(branch, &new_bound_names, free_vars);
+            UTerm::ArrayGet { array, index } => {
+                Self::get_free_vars(array, bound_names, free_vars);
+                Self::get_free_vars(index, bound_names, free_vars);
             }
             UTerm::Let { name, t, body } => {
                 Self::get_free_vars(t, bound_names, free_vars);

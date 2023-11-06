@@ -203,7 +203,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             CTerm::Let { .. } => todo!(),
             CTerm::Def { .. } => todo!(),
             CTerm::CaseInt { .. } => todo!(),
-            CTerm::CaseTuple { .. } => todo!(),
+            CTerm::ArrayGet { .. } => todo!(),
             CTerm::CaseStr { .. } => todo!(),
             CTerm::Primitive { .. } => todo!(),
         }
@@ -215,7 +215,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             VTerm::Thunk { .. } => todo!(),
             VTerm::Int { value } => ValueOrParam::Value(self.function_builder.ins().iconst(INT, *value)),
             VTerm::Str { .. } => todo!(),
-            VTerm::Tuple { .. } => todo!(),
+            VTerm::Array { .. } => todo!(),
         }
     }
 

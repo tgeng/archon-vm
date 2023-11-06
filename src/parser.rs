@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::thread::scope;
 use nom::branch::alt;
 use nom::{InputLength, IResult};
 use nom::character::complete::{space0, char, satisfy as char_satisfy, alphanumeric1, one_of};
@@ -7,7 +6,7 @@ use nom::combinator::{cut, map, map_res, opt};
 use nom::bytes::complete::{take_while1, escaped};
 use nom::error::{context, ErrorKind, ParseError};
 use nom::Parser;
-use nom::multi::{many0, many1, separated_list1};
+use nom::multi::{many0, many1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use crate::u_term::{Def, UTerm};
 use nom_locate::{LocatedSpan};
@@ -38,7 +37,7 @@ static PRECEDENCE: &[(&[OperatorAndName], Fixity)] = &[
 
 // keywords
 static KEYWORDS: &[&str] = &[
-    "let", "def", "case_int", "case_str", "case_tuple", "force", "thunk", "=>", "=", "(", ")", ",", "\\"
+    "let", "def", "case_int", "case_str", "force", "thunk", "=>", "=", "(", ")", ",", "\\", "[", "]", "@",
 ];
 
 // tokenizer
@@ -77,7 +76,7 @@ fn identifier_token(input: Span) -> IResult<Span, Token> {
                         Token::Normal(id_string, input.naive_get_utf8_column() - 1)
                     }),
                 // specially handle some punctuations that should never be combined with others
-                one_of("(),\\").map(|c| Token::Normal(c.to_string(), input.naive_get_utf8_column() - 1)),
+                one_of("(),\\[]").map(|c| Token::Normal(c.to_string(), input.naive_get_utf8_column() - 1)),
                 // punctuation identifier
                 take_while1(|c: char| c.is_ascii_punctuation() &&
                     c != '`' && c != '"' && c != '(' && c != ')' && c != ',' && c != '\\')
@@ -277,21 +276,16 @@ fn str_term(input: Input) -> IResult<Input, UTerm> {
     context("str_term", map(str, |value| UTerm::Str { value }))(input)
 }
 
-
-fn empty_tuple(input: Input) -> IResult<Input, UTerm> {
-    context("empty_tuple", map(
-        pair(token("("), token(")")),
-        |_| UTerm::Tuple { values: vec![] },
-    ))(input)
-}
-
-fn singleton_tuple(input: Input) -> IResult<Input, UTerm> {
-    context("singleton_tuple", map(
+fn array(input: Input) -> IResult<Input, UTerm> {
+    context("array", map(
         delimited(
-            pair(token("("), newline_opt),
-            atom,
-            pair(newline_opt, token(")"))),
-        |t| UTerm::Tuple { values: vec![t] },
+            token("["),
+            separated_list0(
+                delimited(newline_opt, token(","), newline_opt),
+                expr),
+            token("]"),
+        ),
+        |values: Vec<UTerm>| UTerm::Array { values },
     ))(input)
 }
 
@@ -300,8 +294,7 @@ fn atom(input: Input) -> IResult<Input, UTerm> {
         id_term,
         int_term,
         str_term,
-        empty_tuple,
-        singleton_tuple,
+        array,
         delimited(
             pair(token("("), newline_opt),
             u_term,
@@ -313,10 +306,22 @@ fn force(input: Input) -> IResult<Input, UTerm> {
     context("force", map(preceded(token("force"), atom), |t| UTerm::Force { thunk: Box::new(t) }))(input)
 }
 
+fn array_get_or_atom(input: Input) -> IResult<Input, UTerm> {
+    context("array_get_or_atom", map(
+        pair(atom, opt(preceded(token("@"), atom))),
+        |(t, index)| {
+            match index {
+                Some(index) => UTerm::ArrayGet { array: Box::new(t), index: Box::new(index) },
+                None => t,
+            }
+        },
+    ))(input)
+}
+
 fn scoped_app(input: Input) -> IResult<Input, UTerm> {
     context("scoped_app", scoped(
         map(
-            tuple((alt((atom, force)), many0(atom), many0(preceded(newline, u_term)))),
+            tuple((alt((array_get_or_atom, force)), many0(atom), many0(preceded(newline, u_term)))),
             |(f, args, more_args)| {
                 if args.is_empty() && more_args.is_empty() {
                     f
@@ -590,21 +595,6 @@ fn expr(input: Input) -> IResult<Input, UTerm> {
     context("expr", scoped(expr_impl))(input)
 }
 
-fn tuple_or_term(input: Input) -> IResult<Input, UTerm> {
-    context("tuple_or_term", map(
-        separated_list1(
-            delimited(newline_opt, token(","), newline_opt),
-            expr),
-        |values: Vec<UTerm>| {
-            if values.len() == 1 {
-                values.into_iter().next().unwrap()
-            } else {
-                UTerm::Tuple { values }
-            }
-        },
-    ))(input)
-}
-
 fn lambda(input: Input) -> IResult<Input, UTerm> {
     context("lambda", scoped(
         map(
@@ -648,20 +638,6 @@ fn case_str(input: Input) -> IResult<Input, UTerm> {
     ))(input)
 }
 
-fn case_tuple(input: Input) -> IResult<Input, UTerm> {
-    context("case_tuple", scoped(
-        map(
-            tuple((
-                preceded(token("case_tuple"), map(expr, Box::new)),
-                delimited(newline, many0(id), token("=>")),
-                preceded(newline_opt, scoped(map(u_term, Box::new))),
-            )),
-            |(t, bound_names, branch)| {
-                UTerm::CaseTuple { t, bound_names, branch }
-            })
-    ))(input)
-}
-
 fn let_term(input: Input) -> IResult<Input, UTerm> {
     context("let_term", map(
         tuple((
@@ -691,7 +667,7 @@ fn defs_term(input: Input) -> IResult<Input, UTerm> {
 }
 
 fn computaiton(input: Input) -> IResult<Input, UTerm> {
-    alt((tuple_or_term, lambda, case_int, case_str, case_tuple, let_term, defs_term))(input)
+    alt((expr, lambda, case_int, case_str, let_term, defs_term))(input)
 }
 
 fn thunk(input: Input) -> IResult<Input, UTerm> {
@@ -846,8 +822,8 @@ mod tests {
     }
 
     #[test]
-    fn check_empty_tuple() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("()")?), r#"Tuple {
+    fn check_empty_array() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("[]")?), r#"Array {
     values: [],
 }"#);
         Ok(())
@@ -855,8 +831,8 @@ mod tests {
 
 
     #[test]
-    fn check_singleton_tuple() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("(a)")?), r#"Tuple {
+    fn check_single_element_array() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("[a]")?), r#"Array {
     values: [
         Identifier {
             name: "a",
@@ -867,8 +843,8 @@ mod tests {
     }
 
     #[test]
-    fn check_tuple() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("a, b, c")?), r#"Tuple {
+    fn check_array() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("[a, b, c]")?), r#"Array {
     values: [
         Identifier {
             name: "a",
@@ -880,6 +856,29 @@ mod tests {
             name: "c",
         },
     ],
+}"#);
+        Ok(())
+    }
+
+    #[test]
+    fn check_array_get() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("[a, b, c] @ 1")?), r#"ArrayGet {
+    array: Array {
+        values: [
+            Identifier {
+                name: "a",
+            },
+            Identifier {
+                name: "b",
+            },
+            Identifier {
+                name: "c",
+            },
+        ],
+    },
+    index: Int {
+        value: 1,
+    },
 }"#);
         Ok(())
     }

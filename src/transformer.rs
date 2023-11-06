@@ -11,7 +11,7 @@ pub trait Transformer {
             VTerm::Thunk { .. } => self.transform_thunk(v_term),
             VTerm::Int { .. } => self.transform_int(v_term),
             VTerm::Str { .. } => self.transform_str(v_term),
-            VTerm::Tuple { .. } => self.transform_tuple(v_term),
+            VTerm::Array { .. } => self.transform_tuple(v_term),
         }
     }
 
@@ -23,7 +23,7 @@ pub trait Transformer {
     fn transform_int(&mut self, _v_term: &mut VTerm) {}
     fn transform_str(&mut self, _v_term: &mut VTerm) {}
     fn transform_tuple(&mut self, v_term: &mut VTerm) {
-        let VTerm::Tuple { values } = v_term else { unreachable!() };
+        let VTerm::Array { values } = v_term else { unreachable!() };
         for v in values {
             self.transform_v_term(v);
         }
@@ -37,7 +37,7 @@ pub trait Transformer {
             CTerm::Let { .. } => self.transform_let(c_term),
             CTerm::Def { .. } => self.transform_def(c_term),
             CTerm::CaseInt { .. } => self.transform_case_int(c_term),
-            CTerm::CaseTuple { .. } => self.transform_case_tuple(c_term),
+            CTerm::ArrayGet { .. } => self.transform_projection(c_term),
             CTerm::CaseStr { .. } => self.transform_case_str(c_term),
             CTerm::Primitive { .. } => self.transform_primitive(c_term),
         }
@@ -81,17 +81,10 @@ pub trait Transformer {
         }
     }
 
-    fn transform_case_tuple(&mut self, c_term: &mut CTerm) {
-        let CTerm::CaseTuple { t, bound_indexes, branch } = c_term else { unreachable!() };
-        self.transform_v_term(t);
-        let old_indexes = bound_indexes.clone();
-        for index in bound_indexes.iter_mut() {
-            *index = self.add_binding(*index)
-        }
-        self.transform_c_term(branch);
-        for index in old_indexes.iter() {
-            self.remove_binding(*index);
-        }
+    fn transform_projection(&mut self, c_term: &mut CTerm) {
+        let CTerm::ArrayGet { array, index } = c_term else { unreachable!() };
+        self.transform_v_term(array);
+        self.transform_v_term(index);
     }
 
     fn transform_case_str(&mut self, c_term: &mut CTerm) {
