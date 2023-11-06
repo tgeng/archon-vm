@@ -1,8 +1,9 @@
+use std::collections::HashMap;
 use cbpv_runtime::utils::runtime_alloc;
 use cranelift::prelude::*;
 use cranelift::prelude::types::I64;
 use cranelift_jit::{JITBuilder, JITModule};
-use cranelift_module::{DataDescription, FuncId, Linkage, Module};
+use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
 use crate::signature::FunctionDefinition;
 use crate::term::{CTerm, VTerm};
 use strum::IntoEnumIterator;
@@ -54,14 +55,12 @@ pub struct Compiler<M: Module> {
     /// context per thread, though this isn't in the simple demo here.
     ctx: codegen::Context,
 
-    /// The data description, which is to data objects what `ctx` is to functions.
-    data_description: DataDescription,
-
     /// The module, with the jit backend, which manages the JIT'd
     /// functions.
     module: M,
 
     builtin_functions: EnumMap<BuiltinFunction, FuncId>,
+    static_strings: HashMap<String, DataId>,
 }
 
 impl Default for Compiler<JITModule> {
@@ -94,9 +93,9 @@ impl<M: Module> Compiler<M> {
         Self {
             builder_context: FunctionBuilderContext::new(),
             ctx: module.make_context(),
-            data_description: DataDescription::new(),
             module,
             builtin_functions,
+            static_strings: HashMap::new(),
         }
     }
 
@@ -152,8 +151,10 @@ impl<M: Module> Compiler<M> {
         let base_address = function_builder.block_params(entry_block)[0];
         let mut translator = FunctionTranslator {
             module: &mut self.module,
-            builtin_functions: &self.builtin_functions,
             function_builder: &mut function_builder,
+            data_description: &mut DataDescription::new(),
+            builtin_functions: &self.builtin_functions,
+            static_strings: &mut self.static_strings,
             local_vars: &mut vars,
             base_address,
             tip_address: base_address,
@@ -189,8 +190,10 @@ enum ValueOrParam {
 
 struct FunctionTranslator<'a, M: Module> {
     module: &'a mut M,
-    builtin_functions: &'a EnumMap<BuiltinFunction, FuncId>,
     function_builder: &'a mut FunctionBuilder<'a>,
+    data_description: &'a mut DataDescription,
+    builtin_functions: &'a EnumMap<BuiltinFunction, FuncId>,
+    static_strings: &'a mut HashMap<String, DataId>,
     local_vars: &'a mut [Option<ValueOrParam>],
     base_address: Value,
     tip_address: Value,
@@ -217,7 +220,18 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             VTerm::Var { index } => self.local_vars[*index].unwrap(),
             VTerm::Thunk { .. } => todo!(),
             VTerm::Int { value } => ValueOrParam::Value(self.function_builder.ins().iconst(INT, *value)),
-            VTerm::Str { .. } => todo!(),
+            VTerm::Str { value } => {
+                // Insert into the global data section if not already there.
+                let data_id = self.static_strings.entry(value.clone()).or_insert_with(|| {
+                    self.data_description.define(value.clone().into_bytes().into_boxed_slice());
+                    let data_id = self.module.declare_data(value, Linkage::Local, false, false).unwrap();
+                    self.module.define_data(data_id, self.data_description).unwrap();
+                    self.data_description.clear();
+                    data_id
+                });
+                let global_value = self.module.declare_data_in_func(*data_id, self.function_builder.func);
+                ValueOrParam::Value(self.function_builder.ins().symbol_value(INT, global_value))
+            }
             VTerm::Array { values } => {
                 let translated = values.iter().map(|v| {
                     let value_or_param = self.translate_v_term(v, ctx);
