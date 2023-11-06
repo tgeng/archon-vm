@@ -37,7 +37,7 @@ pub trait Visitor {
             CTerm::Let { .. } => self.visit_let(c_term),
             CTerm::Def { .. } => self.visit_def(c_term),
             CTerm::CaseInt { .. } => self.visit_case_int(c_term),
-            CTerm::ArrayGet { .. } => self.visit_projection(c_term),
+            CTerm::MemGet { .. } => self.visit_projection(c_term),
             CTerm::CaseStr { .. } => self.visit_case_str(c_term),
             CTerm::Primitive { .. } => self.visit_primitive(c_term),
         }
@@ -81,7 +81,7 @@ pub trait Visitor {
     }
 
     fn visit_projection(&mut self, c_term: &CTerm) {
-        let CTerm::ArrayGet { array, index } = c_term else { unreachable!() };
+        let CTerm::MemGet { base: array, offset: index } = c_term else { unreachable!() };
         self.visit_v_term(array);
         self.visit_v_term(index);
     }

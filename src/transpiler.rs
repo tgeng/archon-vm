@@ -93,13 +93,13 @@ impl Transpiler {
                     CTerm::CaseStr { t, branches: transpiled_branches, default_branch: transpiled_default_branch }
                 })
             }
-            UTerm::ArrayGet { box array, box index } => {
-                let (index, index_computation) = self.transpile_value(index, context);
-                self.transpile_value_and_map(array, context, |array| {
-                    if let Some((name, index_c_term)) = index_computation {
-                        CTerm::Let { t: Box::new(index_c_term), bound_index: name, body: Box::new(CTerm::ArrayGet { array: array, index }) }
+            UTerm::MemGet { box base, box offset } => {
+                let (offset, offset_computation) = self.transpile_value(offset, context);
+                self.transpile_value_and_map(base, context, |base| {
+                    if let Some((name, index_c_term)) = offset_computation {
+                        CTerm::Let { t: Box::new(index_c_term), bound_index: name, body: Box::new(CTerm::MemGet { base, offset }) }
                     } else {
-                        CTerm::ArrayGet { array, index }
+                        CTerm::MemGet { base, offset }
                     }
                 })
             }
@@ -197,7 +197,7 @@ impl Transpiler {
             }
             UTerm::CaseInt { .. } |
             UTerm::CaseStr { .. } |
-            UTerm::ArrayGet { .. } |
+            UTerm::MemGet { .. } |
             UTerm::Redex { .. } |
             UTerm::Force { .. } |
             UTerm::Let { .. } |
@@ -295,7 +295,7 @@ impl Transpiler {
                     Self::get_free_vars(default_branch, bound_names, free_vars);
                 }
             }
-            UTerm::ArrayGet { array, index } => {
+            UTerm::MemGet { base: array, offset: index } => {
                 Self::get_free_vars(array, bound_names, free_vars);
                 Self::get_free_vars(index, bound_names, free_vars);
             }

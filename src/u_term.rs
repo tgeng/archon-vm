@@ -12,7 +12,7 @@ pub enum UTerm {
     Thunk { computation: Box<UTerm> },
     CaseInt { t: Box<UTerm>, branches: HashMap<i64, UTerm>, default_branch: Option<Box<UTerm>> },
     CaseStr { t: Box<UTerm>, branches: HashMap<String, UTerm>, default_branch: Option<Box<UTerm>> },
-    ArrayGet { array: Box<UTerm>, index: Box<UTerm> },
+    MemGet { base: Box<UTerm>, offset: Box<UTerm> },
     Let { name: String, t: Box<UTerm>, body: Box<UTerm> },
     Defs { defs: HashMap<String, Def>, body: Option<Box<UTerm>> },
 }

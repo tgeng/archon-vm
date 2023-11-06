@@ -311,7 +311,7 @@ fn array_get_or_atom(input: Input) -> IResult<Input, UTerm> {
         pair(atom, opt(preceded(token("@"), atom))),
         |(t, index)| {
             match index {
-                Some(index) => UTerm::ArrayGet { array: Box::new(t), index: Box::new(index) },
+                Some(index) => UTerm::MemGet { base: Box::new(t), offset: Box::new(index) },
                 None => t,
             }
         },
@@ -861,9 +861,9 @@ mod tests {
     }
 
     #[test]
-    fn check_array_get() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("[a, b, c] @ 1")?), r#"ArrayGet {
-    array: Array {
+    fn check_mem_get() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("[a, b, c] @ 1")?), r#"MemGet {
+    base: Array {
         values: [
             Identifier {
                 name: "a",
@@ -876,7 +876,7 @@ mod tests {
             },
         ],
     },
-    index: Int {
+    offset: Int {
         value: 1,
     },
 }"#);

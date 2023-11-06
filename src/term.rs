@@ -18,7 +18,6 @@ pub enum CTerm {
     Def { name: String },
     CaseInt { t: VTerm, branches: HashMap<i64, CTerm>, default_branch: Option<Box<CTerm>> },
     CaseStr { t: VTerm, branches: HashMap<String, CTerm>, default_branch: Option<Box<CTerm>> },
-    // TODO: add setter for arrays
-    ArrayGet { array: VTerm, index: VTerm },
+    MemGet { base: VTerm, offset: VTerm },
     Primitive { name: &'static str, arity: u8 },
 }

@@ -37,7 +37,7 @@ pub trait Transformer {
             CTerm::Let { .. } => self.transform_let(c_term),
             CTerm::Def { .. } => self.transform_def(c_term),
             CTerm::CaseInt { .. } => self.transform_case_int(c_term),
-            CTerm::ArrayGet { .. } => self.transform_projection(c_term),
+            CTerm::MemGet { .. } => self.transform_projection(c_term),
             CTerm::CaseStr { .. } => self.transform_case_str(c_term),
             CTerm::Primitive { .. } => self.transform_primitive(c_term),
         }
@@ -82,7 +82,7 @@ pub trait Transformer {
     }
 
     fn transform_projection(&mut self, c_term: &mut CTerm) {
-        let CTerm::ArrayGet { array, index } = c_term else { unreachable!() };
+        let CTerm::MemGet { base: array, offset: index } = c_term else { unreachable!() };
         self.transform_v_term(array);
         self.transform_v_term(index);
     }
