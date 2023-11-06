@@ -37,7 +37,8 @@ pub trait Transformer {
             CTerm::Let { .. } => self.transform_let(c_term),
             CTerm::Def { .. } => self.transform_def(c_term),
             CTerm::CaseInt { .. } => self.transform_case_int(c_term),
-            CTerm::MemGet { .. } => self.transform_projection(c_term),
+            CTerm::MemGet { .. } => self.transform_mem_get(c_term),
+            CTerm::MemSet { .. } => self.transform_mem_set(c_term),
             CTerm::CaseStr { .. } => self.transform_case_str(c_term),
             CTerm::Primitive { .. } => self.transform_primitive(c_term),
         }
@@ -81,10 +82,17 @@ pub trait Transformer {
         }
     }
 
-    fn transform_projection(&mut self, c_term: &mut CTerm) {
-        let CTerm::MemGet { base: array, offset: index } = c_term else { unreachable!() };
-        self.transform_v_term(array);
-        self.transform_v_term(index);
+    fn transform_mem_get(&mut self, c_term: &mut CTerm) {
+        let CTerm::MemGet { base, offset } = c_term else { unreachable!() };
+        self.transform_v_term(base);
+        self.transform_v_term(offset);
+    }
+
+    fn transform_mem_set(&mut self, c_term: &mut CTerm) {
+        let CTerm::MemSet { base, offset, value } = c_term else { unreachable!() };
+        self.transform_v_term(base);
+        self.transform_v_term(offset);
+        self.transform_v_term(value);
     }
 
     fn transform_case_str(&mut self, c_term: &mut CTerm) {

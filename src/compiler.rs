@@ -204,6 +204,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             CTerm::Def { .. } => todo!(),
             CTerm::CaseInt { .. } => todo!(),
             CTerm::MemGet { .. } => todo!(),
+            CTerm::MemSet { .. } => todo!(),
             CTerm::CaseStr { .. } => todo!(),
             CTerm::Primitive { .. } => todo!(),
         }

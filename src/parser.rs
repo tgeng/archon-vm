@@ -37,7 +37,7 @@ static PRECEDENCE: &[(&[OperatorAndName], Fixity)] = &[
 
 // keywords
 static KEYWORDS: &[&str] = &[
-    "let", "def", "case_int", "case_str", "force", "thunk", "=>", "=", "(", ")", ",", "\\", "[", "]", "@",
+    "let", "def", "case_int", "case_str", "force", "thunk", "=>", "=", "(", ")", ",", "\\", "[", "]", "@", "_"
 ];
 
 // tokenizer
@@ -306,12 +306,13 @@ fn force(input: Input) -> IResult<Input, UTerm> {
     context("force", map(preceded(token("force"), atom), |t| UTerm::Force { thunk: Box::new(t) }))(input)
 }
 
-fn array_get_or_atom(input: Input) -> IResult<Input, UTerm> {
-    context("array_get_or_atom", map(
-        pair(atom, opt(preceded(token("@"), atom))),
-        |(t, index)| {
-            match index {
-                Some(index) => UTerm::MemGet { base: Box::new(t), offset: Box::new(index) },
+fn mem_access_or_atom(input: Input) -> IResult<Input, UTerm> {
+    context("mem_access_or_atom", map(
+        pair(atom, opt(pair(preceded(token("@"), atom), opt(preceded(token("="), u_term))))),
+        |(t, index_and_value)| {
+            match index_and_value {
+                Some((index, None)) => UTerm::MemGet { base: Box::new(t), offset: Box::new(index) },
+                Some((index, Some(value))) => UTerm::MemSet { base: Box::new(t), offset: Box::new(index), value: Box::new(value) },
                 None => t,
             }
         },
@@ -321,7 +322,7 @@ fn array_get_or_atom(input: Input) -> IResult<Input, UTerm> {
 fn scoped_app(input: Input) -> IResult<Input, UTerm> {
     context("scoped_app", scoped(
         map(
-            tuple((alt((array_get_or_atom, force)), many0(atom), many0(preceded(newline, u_term)))),
+            tuple((alt((mem_access_or_atom, force)), many0(atom), many0(preceded(newline, u_term)))),
             |(f, args, more_args)| {
                 if args.is_empty() && more_args.is_empty() {
                     f
@@ -641,7 +642,10 @@ fn case_str(input: Input) -> IResult<Input, UTerm> {
 fn let_term(input: Input) -> IResult<Input, UTerm> {
     context("let_term", map(
         tuple((
-            scoped(pair(delimited(token("let"), id, token("=")), preceded(newline_opt, u_term))),
+            alt((
+                scoped(pair(delimited(token("let"), id, token("=")), preceded(newline_opt, u_term))),
+                map(expr, |t| (String::from("_"), t)),
+            )),
             preceded(newline, u_term),
         )),
         |((name, t), body)| {
@@ -667,7 +671,7 @@ fn defs_term(input: Input) -> IResult<Input, UTerm> {
 }
 
 fn computaiton(input: Input) -> IResult<Input, UTerm> {
-    alt((expr, lambda, case_int, case_str, let_term, defs_term))(input)
+    alt((let_term, defs_term, expr, lambda, case_int, case_str))(input)
 }
 
 fn thunk(input: Input) -> IResult<Input, UTerm> {
@@ -1055,6 +1059,66 @@ x")?), r#"Let {
             value: 3,
         },
     ),
+}"#);
+        Ok(())
+    }
+
+    #[test]
+    fn check_mem_access() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("let a = [1, 2, 3]
+a @ 0 = 4
+a @ 0 + a @ 1")?), r#"Let {
+    name: "a",
+    t: Array {
+        values: [
+            Int {
+                value: 1,
+            },
+            Int {
+                value: 2,
+            },
+            Int {
+                value: 3,
+            },
+        ],
+    },
+    body: Let {
+        name: "_",
+        t: MemSet {
+            base: Identifier {
+                name: "a",
+            },
+            offset: Int {
+                value: 0,
+            },
+            value: Int {
+                value: 4,
+            },
+        },
+        body: Redex {
+            function: Identifier {
+                name: "_int_add",
+            },
+            args: [
+                MemGet {
+                    base: Identifier {
+                        name: "a",
+                    },
+                    offset: Int {
+                        value: 0,
+                    },
+                },
+                MemGet {
+                    base: Identifier {
+                        name: "a",
+                    },
+                    offset: Int {
+                        value: 1,
+                    },
+                },
+            ],
+        },
+    },
 }"#);
         Ok(())
     }

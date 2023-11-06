@@ -19,5 +19,6 @@ pub enum CTerm {
     CaseInt { t: VTerm, branches: HashMap<i64, CTerm>, default_branch: Option<Box<CTerm>> },
     CaseStr { t: VTerm, branches: HashMap<String, CTerm>, default_branch: Option<Box<CTerm>> },
     MemGet { base: VTerm, offset: VTerm },
+    MemSet { base: VTerm, offset: VTerm, value: VTerm },
     Primitive { name: &'static str, arity: u8 },
 }

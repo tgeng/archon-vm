@@ -71,7 +71,7 @@ impl Transpiler {
                 let body = CTerm::Redex { function: Box::new(self.transpile_impl(*function, context)), args: transpiled_args };
                 Self::squash_computations(body, transpiled_computations)
             }
-            UTerm::Force { thunk } => self.transpile_value_and_map(*thunk, context, |t| CTerm::Force { thunk: t }),
+            UTerm::Force { thunk } => self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t }),
             UTerm::Thunk { computation } => CTerm::Return { value: VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)) } },
             UTerm::CaseInt { t, branches, default_branch } => {
                 let mut transpiled_branches = HashMap::new();
@@ -79,7 +79,7 @@ impl Transpiler {
                     transpiled_branches.insert(value, self.transpile_impl(branch, context));
                 }
                 let transpiled_default_branch = default_branch.map(|b| Box::new(self.transpile_impl(*b, context)));
-                self.transpile_value_and_map(*t, context, |t| {
+                self.transpile_value_and_map(*t, context, |(_, t)| {
                     CTerm::CaseInt { t, branches: transpiled_branches, default_branch: transpiled_default_branch }
                 })
             }
@@ -89,18 +89,24 @@ impl Transpiler {
                     transpiled_branches.insert(value.clone(), self.transpile_impl(branch, context));
                 }
                 let transpiled_default_branch = default_branch.map(|b| Box::new(self.transpile_impl(*b, context)));
-                self.transpile_value_and_map(*t, context, |t| {
+                self.transpile_value_and_map(*t, context, |(_, t)| {
                     CTerm::CaseStr { t, branches: transpiled_branches, default_branch: transpiled_default_branch }
                 })
             }
             UTerm::MemGet { box base, box offset } => {
-                let (offset, offset_computation) = self.transpile_value(offset, context);
-                self.transpile_value_and_map(base, context, |base| {
-                    if let Some((name, index_c_term)) = offset_computation {
-                        CTerm::Let { t: Box::new(index_c_term), bound_index: name, body: Box::new(CTerm::MemGet { base, offset }) }
-                    } else {
+                self.transpile_value_and_map(base, context, |(s, base)| {
+                    s.transpile_value_and_map(offset, context, |(_, offset)| {
                         CTerm::MemGet { base, offset }
-                    }
+                    })
+                })
+            }
+            UTerm::MemSet { box base, box offset, box value } => {
+                self.transpile_value_and_map(base, context, |(s, base)| {
+                    s.transpile_value_and_map(offset, context, |(s, offset)| {
+                        s.transpile_value_and_map(value, context, |(_, value)| {
+                            CTerm::MemSet { base, offset, value }
+                        })
+                    })
                 })
             }
             UTerm::Let { name, t, body } => {
@@ -198,6 +204,7 @@ impl Transpiler {
             UTerm::CaseInt { .. } |
             UTerm::CaseStr { .. } |
             UTerm::MemGet { .. } |
+            UTerm::MemSet { .. } |
             UTerm::Redex { .. } |
             UTerm::Force { .. } |
             UTerm::Let { .. } |
@@ -212,12 +219,12 @@ impl Transpiler {
         u_terms.into_iter().map(|v| self.transpile_value(v, context)).unzip()
     }
 
-    fn transpile_value_and_map<F>(&mut self, u_term: UTerm, context: &Context, f: F) -> CTerm where F: FnOnce(VTerm) -> CTerm {
+    fn transpile_value_and_map<F>(&mut self, u_term: UTerm, context: &Context, f: F) -> CTerm where F: FnOnce((&mut Self, VTerm)) -> CTerm {
         let (v_term, computation) = self.transpile_value(u_term, context);
         if let Some((name, computation)) = computation {
-            CTerm::Let { t: Box::new(computation), bound_index: name, body: Box::new(f(v_term)) }
+            CTerm::Let { t: Box::new(computation), bound_index: name, body: Box::new(f((self, v_term))) }
         } else {
-            f(v_term)
+            f((self, v_term))
         }
     }
 
@@ -295,9 +302,14 @@ impl Transpiler {
                     Self::get_free_vars(default_branch, bound_names, free_vars);
                 }
             }
-            UTerm::MemGet { base: array, offset: index } => {
-                Self::get_free_vars(array, bound_names, free_vars);
-                Self::get_free_vars(index, bound_names, free_vars);
+            UTerm::MemGet { base, offset } => {
+                Self::get_free_vars(base, bound_names, free_vars);
+                Self::get_free_vars(offset, bound_names, free_vars);
+            }
+            UTerm::MemSet { base, offset, value } => {
+                Self::get_free_vars(base, bound_names, free_vars);
+                Self::get_free_vars(offset, bound_names, free_vars);
+                Self::get_free_vars(value, bound_names, free_vars);
             }
             UTerm::Let { name, t, body } => {
                 Self::get_free_vars(t, bound_names, free_vars);
