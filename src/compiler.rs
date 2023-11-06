@@ -152,12 +152,13 @@ impl<M: Module> Compiler<M> {
         let base_address = function_builder.block_params(entry_block)[0];
         let mut translator = FunctionTranslator {
             module: &mut self.module,
+            builtin_functions: &self.builtin_functions,
             function_builder: &mut function_builder,
             local_vars: &mut vars,
             base_address,
             tip_address: base_address,
         };
-        translator.translate_c_term(&function_definition.body, TranslationContext {
+        translator.translate_c_term(&function_definition.body, &TranslationContext {
             current_type: INT,
             is_tail: true,
         });
@@ -188,6 +189,7 @@ enum ValueOrParam {
 
 struct FunctionTranslator<'a, M: Module> {
     module: &'a mut M,
+    builtin_functions: &'a EnumMap<BuiltinFunction, FuncId>,
     function_builder: &'a mut FunctionBuilder<'a>,
     local_vars: &'a mut [Option<ValueOrParam>],
     base_address: Value,
@@ -195,7 +197,7 @@ struct FunctionTranslator<'a, M: Module> {
 }
 
 impl<'a, M: Module> FunctionTranslator<'a, M> {
-    fn translate_c_term(&mut self, c_term: &CTerm, ctx: TranslationContext) -> ValueOrParam {
+    fn translate_c_term(&mut self, c_term: &CTerm, ctx: &TranslationContext) -> ValueOrParam {
         match c_term {
             CTerm::Redex { .. } => todo!(),
             CTerm::Return { .. } => todo!(),
@@ -210,17 +212,35 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         }
     }
 
-    fn translate_v_term(&mut self, v_term: &VTerm, ctx: TranslationContext) -> ValueOrParam {
+    fn translate_v_term(&mut self, v_term: &VTerm, ctx: &TranslationContext) -> ValueOrParam {
         match v_term {
             VTerm::Var { index } => self.local_vars[*index].unwrap(),
             VTerm::Thunk { .. } => todo!(),
             VTerm::Int { value } => ValueOrParam::Value(self.function_builder.ins().iconst(INT, *value)),
             VTerm::Str { .. } => todo!(),
-            VTerm::Array { .. } => todo!(),
+            VTerm::Array { values } => {
+                let translated = values.iter().map(|v| {
+                    let value_or_param = self.translate_v_term(v, ctx);
+                    self.translate_value_or_param(value_or_param, ctx)
+                }).collect::<Vec<_>>();
+                let array_size = translated.len() * 8;
+                let array_size_arg = self.function_builder.ins().iconst(INT, array_size as i64);
+                let func_ref = self.module.declare_func_in_func(self.builtin_functions[BuiltinFunction::Alloc], self.function_builder.func);
+                let runtime_alloc_call = self.function_builder.ins().call(func_ref, &[array_size_arg]);
+                let array_address = self.function_builder.inst_results(runtime_alloc_call)[0];
+                for (offset, value) in translated.into_iter().enumerate() {
+                    self.function_builder.ins().store(
+                        MemFlags::new().with_aligned(),
+                        value,
+                        array_address,
+                        (offset * 8) as i32);
+                }
+                ValueOrParam::Value(array_address)
+            }
         }
     }
 
-    fn translate_value_or_param(&mut self, value_or_param: ValueOrParam, ctx: TranslationContext) -> Value {
+    fn translate_value_or_param(&mut self, value_or_param: ValueOrParam, ctx: &TranslationContext) -> Value {
         match value_or_param {
             ValueOrParam::Value(v) => v,
             ValueOrParam::Param(param_index) => {
