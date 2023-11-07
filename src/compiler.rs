@@ -13,6 +13,8 @@ use enum_map::{Enum, EnumMap};
 
 static INT: Type = I64;
 
+type ValueAndType = Option<(Value, Type)>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, Enum)]
 enum BuiltinFunction {
     Alloc,
@@ -47,7 +49,8 @@ impl BuiltinFunction {
     }
 
     fn declare<M: Module>(&self, m: &mut M) -> FuncId {
-        m.declare_function(self.func_name(), Linkage::Import, &self.signature(m)).unwrap()
+        let signature = &self.signature(m);
+        m.declare_function(self.func_name(), Linkage::Import, signature).unwrap()
     }
 }
 
@@ -164,14 +167,6 @@ impl<M: Module> Compiler<M> {
         function_builder.switch_to_block(entry_block);
         function_builder.seal_block(entry_block);
 
-        let mut vars = vec![None; function_definition.var_bound];
-        for (i, v) in function_definition.args.iter().enumerate() {
-            // v is the variable index and i is the offset in the parameter list. The parameter
-            // stack grows from higher address to lower address, so parameter list grows in the
-            // reverse order and hence the offset is the index of the parameter in the parameter
-            // list.
-            vars[*v] = Some(ValueOrParam::Param(i));
-        }
         let base_address = function_builder.block_params(entry_block)[0];
         let mut translator = FunctionTranslator {
             module: &mut self.module,
@@ -180,31 +175,31 @@ impl<M: Module> Compiler<M> {
             builtin_functions: &self.builtin_functions,
             static_strings: &mut self.static_strings,
             local_functions: &self.local_functions,
-            local_vars: &mut vars,
+            local_vars: &mut vec![None; function_definition.var_bound],
             base_address,
             tip_address: base_address,
             num_args: function_definition.args.len(),
         };
+        for (i, v) in function_definition.args.iter().enumerate() {
+            // v is the variable index and i is the offset in the parameter list. The parameter
+            // stack grows from higher address to lower address, so parameter list grows in the
+            // reverse order and hence the offset is the index of the parameter in the parameter
+            // list.
+            let value = translator.function_builder.ins().load(INT, MemFlags::new(), translator.base_address, (i * 8) as i32);
+            translator.local_vars[*v] = Some((value, INT));
+        }
         // The return value will be returned so its type does not matter. Treating it as an integer
         // is sufficient.
-        let return_value_or_param = translator.translate_c_term(&function_definition.body, true, INT);
+        let return_value_or_param = translator.translate_c_term(&function_definition.body, true);
         match return_value_or_param {
-            ValueOrParam::Value(..) | ValueOrParam::Param(..) => {
-                let return_value = translator.translate_value_or_param(return_value_or_param, INT);
-                translator.function_builder.ins().return_(&[return_value]);
+            Some((value, _)) => {
+                translator.function_builder.ins().return_(&[value]);
             }
-            ValueOrParam::TailCall => {
+            None => {
                 // Nothing to do since tail call is already a terminating instruction.
             }
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Copy)]
-enum ValueOrParam {
-    Value(Value),
-    Param(usize),
-    TailCall,
 }
 
 struct FunctionTranslator<'a, M: Module> {
@@ -214,23 +209,23 @@ struct FunctionTranslator<'a, M: Module> {
     builtin_functions: &'a EnumMap<BuiltinFunction, FuncId>,
     static_strings: &'a mut HashMap<String, DataId>,
     local_functions: &'a HashMap<String, FuncId>,
-    local_vars: &'a mut [Option<ValueOrParam>],
+    local_vars: &'a mut [ValueAndType],
     base_address: Value,
     tip_address: Value,
     num_args: usize,
 }
 
 impl<'a, M: Module> FunctionTranslator<'a, M> {
-    fn translate_c_term(&mut self, c_term: &CTerm, is_tail: bool, expected_type: Type) -> ValueOrParam {
+    fn translate_c_term(&mut self, c_term: &CTerm, is_tail: bool) -> ValueAndType {
         match c_term {
             CTerm::Redex { box function, args } => {
-                let arg_values = args.iter().map(|arg| self.translate_v_term_to_value(arg, INT)).collect::<Vec<_>>();
+                let arg_values = args.iter().map(|arg| self.translate_v_term_to_value(arg)).collect::<Vec<_>>();
                 self.push_args(arg_values);
-                self.translate_c_term(function, is_tail, expected_type)
+                self.translate_c_term(function, is_tail)
             }
             CTerm::Return { value } => self.translate_v_term(value),
             CTerm::Force { thunk } => {
-                let thunk_value = self.translate_v_term_to_value(thunk, INT);
+                let thunk_value = self.translate_v_term_to_value(thunk);
                 let inst = self.call_builtin_func(BuiltinFunction::ForceThunk, &[thunk_value, self.tip_address]);
                 let func_pointer = self.function_builder.inst_results(inst)[0];
                 let signature = &self.function_builder.func.signature;
@@ -238,22 +233,25 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 if is_tail {
                     let dest_value = self.copy_tail_call_args();
                     self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[dest_value]);
-                    ValueOrParam::TailCall
+                    None
                 } else {
                     let inst = self.function_builder.ins().call_indirect(sig_ref, func_pointer, &[self.tip_address]);
-                    ValueOrParam::Value(self.extract_return_value(expected_type, inst))
+                    self.extract_return_value(INT, inst)
                 }
             }
-            CTerm::Let { .. } => todo!(),
+            CTerm::Let { box t, bound_index, box body } => {
+                let t_value = self.translate_c_term(t, false);
+                todo!()
+            }
             CTerm::Def { name } => {
                 let func_ref = self.get_local_function(name);
                 if is_tail {
                     let dest_value = self.copy_tail_call_args();
                     self.function_builder.ins().return_call(func_ref, &[dest_value]);
-                    ValueOrParam::TailCall
+                    None
                 } else {
                     let inst = self.function_builder.ins().call(func_ref, &[self.tip_address]);
-                    ValueOrParam::Value(self.extract_return_value(expected_type, inst))
+                    self.extract_return_value(INT, inst)
                 }
             }
             CTerm::CaseInt { .. } => todo!(),
@@ -264,11 +262,11 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         }
     }
 
-    fn extract_return_value(&mut self, expected_type: Type, inst: Inst) -> Value {
+    fn extract_return_value(&mut self, expected_type: Type, inst: Inst) -> ValueAndType {
         let return_address = self.function_builder.inst_results(inst)[0];
         let return_value = self.function_builder.ins().load(expected_type, MemFlags::new(), return_address, 0);
         self.tip_address = self.function_builder.ins().iadd_imm(self.tip_address, 8);
-        return_value
+        Some((return_value, expected_type))
     }
 
     fn copy_tail_call_args(&mut self) -> Value {
@@ -279,9 +277,9 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         dest_value
     }
 
-    fn translate_v_term(&mut self, v_term: &VTerm) -> ValueOrParam {
+    fn translate_v_term(&mut self, v_term: &VTerm) -> ValueAndType {
         match v_term {
-            VTerm::Var { index } => self.local_vars[*index].unwrap(),
+            VTerm::Var { index } => self.local_vars[*index],
             VTerm::Thunk { box t } => {
                 let CTerm::Redex { function: box CTerm::Def { name }, args } = t else {
                     unreachable!("thunk lifting should have guaranteed this")
@@ -293,11 +291,11 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 let arg_size = self.function_builder.ins().iconst(INT, args.len() as i64);
                 let mut thunk_components = vec![func_pointer_plus_one, arg_size];
                 for arg in args {
-                    thunk_components.push(self.translate_v_term_to_value(arg, INT));
+                    thunk_components.push(self.translate_v_term_to_value(arg));
                 }
-                ValueOrParam::Value(self.create_array(thunk_components))
+                Some((self.create_array(thunk_components), INT))
             }
-            VTerm::Int { value } => ValueOrParam::Value(self.function_builder.ins().iconst(INT, *value)),
+            VTerm::Int { value } => Some((self.function_builder.ins().iconst(INT, *value), INT)),
             VTerm::Str { value } => {
                 // Insert into the global data section if not already there.
                 let data_id = self.static_strings.entry(value.clone()).or_insert_with(|| {
@@ -308,11 +306,11 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     data_id
                 });
                 let global_value = self.module.declare_data_in_func(*data_id, self.function_builder.func);
-                ValueOrParam::Value(self.function_builder.ins().symbol_value(INT, global_value))
+                Some((self.function_builder.ins().symbol_value(INT, global_value), INT))
             }
             VTerm::Array { values } => {
-                let translated = values.iter().map(|v| self.translate_v_term_to_value(v, INT)).collect::<Vec<_>>();
-                ValueOrParam::Value(self.create_array(translated))
+                let translated = values.iter().map(|v| self.translate_v_term_to_value(v)).collect::<Vec<_>>();
+                Some((self.create_array(translated), INT))
             }
         }
     }
@@ -349,22 +347,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         self.function_builder.ins().call(func_ref, args)
     }
 
-    fn translate_v_term_to_value(&mut self, v_term: &VTerm, expected_type: Type) -> Value {
-        let value_or_param = self.translate_v_term(&v_term);
-        self.translate_value_or_param(value_or_param, expected_type)
-    }
-
-    fn translate_value_or_param(&mut self, value_or_param: ValueOrParam, expected_type: Type) -> Value {
-        match value_or_param {
-            ValueOrParam::Value(v) => v,
-            ValueOrParam::Param(param_index) => {
-                let base_address = self.base_address;
-                let offset = (param_index + 1) * 8;
-                let address = self.function_builder.ins().iadd_imm(base_address, offset as i64);
-                let value = self.function_builder.ins().load(expected_type, MemFlags::new(), address, 0);
-                value
-            }
-            ValueOrParam::TailCall => unreachable!(),
-        }
+    fn translate_v_term_to_value(&mut self, v_term: &VTerm) -> Value {
+        let Some((value, _)) = self.translate_v_term(&v_term) else { unreachable!() };
+        value
     }
 }
