@@ -186,6 +186,8 @@ impl<M: Module> Compiler<M> {
             // reverse order and hence the offset is the index of the parameter in the parameter
             // list.
             let value = translator.function_builder.ins().load(INT, MemFlags::new(), translator.base_address, (i * 8) as i32);
+            // TODO: it's possible to track the type of variables conservatively and use non-INT
+            //  types whenever possible so that we can avoid some casts inside the function body.
             translator.local_vars[*v] = Some((value, INT));
         }
         // The return value will be returned so its type does not matter. Treating it as an integer
@@ -241,7 +243,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             }
             CTerm::Let { box t, bound_index, box body } => {
                 let t_value = self.translate_c_term(t, false);
-                todo!()
+                self.local_vars[*bound_index] = t_value;
+                self.translate_c_term(body, is_tail)
             }
             CTerm::Def { name } => {
                 let func_ref = self.get_local_function(name);
@@ -251,13 +254,15 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     None
                 } else {
                     let inst = self.function_builder.ins().call(func_ref, &[self.tip_address]);
+                    // TODO: it's possible to track the return type conservatively and use proper
+                    //  type (aka, some float) here.
                     self.extract_return_value(INT, inst)
                 }
             }
             CTerm::CaseInt { .. } => todo!(),
+            CTerm::CaseStr { .. } => todo!(),
             CTerm::MemGet { .. } => todo!(),
             CTerm::MemSet { .. } => todo!(),
-            CTerm::CaseStr { .. } => todo!(),
             CTerm::Primitive { .. } => todo!(),
         }
     }
