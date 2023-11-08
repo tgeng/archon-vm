@@ -102,7 +102,7 @@ Defs
         FunctionDefinition {
             args: [],
             body: Return {
-                value: Array {
+                value: Struct {
                     values: [],
                 },
             },

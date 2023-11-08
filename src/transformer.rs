@@ -11,7 +11,7 @@ pub trait Transformer {
             VTerm::Thunk { .. } => self.transform_thunk(v_term),
             VTerm::Int { .. } => self.transform_int(v_term),
             VTerm::Str { .. } => self.transform_str(v_term),
-            VTerm::Array { .. } => self.transform_tuple(v_term),
+            VTerm::Struct { .. } => self.transform_tuple(v_term),
         }
     }
 
@@ -23,7 +23,7 @@ pub trait Transformer {
     fn transform_int(&mut self, _v_term: &mut VTerm) {}
     fn transform_str(&mut self, _v_term: &mut VTerm) {}
     fn transform_tuple(&mut self, v_term: &mut VTerm) {
-        let VTerm::Array { values } = v_term else { unreachable!() };
+        let VTerm::Struct { values } = v_term else { unreachable!() };
         for v in values {
             self.transform_v_term(v);
         }

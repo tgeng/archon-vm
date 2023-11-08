@@ -52,9 +52,9 @@ impl Transpiler {
             },
             UTerm::Int { value } => CTerm::Return { value: VTerm::Int { value } },
             UTerm::Str { value } => CTerm::Return { value: VTerm::Str { value } },
-            UTerm::Array { values } => {
+            UTerm::Struct { values } => {
                 let (transpiled_values, transpiled_computations) = self.transpile_values(values, context);
-                Self::squash_computations(CTerm::Return { value: VTerm::Array { values: transpiled_values } }, transpiled_computations)
+                Self::squash_computations(CTerm::Return { value: VTerm::Struct { values: transpiled_values } }, transpiled_computations)
             }
             UTerm::Lambda { arg_names, body } => {
                 let lambda_name = self.new_lambda_name(context.enclosing_def_name);
@@ -169,7 +169,7 @@ impl Transpiler {
                     self.signature.defs.insert(name.clone(), FunctionDefinition { args: bound_indexes, body: def_body, var_bound: self.local_counter });
                 });
                 match body {
-                    None => CTerm::Return { value: VTerm::Array { values: Vec::new() } },
+                    None => CTerm::Return { value: VTerm::Struct { values: Vec::new() } },
                     Some(body) => self.transpile_impl(*body, &Context {
                         enclosing_def_name: context.enclosing_def_name,
                         var_map: context.var_map,
@@ -188,7 +188,7 @@ impl Transpiler {
             }
             UTerm::Int { value } => (VTerm::Int { value }, None),
             UTerm::Str { value } => (VTerm::Str { value }, None),
-            UTerm::Array { .. } => {
+            UTerm::Struct { .. } => {
                 match self.transpile_impl(u_term, context) {
                     CTerm::Return { value } => (value, None),
                     c_term => self.new_computation(c_term),
@@ -276,7 +276,7 @@ impl Transpiler {
             }
             UTerm::Int { .. } => {}
             UTerm::Str { .. } => {}
-            UTerm::Array { values } => values.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars)),
+            UTerm::Struct { values } => values.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars)),
             UTerm::Lambda { arg_names, body } => {
                 let mut new_bound_names = bound_names.clone();
                 new_bound_names.extend(arg_names.iter().map(|s| s.as_str()));

@@ -298,7 +298,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 for arg in args {
                     thunk_components.push(self.translate_v_term_to_value(arg));
                 }
-                Some((self.create_array(thunk_components), INT))
+                Some((self.create_struct(thunk_components), INT))
             }
             VTerm::Int { value } => Some((self.function_builder.ins().iconst(INT, *value), INT)),
             VTerm::Str { value } => {
@@ -313,9 +313,9 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 let global_value = self.module.declare_data_in_func(*data_id, self.function_builder.func);
                 Some((self.function_builder.ins().symbol_value(INT, global_value), INT))
             }
-            VTerm::Array { values } => {
+            VTerm::Struct { values } => {
                 let translated = values.iter().map(|v| self.translate_v_term_to_value(v)).collect::<Vec<_>>();
-                Some((self.create_array(translated), INT))
+                Some((self.create_struct(translated), INT))
             }
         }
     }
@@ -332,7 +332,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         self.module.declare_func_in_func(*func_id, self.function_builder.func)
     }
 
-    fn create_array(&mut self, values: Vec<Value>) -> Value {
+    fn create_struct(&mut self, values: Vec<Value>) -> Value {
         let array_size = values.len() * 8;
         let array_size_arg = self.function_builder.ins().iconst(INT, array_size as i64);
         let runtime_alloc_call = self.call_builtin_func(BuiltinFunction::Alloc, &[array_size_arg]);

@@ -11,7 +11,7 @@ pub trait Visitor {
             VTerm::Thunk { .. } => self.visit_thunk(v_term),
             VTerm::Int { .. } => self.visit_int(v_term),
             VTerm::Str { .. } => self.visit_str(v_term),
-            VTerm::Array { .. } => self.visit_tuple(v_term),
+            VTerm::Struct { .. } => self.visit_tuple(v_term),
         }
     }
 
@@ -23,7 +23,7 @@ pub trait Visitor {
     fn visit_int(&mut self, _v_term: &VTerm) {}
     fn visit_str(&mut self, _v_term: &VTerm) {}
     fn visit_tuple(&mut self, v_term: &VTerm) {
-        let VTerm::Array { values } = v_term else { unreachable!() };
+        let VTerm::Struct { values } = v_term else { unreachable!() };
         for v in values {
             self.visit_v_term(v);
         }

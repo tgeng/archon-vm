@@ -5,7 +5,7 @@ pub enum UTerm {
     Identifier { name: String },
     Int { value: i64 },
     Str { value: String },
-    Array { values: Vec<UTerm> },
+    Struct { values: Vec<UTerm> },
     Lambda { arg_names: Vec<String>, body: Box<UTerm> },
     Redex { function: Box<UTerm>, args: Vec<UTerm> },
     Force { thunk: Box<UTerm> },

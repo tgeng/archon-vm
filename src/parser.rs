@@ -37,7 +37,7 @@ static PRECEDENCE: &[(&[OperatorAndName], Fixity)] = &[
 
 // keywords
 static KEYWORDS: &[&str] = &[
-    "let", "def", "case_int", "case_str", "force", "thunk", "=>", "=", "(", ")", ",", "\\", "[", "]", "@", "_"
+    "let", "def", "case_int", "case_str", "force", "thunk", "=>", "=", "(", ")", ",", "\\", "{", "}", "@", "_"
 ];
 
 // tokenizer
@@ -76,7 +76,7 @@ fn identifier_token(input: Span) -> IResult<Span, Token> {
                         Token::Normal(id_string, input.naive_get_utf8_column() - 1)
                     }),
                 // specially handle some punctuations that should never be combined with others
-                one_of("(),\\[]").map(|c| Token::Normal(c.to_string(), input.naive_get_utf8_column() - 1)),
+                one_of("(),\\{}").map(|c| Token::Normal(c.to_string(), input.naive_get_utf8_column() - 1)),
                 // punctuation identifier
                 take_while1(|c: char| c.is_ascii_punctuation() &&
                     c != '`' && c != '"' && c != '(' && c != ')' && c != ',' && c != '\\')
@@ -276,16 +276,16 @@ fn str_term(input: Input) -> IResult<Input, UTerm> {
     context("str_term", map(str, |value| UTerm::Str { value }))(input)
 }
 
-fn array(input: Input) -> IResult<Input, UTerm> {
-    context("array", map(
+fn struct_(input: Input) -> IResult<Input, UTerm> {
+    context("struct", map(
         delimited(
-            token("["),
+            token("{"),
             separated_list0(
                 delimited(newline_opt, token(","), newline_opt),
                 expr),
-            token("]"),
+            token("}"),
         ),
-        |values: Vec<UTerm>| UTerm::Array { values },
+        |values: Vec<UTerm>| UTerm::Struct { values },
     ))(input)
 }
 
@@ -294,7 +294,7 @@ fn atom(input: Input) -> IResult<Input, UTerm> {
         id_term,
         int_term,
         str_term,
-        array,
+        struct_,
         delimited(
             pair(token("("), newline_opt),
             u_term,
@@ -827,7 +827,7 @@ mod tests {
 
     #[test]
     fn check_empty_array() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("[]")?), r#"Array {
+        assert_eq!(debug_print(parse_u_term("{}")?), r#"Struct {
     values: [],
 }"#);
         Ok(())
@@ -836,7 +836,7 @@ mod tests {
 
     #[test]
     fn check_single_element_array() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("[a]")?), r#"Array {
+        assert_eq!(debug_print(parse_u_term("{a}")?), r#"Struct {
     values: [
         Identifier {
             name: "a",
@@ -848,7 +848,7 @@ mod tests {
 
     #[test]
     fn check_array() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("[a, b, c]")?), r#"Array {
+        assert_eq!(debug_print(parse_u_term("{a, b, c}")?), r#"Struct {
     values: [
         Identifier {
             name: "a",
@@ -866,8 +866,8 @@ mod tests {
 
     #[test]
     fn check_mem_get() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("[a, b, c] @ 1")?), r#"MemGet {
-    base: Array {
+        assert_eq!(debug_print(parse_u_term("{a, b, c} @ 1")?), r#"MemGet {
+    base: Struct {
         values: [
             Identifier {
                 name: "a",
@@ -953,28 +953,31 @@ f a b
         Identifier {
             name: "b",
         },
-        Redex {
-            function: Identifier {
-                name: "g",
+        Let {
+            name: "_",
+            t: Redex {
+                function: Identifier {
+                    name: "g",
+                },
+                args: [
+                    Int {
+                        value: 1,
+                    },
+                    Int {
+                        value: 2,
+                    },
+                ],
             },
-            args: [
-                Int {
-                    value: 1,
+            body: Redex {
+                function: Identifier {
+                    name: "h",
                 },
-                Int {
-                    value: 2,
-                },
-            ],
-        },
-        Redex {
-            function: Identifier {
-                name: "h",
+                args: [
+                    Int {
+                        value: 3,
+                    },
+                ],
             },
-            args: [
-                Int {
-                    value: 3,
-                },
-            ],
         },
     ],
 }"#);
@@ -1065,11 +1068,11 @@ x")?), r#"Let {
 
     #[test]
     fn check_mem_access() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("let a = [1, 2, 3]
+        assert_eq!(debug_print(parse_u_term("let a = {1, 2, 3}
 a @ 0 = 4
 a @ 0 + a @ 1")?), r#"Let {
     name: "a",
-    t: Array {
+    t: Struct {
         values: [
             Int {
                 value: 1,
