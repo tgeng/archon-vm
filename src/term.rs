@@ -1,50 +1,50 @@
 use std::collections::HashMap;
 
-enum VType {
-    /// Any type, a unified representation through using bit tags can represent any values.
-    /// Specifically,
-    /// * 51-bit integers. The highest 13 bits must all be 1. That is, we are leveraging the unused
-    ///   bits of IEEE754 double −∞)
-    /// * Ptr has the lowest 48 bits as the address and the highest 14 bits like 0111 1111 1111 11.
-    ///   That is, we are leveraging the unused bits of IEEE754 double NaN. Pointers are always
-    ///   aligned to 8 bytes (aka the lowest 3 bits are always 0).
-    /// * FPtr is just like Ptr except the lowest 3 bits are 001
-    /// * TPtr is just like Ptr except the lowest 3 bits are 010
-    /// * SPtr is just like Ptr except the lowest 3 bits are 011
-    /// * APtr is just like Ptr except the lowest 3 bits are 100
-    /// * F64 is represented as it is.
-    /// * I64 is represented as a pointer to a boxed integer where the highest 14 bits are 0111 1111
-    ///   1111 01.
-    /// The uniform representation is used inside structs, thunks and function input and output.
-    /// Arrays, on the other hand, have additional tagging bits to represent the element type and
-    /// length.
-    /// TODO: it's possible to have functions using specialized types for better performance. It
-    ///  probably makes sense to do this when we have specialized functions whose arguments are not
-    ///  passed through the argument stack.
-    Any,
-    /// A 51-bit integer represented as a machine word (64 bit), the highest 13 bits must be
-    /// sign-extended.
+enum PrimitiveType {
+    /// 61-bit integer. Lowest bits are 000 under uniform representation.
     Int,
-    /// A pointer to struct. Note that the highest 14 bits are all 0 for
-    /// proper dereferencing, unlike the uniform representation
+
+    /// Pointer to some struct whose fields are all in uniform representation. Lowest bits are 001
+    /// under uniform representation.
+    /// The -1 word contains the byte length of this struct. This size is needed to check effect
+    /// argument equality at runtime. It should be possible to leverage the information from the
+    /// memory allocator to avoid storing this size in future.
     Ptr,
-    /// A pointer to a raw function. Note that the highest 14 bits and the lowest 3 bits are 0 for
-    /// proper dereferencing, unlike the uniform representation
-    FPtr,
-    /// A pointer to a thunk. Note that the highest 14 bits and the lowest 3 bits are 0 for
-    /// proper dereferencing, unlike the uniform representation
-    TPtr,
-    /// A pointer to a string. Note that the highest 14 bits and the lowest 3 bits are 0 for
-    /// proper dereferencing, unlike the uniform representation
-    SPtr,
-    // TODO: the following types are not yet implemented in the AST
-    /// A pointer to a thunk. Note that the highest 14 bits and the lowest 3 bits are 0 for
-    /// proper dereferencing, unlike the uniform representation
-    APtr,
-    /// A 64-bit floating point number represented as a machine word (64 bit).
-    F64,
-    /// A 64-bit integer represented as a machine word
+
+    /// Raw function pointer. Lowest bits are 010 under uniform representation.
+    Fun,
+
+    /// Pointer to a primitive array or string. Lowest bits are 011 under uniform representation.
+    /// The -1 word contains the byte length of this array or string. This size is needed to check
+    /// effect argument equality at runtime. It should be possible to leverage the information from
+    /// the memory allocator to avoid storing this size in future.
+    Arr,
+
+    /// A 64-bit integer. Boxed when under uniform representation with lowest bits 100 in the
+    /// pointer.
     I64,
+
+    /// A 32-bit integer. Highest bits are used when under uniform representation, lowest bits are
+    /// 101.
+    I32,
+
+    /// A 64-bit float. Boxed when under uniform representation with lowest bits 110 in the pointer.
+    F64,
+
+    /// A 32-bit float. Highest bits are used when under uniform representation, lowest bits are
+    /// 111.
+    F32,
+}
+
+enum VType {
+    /// Uniform representation of values. See [PrimitiveType] for details.
+    Uniform,
+    // TODO: it's possible to have functions using specialized types for better performance. It
+    //  probably makes sense to do this when we have specialized functions whose arguments are not
+    //  passed through the argument stack.
+    /// Values of specialized are represented in their "natural" form. That is, pointers are raw
+    /// pointers that can be dereferenced. Integer and floats are unboxed values.
+    Special(PrimitiveType),
 }
 
 #[derive(Debug, Clone)]
@@ -58,7 +58,9 @@ pub enum VTerm {
     // TODO: the following types are not yet implemented in the AST yet
     // Array { values: Vec<VTerm> },
     // F64 { value: f64 },
+    // F32 { value: f32 },
     // I64 { value: i64 },
+    // I32 { value: i32 },
 }
 
 #[derive(Debug, Clone)]
