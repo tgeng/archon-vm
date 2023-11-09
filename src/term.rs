@@ -1,5 +1,27 @@
 use std::collections::HashMap;
 
+use cranelift::prelude::Type;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PrimitiveType {
+    Integer,
+    StructPtr,
+    PrimitivePtr,
+    Primitive(Type),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum VType {
+    /// Uniform representation of values. See [[cbpv_runtime::types::UniformType]] for details.
+    Uniform,
+    // TODO: it's possible to have functions using specialized types for better performance. It
+    //  probably makes sense to do this when we have specialized functions whose arguments are not
+    //  passed through the argument stack.
+    /// Values of specialized are represented in their "natural" form. That is, pointers are raw
+    /// pointers that can be dereferenced. Integer and floats are unboxed values.
+    Special(PrimitiveType),
+}
+
 #[derive(Debug, Clone)]
 pub enum VTerm {
     Var { index: usize },
@@ -24,17 +46,8 @@ pub enum CTerm {
     Let { t: Box<CTerm>, bound_index: usize, body: Box<CTerm> },
     Def { name: String },
     CaseInt { t: VTerm, branches: HashMap<i64, CTerm>, default_branch: Option<Box<CTerm>> },
-    CaseStr { t: VTerm, branches: HashMap<String, CTerm>, default_branch: Option<Box<CTerm>> },
+    // TODO: add data type to mem get and set
     MemGet { base: VTerm, offset: VTerm },
     MemSet { base: VTerm, offset: VTerm, value: VTerm },
-    // TODO: add the following for primitive accesses
-    // I64Get
-    // I64Set
-    // I32Get
-    // I32Set
-    // F64Get
-    // F64Set
-    // F32Get
-    // F32Set
     Primitive { name: &'static str },
 }

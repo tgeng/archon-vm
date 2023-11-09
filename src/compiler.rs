@@ -7,32 +7,12 @@ use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
 use crate::signature::FunctionDefinition;
-use crate::term::{CTerm, VTerm};
+use crate::term::{CTerm, VTerm, VType, PrimitiveType};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use enum_map::{Enum, EnumMap};
 use VType::{Special, Uniform};
-use crate::compiler::PrimitiveType::{Integer, PrimitivePtr, StructPtr};
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum PrimitiveType {
-    Integer,
-    StructPtr,
-    PrimitivePtr,
-    Primitive(Type),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum VType {
-    /// Uniform representation of values. See [UniformType] for details.
-    Uniform,
-    // TODO: it's possible to have functions using specialized types for better performance. It
-    //  probably makes sense to do this when we have specialized functions whose arguments are not
-    //  passed through the argument stack.
-    /// Values of specialized are represented in their "natural" form. That is, pointers are raw
-    /// pointers that can be dereferenced. Integer and floats are unboxed values.
-    Special(PrimitiveType),
-}
+use PrimitiveType::{Integer, PrimitivePtr, StructPtr};
 
 type ValueAndType = Option<(Value, VType)>;
 
@@ -303,7 +283,6 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 }
             }
             CTerm::CaseInt { .. } => todo!(),
-            CTerm::CaseStr { .. } => todo!(),
             CTerm::MemGet { .. } => todo!(),
             CTerm::MemSet { .. } => todo!(),
             CTerm::Primitive { .. } => todo!(),

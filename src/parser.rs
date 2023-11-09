@@ -609,8 +609,8 @@ fn lambda(input: Input) -> IResult<Input, UTerm> {
         )))(input)
 }
 
-fn case_int(input: Input) -> IResult<Input, UTerm> {
-    context("case_int", scoped(
+fn case(input: Input) -> IResult<Input, UTerm> {
+    context("case", scoped(
         map(
             tuple((
                 preceded(token("case_int"), map(expr, Box::new)),
@@ -620,21 +620,6 @@ fn case_int(input: Input) -> IResult<Input, UTerm> {
             |(t, branch_entries, default_branch)| {
                 let branches = HashMap::from_iter(branch_entries);
                 UTerm::CaseInt { t, branches, default_branch }
-            })
-    ))(input)
-}
-
-fn case_str(input: Input) -> IResult<Input, UTerm> {
-    context("case_str", scoped(
-        map(
-            tuple((
-                preceded(token("case_str"), map(expr, Box::new)),
-                many0(map(scoped(tuple((preceded(newline, str), preceded(token("=>"), u_term)))), |(i, branch)| (i, branch))),
-                preceded(newline, scoped(preceded(pair(token("_"), token("=>")), opt(map(u_term, Box::new))))),
-            )),
-            |(t, branch_entries, default_branch)| {
-                let branches = HashMap::from_iter(branch_entries);
-                UTerm::CaseStr { t, branches, default_branch }
             })
     ))(input)
 }
@@ -671,7 +656,7 @@ fn defs_term(input: Input) -> IResult<Input, UTerm> {
 }
 
 fn computaiton(input: Input) -> IResult<Input, UTerm> {
-    alt((let_term, defs_term, expr, lambda, case_int, case_str))(input)
+    alt((let_term, defs_term, expr, lambda, case))(input)
 }
 
 fn thunk(input: Input) -> IResult<Input, UTerm> {

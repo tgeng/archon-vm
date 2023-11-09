@@ -83,16 +83,6 @@ impl Transpiler {
                     CTerm::CaseInt { t, branches: transpiled_branches, default_branch: transpiled_default_branch }
                 })
             }
-            UTerm::CaseStr { t, branches, default_branch } => {
-                let mut transpiled_branches = HashMap::new();
-                for (value, branch) in branches {
-                    transpiled_branches.insert(value.clone(), self.transpile_impl(branch, context));
-                }
-                let transpiled_default_branch = default_branch.map(|b| Box::new(self.transpile_impl(*b, context)));
-                self.transpile_value_and_map(*t, context, |(_, t)| {
-                    CTerm::CaseStr { t, branches: transpiled_branches, default_branch: transpiled_default_branch }
-                })
-            }
             UTerm::MemGet { box base, box offset } => {
                 self.transpile_value_and_map(base, context, |(s, base)| {
                     s.transpile_value_and_map(offset, context, |(_, offset)| {
@@ -202,7 +192,6 @@ impl Transpiler {
                 (VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)) }, None)
             }
             UTerm::CaseInt { .. } |
-            UTerm::CaseStr { .. } |
             UTerm::MemGet { .. } |
             UTerm::MemSet { .. } |
             UTerm::Redex { .. } |
@@ -288,13 +277,6 @@ impl Transpiler {
             UTerm::Force { thunk } => Self::get_free_vars(thunk, bound_names, free_vars),
             UTerm::Thunk { computation } => Self::get_free_vars(computation, bound_names, free_vars),
             UTerm::CaseInt { t, branches, default_branch } => {
-                Self::get_free_vars(t, bound_names, free_vars);
-                branches.values().for_each(|v| Self::get_free_vars(v, bound_names, free_vars));
-                if let Some(default_branch) = default_branch {
-                    Self::get_free_vars(default_branch, bound_names, free_vars);
-                }
-            }
-            UTerm::CaseStr { t, branches, default_branch } => {
                 Self::get_free_vars(t, bound_names, free_vars);
                 branches.values().for_each(|v| Self::get_free_vars(v, bound_names, free_vars));
                 if let Some(default_branch) = default_branch {

@@ -39,7 +39,6 @@ pub trait Transformer {
             CTerm::CaseInt { .. } => self.transform_case_int(c_term),
             CTerm::MemGet { .. } => self.transform_mem_get(c_term),
             CTerm::MemSet { .. } => self.transform_mem_set(c_term),
-            CTerm::CaseStr { .. } => self.transform_case_str(c_term),
             CTerm::Primitive { .. } => self.transform_primitive(c_term),
         }
     }
@@ -93,17 +92,6 @@ pub trait Transformer {
         self.transform_v_term(base);
         self.transform_v_term(offset);
         self.transform_v_term(value);
-    }
-
-    fn transform_case_str(&mut self, c_term: &mut CTerm) {
-        let CTerm::CaseStr { t, branches, default_branch } = c_term else { unreachable!() };
-        self.transform_v_term(t);
-        for (_, branch) in branches.iter_mut() {
-            self.transform_c_term(branch);
-        }
-        if let Some(default_branch) = default_branch {
-            self.transform_c_term(default_branch);
-        }
     }
 
     fn transform_primitive(&mut self, _c_term: &mut CTerm) {}

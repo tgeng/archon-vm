@@ -11,7 +11,6 @@ pub enum UTerm {
     Force { thunk: Box<UTerm> },
     Thunk { computation: Box<UTerm> },
     CaseInt { t: Box<UTerm>, branches: HashMap<i64, UTerm>, default_branch: Option<Box<UTerm>> },
-    CaseStr { t: Box<UTerm>, branches: HashMap<String, UTerm>, default_branch: Option<Box<UTerm>> },
     MemGet { base: Box<UTerm>, offset: Box<UTerm> },
     MemSet { base: Box<UTerm>, offset: Box<UTerm>, value: Box<UTerm> },
     Let { name: String, t: Box<UTerm>, body: Box<UTerm> },

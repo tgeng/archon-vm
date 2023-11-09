@@ -39,7 +39,6 @@ pub trait Visitor {
             CTerm::CaseInt { .. } => self.visit_case_int(c_term),
             CTerm::MemGet { .. } => self.visit_mem_get(c_term),
             CTerm::MemSet { .. } => self.visit_mem_set(c_term),
-            CTerm::CaseStr { .. } => self.visit_case_str(c_term),
             CTerm::Primitive { .. } => self.visit_primitive(c_term),
         }
     }
@@ -92,17 +91,6 @@ pub trait Visitor {
         self.visit_v_term(base);
         self.visit_v_term(offset);
         self.visit_v_term(value);
-    }
-
-    fn visit_case_str(&mut self, c_term: &CTerm) {
-        let CTerm::CaseStr { t, branches, default_branch } = c_term else { unreachable!() };
-        self.visit_v_term(t);
-        for (_, branch) in branches.iter() {
-            self.visit_c_term(branch);
-        }
-        if let Some(default_branch) = default_branch {
-            self.visit_c_term(default_branch);
-        }
     }
 
     fn visit_primitive(&mut self, _c_term: &CTerm) {}
