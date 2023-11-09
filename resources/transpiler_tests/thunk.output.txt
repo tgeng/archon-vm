@@ -168,7 +168,6 @@ Defs
                 t: Redex {
                     function: Primitive {
                         name: "_int_add",
-                        arity: 2,
                     },
                     args: [
                         Var {
@@ -183,7 +182,6 @@ Defs
                 body: Redex {
                     function: Primitive {
                         name: "_int_add",
-                        arity: 2,
                     },
                     args: [
                         Var {
@@ -281,7 +279,6 @@ Defs
                                             body: Redex {
                                                 function: Primitive {
                                                     name: "_int_add",
-                                                    arity: 2,
                                                 },
                                                 args: [
                                                     Var {
@@ -317,7 +314,6 @@ Defs
                 body: Redex {
                     function: Primitive {
                         name: "_int_add",
-                        arity: 2,
                     },
                     args: [
                         Var {

@@ -54,7 +54,6 @@ Defs
             body: Redex {
                 function: Primitive {
                     name: "_int_add",
-                    arity: 2,
                 },
                 args: [
                     Var {

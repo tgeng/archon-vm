@@ -90,7 +90,6 @@ Defs
                             t: Redex {
                                 function: Primitive {
                                     name: "_int_sub",
-                                    arity: 2,
                                 },
                                 args: [
                                     Var {
@@ -117,7 +116,6 @@ Defs
                         body: Redex {
                             function: Primitive {
                                 name: "_int_mul",
-                                arity: 2,
                             },
                             args: [
                                 Var {

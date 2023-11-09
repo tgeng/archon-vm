@@ -2,7 +2,6 @@ use std::collections::{HashMap};
 use crate::free_var::HasFreeVar;
 use crate::term::{CTerm, VTerm};
 use crate::transformer::Transformer;
-use crate::visitor::Visitor;
 
 #[derive(Debug, Clone)]
 pub struct FunctionDefinition {
@@ -117,13 +116,13 @@ impl Transformer for RedexNormalizer {
             CTerm::Redex { function, args } => {
                 self.transform_c_term(function);
                 if args.is_empty() {
-                    let mut placeholder = CTerm::Primitive { name: "", arity: 0 };
+                    let mut placeholder = CTerm::Primitive { name: "" };
                     std::mem::swap(&mut placeholder, function);
                     *c_term = placeholder;
                 } else {
                     let is_nested_redex = matches!(function.as_ref(), CTerm::Redex { .. });
                     if is_nested_redex {
-                        let mut placeholder = CTerm::Primitive { name: "", arity: 0 };
+                        let mut placeholder = CTerm::Primitive { name: "" };
                         std::mem::swap(&mut placeholder, c_term);
                         match placeholder {
                             CTerm::Redex { function, args } => {

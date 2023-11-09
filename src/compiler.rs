@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use cranelift::codegen::ir::{FuncRef, Inst};
 use cbpv_runtime::runtime_utils::runtime_alloc;
+use cbpv_runtime::types::{UniformType};
 use cranelift::prelude::*;
-use cranelift::prelude::types::I64;
+use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
 use crate::signature::FunctionDefinition;
@@ -10,10 +11,48 @@ use crate::term::{CTerm, VTerm};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use enum_map::{Enum, EnumMap};
+use VType::{Special, Uniform};
+use crate::compiler::PrimitiveType::{Integer, PrimitivePtr, StructPtr};
 
-static INT: Type = I64;
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum PrimitiveType {
+    Integer,
+    StructPtr,
+    PrimitivePtr,
+    Primitive(Type),
+}
 
-type ValueAndType = Option<(Value, Type)>;
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum VType {
+    /// Uniform representation of values. See [UniformType] for details.
+    Uniform,
+    // TODO: it's possible to have functions using specialized types for better performance. It
+    //  probably makes sense to do this when we have specialized functions whose arguments are not
+    //  passed through the argument stack.
+    /// Values of specialized are represented in their "natural" form. That is, pointers are raw
+    /// pointers that can be dereferenced. Integer and floats are unboxed values.
+    Special(PrimitiveType),
+}
+
+type ValueAndType = Option<(Value, VType)>;
+
+trait HasType {
+    fn get_type(&self) -> Type;
+}
+
+impl HasType for VType {
+    fn get_type(&self) -> Type {
+        match self {
+            Uniform => I64,
+            Special(t) => match t {
+                Integer => I64,
+                StructPtr => I64,
+                PrimitivePtr => I64,
+                PrimitiveType::Primitive(t) => *t,
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, Enum)]
 enum BuiltinFunction {
@@ -37,12 +76,12 @@ impl BuiltinFunction {
         let mut sig = m.make_signature();
         match self {
             BuiltinFunction::Alloc => {
-                sig.params.push(AbiParam::new(INT));
-                sig.returns.push(AbiParam::new(INT));
+                sig.params.push(AbiParam::new(I64));
+                sig.returns.push(AbiParam::new(I64));
             }
             BuiltinFunction::ForceThunk => {
-                sig.params.push(AbiParam::new(INT));
-                sig.params.push(AbiParam::new(INT));
+                sig.params.push(AbiParam::new(I64));
+                sig.params.push(AbiParam::new(I64));
             }
         }
         sig
@@ -114,8 +153,8 @@ impl<M: Module> Compiler<M> {
     pub fn process(&mut self, defs: &HashMap<String, FunctionDefinition>) {
         for (name, _) in defs.iter() {
             let mut sig = self.module.make_signature();
-            sig.params.push(AbiParam::new(INT));
-            sig.returns.push(AbiParam::new(INT));
+            sig.params.push(AbiParam::new(I64));
+            sig.returns.push(AbiParam::new(I64));
             self.local_functions.insert(name.clone(), self.module.declare_function(name, Linkage::Local, &sig).unwrap());
         }
 
@@ -157,8 +196,8 @@ impl<M: Module> Compiler<M> {
         // size of one word, so that the next call can happen normally.
 
         self.ctx.clear();
-        self.ctx.func.signature.params.push(AbiParam::new(INT));
-        self.ctx.func.signature.returns.push(AbiParam::new(INT));
+        self.ctx.func.signature.params.push(AbiParam::new(I64));
+        self.ctx.func.signature.returns.push(AbiParam::new(I64));
 
         let mut function_builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.builder_context);
         let entry_block = function_builder.create_block();
@@ -185,10 +224,10 @@ impl<M: Module> Compiler<M> {
             // stack grows from higher address to lower address, so parameter list grows in the
             // reverse order and hence the offset is the index of the parameter in the parameter
             // list.
-            let value = translator.function_builder.ins().load(INT, MemFlags::new(), translator.base_address, (i * 8) as i32);
+            let value = translator.function_builder.ins().load(I64, MemFlags::new(), translator.base_address, (i * 8) as i32);
             // TODO: it's possible to track the type of variables conservatively and use non-INT
             //  types whenever possible so that we can avoid some casts inside the function body.
-            translator.local_vars[*v] = Some((value, INT));
+            translator.local_vars[*v] = Some((value, Uniform));
         }
         // The return value will be returned so its type does not matter. Treating it as an integer
         // is sufficient.
@@ -221,13 +260,17 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
     fn translate_c_term(&mut self, c_term: &CTerm, is_tail: bool) -> ValueAndType {
         match c_term {
             CTerm::Redex { box function, args } => {
-                let arg_values = args.iter().map(|arg| self.translate_v_term_to_value(arg)).collect::<Vec<_>>();
+                let arg_values = args.iter().map(|arg| {
+                    let v = self.translate_v_term(arg);
+                    self.to_uniform(v)
+                }).collect::<Vec<_>>();
                 self.push_args(arg_values);
                 self.translate_c_term(function, is_tail)
             }
             CTerm::Return { value } => self.translate_v_term(value),
             CTerm::Force { thunk } => {
-                let thunk_value = self.translate_v_term_to_value(thunk);
+                let thunk_value = self.translate_v_term(thunk);
+                let thunk_value = self.to_uniform(thunk_value);
                 let inst = self.call_builtin_func(BuiltinFunction::ForceThunk, &[thunk_value, self.tip_address]);
                 let func_pointer = self.function_builder.inst_results(inst)[0];
                 let signature = &self.function_builder.func.signature;
@@ -238,7 +281,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     None
                 } else {
                     let inst = self.function_builder.ins().call_indirect(sig_ref, func_pointer, &[self.tip_address]);
-                    self.extract_return_value(INT, inst)
+                    self.extract_return_value(inst)
                 }
             }
             CTerm::Let { box t, bound_index, box body } => {
@@ -256,7 +299,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     let inst = self.function_builder.ins().call(func_ref, &[self.tip_address]);
                     // TODO: it's possible to track the return type conservatively and use proper
                     //  type (aka, some float) here.
-                    self.extract_return_value(INT, inst)
+                    self.extract_return_value(inst)
                 }
             }
             CTerm::CaseInt { .. } => todo!(),
@@ -267,11 +310,11 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         }
     }
 
-    fn extract_return_value(&mut self, expected_type: Type, inst: Inst) -> ValueAndType {
+    fn extract_return_value(&mut self, inst: Inst) -> ValueAndType {
         let return_address = self.function_builder.inst_results(inst)[0];
-        let return_value = self.function_builder.ins().load(expected_type, MemFlags::new(), return_address, 0);
+        let return_value = self.function_builder.ins().load(I64, MemFlags::new(), return_address, 0);
         self.tip_address = self.function_builder.ins().iadd_imm(self.tip_address, 8);
-        Some((return_value, expected_type))
+        Some((return_value, Uniform))
     }
 
     fn copy_tail_call_args(&mut self) -> Value {
@@ -290,17 +333,19 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     unreachable!("thunk lifting should have guaranteed this")
                 };
                 let func_ref = self.get_local_function(name);
-                let func_pointer = self.function_builder.ins().func_addr(INT, func_ref);
+                let func_pointer = self.function_builder.ins().func_addr(I64, func_ref);
                 // Plus 1 to indicate this pointer points to a bare function (rather than a closure).
                 let func_pointer_plus_one = self.function_builder.ins().iadd_imm(func_pointer, 1);
-                let arg_size = self.function_builder.ins().iconst(INT, args.len() as i64);
+                let arg_size = self.function_builder.ins().iconst(I64, args.len() as i64);
                 let mut thunk_components = vec![func_pointer_plus_one, arg_size];
                 for arg in args {
-                    thunk_components.push(self.translate_v_term_to_value(arg));
+                    let value_and_type = self.translate_v_term(arg);
+                    let uniform_value = self.to_uniform(value_and_type);
+                    thunk_components.push(uniform_value);
                 }
-                Some((self.create_struct(thunk_components), INT))
+                Some((self.create_struct(thunk_components), Special(StructPtr)))
             }
-            VTerm::Int { value } => Some((self.function_builder.ins().iconst(INT, *value), INT)),
+            VTerm::Int { value } => Some((self.function_builder.ins().iconst(I64, *value), Special(Integer))),
             VTerm::Str { value } => {
                 // Insert into the global data section if not already there.
                 let data_id = self.static_strings.entry(value.clone()).or_insert_with(|| {
@@ -311,11 +356,14 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     data_id
                 });
                 let global_value = self.module.declare_data_in_func(*data_id, self.function_builder.func);
-                Some((self.function_builder.ins().symbol_value(INT, global_value), INT))
+                Some((self.function_builder.ins().symbol_value(I64, global_value), Special(PrimitivePtr)))
             }
             VTerm::Struct { values } => {
-                let translated = values.iter().map(|v| self.translate_v_term_to_value(v)).collect::<Vec<_>>();
-                Some((self.create_struct(translated), INT))
+                let translated = values.iter().map(|v| {
+                    let v = self.translate_v_term(v);
+                    self.to_uniform(v)
+                }).collect::<Vec<_>>();
+                Some((self.create_struct(translated), Special(StructPtr)))
             }
         }
     }
@@ -334,7 +382,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
 
     fn create_struct(&mut self, values: Vec<Value>) -> Value {
         let array_size = values.len() * 8;
-        let array_size_arg = self.function_builder.ins().iconst(INT, array_size as i64);
+        let array_size_arg = self.function_builder.ins().iconst(I64, array_size as i64);
         let runtime_alloc_call = self.call_builtin_func(BuiltinFunction::Alloc, &[array_size_arg]);
         let array_address = self.function_builder.inst_results(runtime_alloc_call)[0];
         for (offset, value) in values.into_iter().enumerate() {
@@ -352,8 +400,11 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         self.function_builder.ins().call(func_ref, args)
     }
 
-    fn translate_v_term_to_value(&mut self, v_term: &VTerm) -> Value {
-        let Some((value, _)) = self.translate_v_term(&v_term) else { unreachable!() };
-        value
+    fn to_uniform(&mut self, value_and_type: ValueAndType) -> Value {
+        todo!();
+    }
+
+    fn to_special(&mut self, value_and_type: ValueAndType, primitive_type: PrimitiveType) -> Value {
+        todo!();
     }
 }

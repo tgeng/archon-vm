@@ -1,18 +1,18 @@
 use std::collections::{HashMap, HashSet};
 use either::{Either, Left, Right};
-use phf::{phf_map};
+use phf::{phf_set};
 use crate::signature::{FunctionDefinition, Signature};
 use crate::term::{CTerm, VTerm};
 use crate::u_term::{Def, UTerm};
 
-static PRIMITIVE_ARITY: phf::Map<&'static str, u8> = phf_map! {
-    "_int_pos" => 2,
-    "_int_neg" => 2,
-    "_int_add" => 2,
-    "_int_sub" => 2,
-    "_int_mul" => 2,
-    "_int_div" => 2,
-    "_int_mod" => 2,
+static PRIMITIVE_ARITY: phf::Set<&'static str> = phf_set! {
+    "_int_pos",
+    "_int_neg",
+    "_int_add",
+    "_int_sub",
+    "_int_mul",
+    "_int_div",
+    "_int_mod",
 };
 
 pub struct Transpiler {
@@ -248,9 +248,8 @@ impl Transpiler {
             Left(term.clone())
         } else if let Some(index) = context.var_map.get(name) {
             Right(VTerm::Var { index: *index })
-        } else if let Some(tuple) = PRIMITIVE_ARITY.get_entry(name) {
-            let (name, arity) = tuple;
-            Left(CTerm::Primitive { name, arity: *arity })
+        } else if let Some(name) = PRIMITIVE_ARITY.get_key(name) {
+            Left(CTerm::Primitive { name })
         } else {
             // properly returning a Result is better but very annoying since that requires transposing out of various collection
             panic!("Unknown identifier: {}", name)
@@ -271,7 +270,7 @@ impl Transpiler {
 
     fn get_free_vars<'a>(u_term: &'a UTerm, bound_names: &HashSet<&'a str>, free_vars: &mut HashSet<&'a str>) {
         match u_term {
-            UTerm::Identifier { name } => if !bound_names.contains(name.as_str()) && !PRIMITIVE_ARITY.contains_key(name.as_str()) {
+            UTerm::Identifier { name } => if !bound_names.contains(name.as_str()) && !PRIMITIVE_ARITY.contains(name.as_str()) {
                 free_vars.insert(name.as_str());
             }
             UTerm::Int { .. } => {}
