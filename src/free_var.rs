@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use crate::term::{CTerm, VTerm};
+use crate::term::{CTerm, VTerm, VType};
 use crate::visitor::Visitor;
 
 pub trait HasFreeVar {
@@ -28,11 +28,11 @@ struct FreeVarVisitor {
 }
 
 impl Visitor for FreeVarVisitor {
-    fn add_binding(&mut self, name: usize) {
+    fn add_binding(&mut self, name: usize, bound_type: &VType) {
         self.binding_count.insert(name, self.binding_count.get(&name).cloned().unwrap_or(0) + 1);
     }
 
-    fn remove_binding(&mut self, name: usize) {
+    fn remove_binding(&mut self, name: usize, bound_type: &VType) {
         self.binding_count.insert(name, self.binding_count.get(&name).cloned().unwrap_or(0) - 1);
     }
 

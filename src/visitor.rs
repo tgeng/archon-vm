@@ -1,9 +1,9 @@
-use crate::term::{CTerm, VTerm};
+use crate::term::{CTerm, VTerm, VType};
 
 pub trait Visitor {
-    fn add_binding(&mut self, _name: usize) {}
+    fn add_binding(&mut self, _name: usize, _bound_type: &VType) {}
 
-    fn remove_binding(&mut self, _name: usize) {}
+    fn remove_binding(&mut self, _name: usize, _bound_type: &VType) {}
 
     fn visit_v_term(&mut self, v_term: &VTerm) {
         match v_term {
@@ -39,7 +39,8 @@ pub trait Visitor {
             CTerm::CaseInt { .. } => self.visit_case_int(c_term),
             CTerm::MemGet { .. } => self.visit_mem_get(c_term),
             CTerm::MemSet { .. } => self.visit_mem_set(c_term),
-            CTerm::Primitive { .. } => self.visit_primitive(c_term),
+            CTerm::PrimitiveCall { .. } => self.visit_primitive_call(c_term),
+            CTerm::SpecializedFunctionCall { .. } => self.visit_specialized_function_call(c_term),
         }
     }
 
@@ -60,11 +61,11 @@ pub trait Visitor {
     }
 
     fn visit_let(&mut self, c_term: &CTerm) {
-        let CTerm::Let { t, body, bound_index: bound_name } = c_term else { unreachable!() };
+        let CTerm::Let { t, bound_type, body, bound_index: bound_name } = c_term else { unreachable!() };
         self.visit_c_term(t);
-        self.add_binding(*bound_name);
+        self.add_binding(*bound_name, bound_type);
         self.visit_c_term(body);
-        self.remove_binding(*bound_name);
+        self.remove_binding(*bound_name, bound_type);
     }
 
     fn visit_def(&mut self, _c_term: &CTerm) {}
@@ -93,5 +94,13 @@ pub trait Visitor {
         self.visit_v_term(value);
     }
 
-    fn visit_primitive(&mut self, _c_term: &CTerm) {}
+    fn visit_primitive_call(&mut self, c_term: &CTerm) {
+        let CTerm::PrimitiveCall { args, .. } = c_term else { unreachable!() };
+        args.iter().for_each(|arg| self.visit_v_term(arg));
+    }
+
+    fn visit_specialized_function_call(&mut self, c_term: &CTerm) {
+        let CTerm::SpecializedFunctionCall { args, .. } = c_term else { unreachable!() };
+        args.iter().for_each(|arg| self.visit_v_term(arg));
+    }
 }

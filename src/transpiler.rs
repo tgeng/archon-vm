@@ -1,19 +1,10 @@
 use std::collections::{HashMap, HashSet};
 use either::{Either, Left, Right};
-use phf::{phf_set};
 use crate::signature::{FunctionDefinition, Signature};
+use crate::signature::CallConvention::PassArgs;
 use crate::term::{CTerm, VTerm};
 use crate::u_term::{Def, UTerm};
-
-static PRIMITIVE_ARITY: phf::Set<&'static str> = phf_set! {
-    "_int_pos",
-    "_int_neg",
-    "_int_add",
-    "_int_sub",
-    "_int_mul",
-    "_int_div",
-    "_int_mod",
-};
+use crate::primitive_functions::PRIMITIVE_FUNCTIONS;
 
 pub struct Transpiler {
     signature: Signature,
@@ -40,6 +31,7 @@ impl Transpiler {
         self.signature.insert("main".to_string(), FunctionDefinition {
             args: vec![],
             body: main,
+            call_convention: PassArgs,
             var_bound: 0,
         });
     }
@@ -237,7 +229,7 @@ impl Transpiler {
             Left(term.clone())
         } else if let Some(index) = context.var_map.get(name) {
             Right(VTerm::Var { index: *index })
-        } else if let Some(name) = PRIMITIVE_ARITY.get_key(name) {
+        } else if let Some(name) = PRIMITIVE_FUNCTIONS.get_key(name) {
             Left(CTerm::Primitive { name })
         } else {
             // properly returning a Result is better but very annoying since that requires transposing out of various collection
@@ -259,7 +251,7 @@ impl Transpiler {
 
     fn get_free_vars<'a>(u_term: &'a UTerm, bound_names: &HashSet<&'a str>, free_vars: &mut HashSet<&'a str>) {
         match u_term {
-            UTerm::Identifier { name } => if !bound_names.contains(name.as_str()) && !PRIMITIVE_ARITY.contains(name.as_str()) {
+            UTerm::Identifier { name } => if !bound_names.contains(name.as_str()) && !PRIMITIVE_FUNCTIONS.contains_key(name.as_str()) {
                 free_vars.insert(name.as_str());
             }
             UTerm::Int { .. } => {}

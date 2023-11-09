@@ -37,7 +37,7 @@ static PRECEDENCE: &[(&[OperatorAndName], Fixity)] = &[
 
 // keywords
 static KEYWORDS: &[&str] = &[
-    "let", "def", "case_int", "case_str", "force", "thunk", "=>", "=", "(", ")", ",", "\\", "{", "}", "@", "_"
+    "let", "def", "case_int", "case_str", "force", "thunk", "=>", "=", "(", ")", ",", "\\", "{", "}", "@", "_", ":"
 ];
 
 // tokenizer

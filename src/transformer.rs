@@ -1,9 +1,9 @@
-use crate::term::{CTerm, VTerm};
+use crate::term::{CTerm, VTerm, VType};
 
 pub trait Transformer {
-    fn add_binding(&mut self, name: usize) -> usize { name }
+    fn add_binding(&mut self, name: usize, _bound_type: &VType) -> usize { name }
 
-    fn remove_binding(&mut self, _name: usize) {}
+    fn remove_binding(&mut self, _name: usize, _bound_type: &VType) {}
 
     fn transform_v_term(&mut self, v_term: &mut VTerm) {
         match v_term {
@@ -39,7 +39,8 @@ pub trait Transformer {
             CTerm::CaseInt { .. } => self.transform_case_int(c_term),
             CTerm::MemGet { .. } => self.transform_mem_get(c_term),
             CTerm::MemSet { .. } => self.transform_mem_set(c_term),
-            CTerm::Primitive { .. } => self.transform_primitive(c_term),
+            CTerm::PrimitiveCall { .. } => self.transform_primitive_call(c_term),
+            CTerm::SpecializedFunctionCall { .. } => self.transform_specialized_function_call(c_term),
         }
     }
 
@@ -60,12 +61,12 @@ pub trait Transformer {
     }
 
     fn transform_let(&mut self, c_term: &mut CTerm) {
-        let CTerm::Let { t, body, bound_index: bound_name } = c_term else { unreachable!() };
+        let CTerm::Let { t, bound_type, body, bound_index: bound_name, .. } = c_term else { unreachable!() };
         self.transform_c_term(t);
         let old_name = *bound_name;
-        *bound_name = self.add_binding(*bound_name);
+        *bound_name = self.add_binding(*bound_name, bound_type);
         self.transform_c_term(body);
-        self.remove_binding(old_name);
+        self.remove_binding(old_name, bound_type);
     }
 
     fn transform_def(&mut self, _c_term: &mut CTerm) {}
@@ -94,5 +95,13 @@ pub trait Transformer {
         self.transform_v_term(value);
     }
 
-    fn transform_primitive(&mut self, _c_term: &mut CTerm) {}
+    fn transform_primitive_call(&mut self, c_term: &mut CTerm) {
+        let CTerm::PrimitiveCall { args, .. } = c_term else { unreachable!() };
+        args.iter_mut().for_each(|arg| self.transform_v_term(arg));
+    }
+
+    fn transform_specialized_function_call(&mut self, c_term: &mut CTerm) {
+        let CTerm::SpecializedFunctionCall { args, .. } = c_term else { unreachable!() };
+        args.iter_mut().for_each(|arg| self.transform_v_term(arg));
+    }
 }

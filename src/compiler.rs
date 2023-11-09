@@ -7,11 +7,11 @@ use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
 use crate::signature::FunctionDefinition;
-use crate::term::{CTerm, VTerm, VType, PrimitiveType};
+use crate::term::{CTerm, VTerm, VType, PrimitiveType, PType};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use enum_map::{Enum, EnumMap};
-use VType::{Special, Uniform};
+use VType::{Specialized, Uniform};
 use PrimitiveType::{Integer, PrimitivePtr, StructPtr};
 
 type ValueAndType = Option<(Value, VType)>;
@@ -24,11 +24,16 @@ impl HasType for VType {
     fn get_type(&self) -> Type {
         match self {
             Uniform => I64,
-            Special(t) => match t {
+            Specialized(t) => match t {
                 Integer => I64,
                 StructPtr => I64,
                 PrimitivePtr => I64,
-                PrimitiveType::Primitive(t) => *t,
+                PrimitiveType::Primitive(t) => match t {
+                    PType::I64 => I64,
+                    PType::I32 => I32,
+                    PType::F64 => F64,
+                    PType::F32 => F32,
+                }
             }
         }
     }
@@ -199,7 +204,9 @@ impl<M: Module> Compiler<M> {
             tip_address: base_address,
             num_args: function_definition.args.len(),
         };
-        for (i, v) in function_definition.args.iter().enumerate() {
+        // Here we transform the function body to non-specialized version, hence the argument types
+        // are ignored.
+        for (i, (v, _)) in function_definition.args.iter().enumerate() {
             // v is the variable index and i is the offset in the parameter list. The parameter
             // stack grows from higher address to lower address, so parameter list grows in the
             // reverse order and hence the offset is the index of the parameter in the parameter
@@ -264,9 +271,9 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     self.extract_return_value(inst)
                 }
             }
-            CTerm::Let { box t, bound_index, box body } => {
+            CTerm::Let { box t, bound_type, bound_index, box body } => {
                 let t_value = self.translate_c_term(t, false);
-                self.local_vars[*bound_index] = t_value;
+                self.local_vars[*bound_index] = self.adapt_type(t_value, bound_type);
                 self.translate_c_term(body, is_tail)
             }
             CTerm::Def { name } => {
@@ -285,7 +292,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             CTerm::CaseInt { .. } => todo!(),
             CTerm::MemGet { .. } => todo!(),
             CTerm::MemSet { .. } => todo!(),
-            CTerm::Primitive { .. } => todo!(),
+            CTerm::PrimitiveCall { .. } => todo!(),
+            CTerm::SpecializedFunctionCall { .. } => todo!(),
         }
     }
 
@@ -322,9 +330,9 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     let uniform_value = self.to_uniform(value_and_type);
                     thunk_components.push(uniform_value);
                 }
-                Some((self.create_struct(thunk_components), Special(StructPtr)))
+                Some((self.create_struct(thunk_components), Specialized(StructPtr)))
             }
-            VTerm::Int { value } => Some((self.function_builder.ins().iconst(I64, *value), Special(Integer))),
+            VTerm::Int { value } => Some((self.function_builder.ins().iconst(I64, *value), Specialized(Integer))),
             VTerm::Str { value } => {
                 // Insert into the global data section if not already there.
                 let data_id = self.static_strings.entry(value.clone()).or_insert_with(|| {
@@ -335,14 +343,14 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     data_id
                 });
                 let global_value = self.module.declare_data_in_func(*data_id, self.function_builder.func);
-                Some((self.function_builder.ins().symbol_value(I64, global_value), Special(PrimitivePtr)))
+                Some((self.function_builder.ins().symbol_value(I64, global_value), Specialized(PrimitivePtr)))
             }
             VTerm::Struct { values } => {
                 let translated = values.iter().map(|v| {
                     let v = self.translate_v_term(v);
                     self.to_uniform(v)
                 }).collect::<Vec<_>>();
-                Some((self.create_struct(translated), Special(StructPtr)))
+                Some((self.create_struct(translated), Specialized(StructPtr)))
             }
         }
     }
@@ -384,6 +392,10 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
     }
 
     fn to_special(&mut self, value_and_type: ValueAndType, primitive_type: PrimitiveType) -> Value {
+        todo!();
+    }
+
+    fn adapt_type(&mut self, value_and_type: ValueAndType, target_type: &VType) -> ValueAndType {
         todo!();
     }
 }

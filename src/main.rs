@@ -5,13 +5,14 @@
 mod term;
 mod signature;
 mod visitor;
-mod u_term;
-mod transpiler;
-mod parser;
+// mod u_term;
+// mod transpiler;
+// mod parser;
 mod test_utils;
 mod free_var;
 mod compiler;
 mod transformer;
+mod primitive_functions;
 
 fn main() {
     println!("Hello, world!");
