@@ -1,9 +1,9 @@
-use crate::term::{CTerm, VTerm, VType};
+use crate::term::{CTerm, VTerm};
 
 pub trait Transformer {
-    fn add_binding(&mut self, name: usize, _bound_type: &VType) -> usize { name }
+    fn add_binding(&mut self, name: usize) -> usize { name }
 
-    fn remove_binding(&mut self, _name: usize, _bound_type: &VType) {}
+    fn remove_binding(&mut self, _name: usize) {}
 
     fn transform_v_term(&mut self, v_term: &mut VTerm) {
         match v_term {
@@ -61,18 +61,18 @@ pub trait Transformer {
     }
 
     fn transform_let(&mut self, c_term: &mut CTerm) {
-        let CTerm::Let { t, bound_type, body, bound_index: bound_name, .. } = c_term else { unreachable!() };
+        let CTerm::Let { t, body, bound_index: bound_name, .. } = c_term else { unreachable!() };
         self.transform_c_term(t);
         let old_name = *bound_name;
-        *bound_name = self.add_binding(*bound_name, bound_type);
+        *bound_name = self.add_binding(*bound_name);
         self.transform_c_term(body);
-        self.remove_binding(old_name, bound_type);
+        self.remove_binding(old_name);
     }
 
     fn transform_def(&mut self, _c_term: &mut CTerm) {}
 
     fn transform_case_int(&mut self, c_term: &mut CTerm) {
-        let CTerm::CaseInt { t, branches, default_branch } = c_term else { unreachable!() };
+        let CTerm::CaseInt { t, branches, default_branch, .. } = c_term else { unreachable!() };
         self.transform_v_term(t);
         for (_, branch) in branches.iter_mut() {
             self.transform_c_term(branch);

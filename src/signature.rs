@@ -75,8 +75,8 @@ impl Signature {
 
     fn rename_local_vars_in_def(args: &mut [(usize, VType)], body: &mut CTerm, max_arg_size: &mut usize) {
         let mut renamer = DistinctVarRenamer { bindings: HashMap::new(), counter: 0 };
-        for (i, ty) in args.iter_mut() {
-            *i = renamer.add_binding(*i, ty);
+        for (i, _) in args.iter_mut() {
+            *i = renamer.add_binding(*i);
         }
         renamer.transform_c_term(body);
         *max_arg_size = renamer.counter;
@@ -89,7 +89,7 @@ struct DistinctVarRenamer {
 }
 
 impl Transformer for DistinctVarRenamer {
-    fn add_binding(&mut self, index: usize, _bound_type: &VType) -> usize {
+    fn add_binding(&mut self, index: usize) -> usize {
         let indexes = self.bindings.entry(index).or_default();
         let new_index = self.counter;
         indexes.push(new_index);
@@ -97,7 +97,7 @@ impl Transformer for DistinctVarRenamer {
         new_index
     }
 
-    fn remove_binding(&mut self, index: usize, _bound_type: &VType) {
+    fn remove_binding(&mut self, index: usize) {
         self.bindings.get_mut(&index).unwrap().pop();
     }
 
@@ -176,11 +176,6 @@ impl<'a> ThunkLifter<'a> {
 }
 
 impl<'a> Transformer for ThunkLifter<'a> {
-    fn add_binding(&mut self, name: usize, _bound_type: &VType) -> usize {
-        self.local_var_types[name] = *_bound_type;
-        name
-    }
-
     fn transform_thunk(&mut self, v_term: &mut VTerm) {
         if let VTerm::Thunk { t: box CTerm::Redex { function: box CTerm::Def { .. }, .. } | box CTerm::Def { .. }, .. } = v_term {
             // There is no need to lift the thunk if it's already a simple function call.

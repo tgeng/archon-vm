@@ -1,9 +1,9 @@
-use crate::term::{CTerm, VTerm, VType};
+use crate::term::{CTerm, VTerm};
 
 pub trait Visitor {
-    fn add_binding(&mut self, _name: usize, _bound_type: &VType) {}
+    fn add_binding(&mut self, _name: usize) {}
 
-    fn remove_binding(&mut self, _name: usize, _bound_type: &VType) {}
+    fn remove_binding(&mut self, _name: usize) {}
 
     fn visit_v_term(&mut self, v_term: &VTerm) {
         match v_term {
@@ -61,17 +61,17 @@ pub trait Visitor {
     }
 
     fn visit_let(&mut self, c_term: &CTerm) {
-        let CTerm::Let { t, bound_type, body, bound_index: bound_name } = c_term else { unreachable!() };
+        let CTerm::Let { t, body, bound_index: bound_name } = c_term else { unreachable!() };
         self.visit_c_term(t);
-        self.add_binding(*bound_name, bound_type);
+        self.add_binding(*bound_name);
         self.visit_c_term(body);
-        self.remove_binding(*bound_name, bound_type);
+        self.remove_binding(*bound_name);
     }
 
     fn visit_def(&mut self, _c_term: &CTerm) {}
 
     fn visit_case_int(&mut self, c_term: &CTerm) {
-        let CTerm::CaseInt { t, branches, default_branch } = c_term else { unreachable!() };
+        let CTerm::CaseInt { t, branches, default_branch, .. } = c_term else { unreachable!() };
         self.visit_v_term(t);
         for (_, branch) in branches.iter() {
             self.visit_c_term(branch);

@@ -271,9 +271,9 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     self.extract_return_value(inst)
                 }
             }
-            CTerm::Let { box t, bound_type, bound_index, box body } => {
+            CTerm::Let { box t, bound_index, box body } => {
                 let t_value = self.translate_c_term(t, false);
-                self.local_vars[*bound_index] = self.adapt_type(t_value, bound_type);
+                self.local_vars[*bound_index] = t_value;
                 self.translate_c_term(body, is_tail)
             }
             CTerm::Def { name } => {
@@ -284,8 +284,6 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     None
                 } else {
                     let inst = self.function_builder.ins().call(func_ref, &[self.tip_address]);
-                    // TODO: it's possible to track the return type conservatively and use proper
-                    //  type (aka, some float) here.
                     self.extract_return_value(inst)
                 }
             }
