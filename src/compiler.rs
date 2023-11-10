@@ -14,6 +14,8 @@ use strum_macros::EnumIter;
 use enum_map::{Enum, EnumMap};
 use VType::{Specialized, Uniform};
 use PrimitiveType::{Integer, PrimitivePtr, StructPtr};
+use crate::primitive_functions::PRIMITIVE_FUNCTIONS;
+use crate::term::VTerm::Str;
 
 /// None means the function call is a tail call or returned so no value is returned.
 type TypedValue = (Value, VType);
@@ -215,8 +217,7 @@ impl<M: Module> Compiler<M> {
             // reverse order and hence the offset is the index of the parameter in the parameter
             // list.
             let value = translator.function_builder.ins().load(I64, MemFlags::new(), translator.base_address, (i * 8) as i32);
-            // TODO: it's possible to track the type of variables conservatively and use non-INT
-            //  types whenever possible so that we can avoid some casts inside the function body.
+            // TODO: add logic that compiles to a specialized version of this function.
             translator.local_vars[*v] = Some((value, Uniform));
         }
         // The return value will be returned so its type does not matter. Treating it as an integer
@@ -332,27 +333,56 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 self.function_builder.switch_to_block(next_block);
                 Some((self.function_builder.block_params(next_block)[0], *result_v_type))
             }
-            CTerm::MemGet { .. } => todo!(),
-            CTerm::MemSet { .. } => todo!(),
-            CTerm::PrimitiveCall { .. } => todo!(),
-            CTerm::SpecializedFunctionCall { .. } => todo!(),
+            CTerm::MemGet { base, offset } => {
+                let base_value = self.translate_v_term(base);
+                let offset_value = self.translate_v_term(offset);
+                let base_value = self.to_special(base_value, StructPtr);
+                let offset_value = self.to_special(offset_value, Integer);
+                let base_address = self.function_builder.ins().load(I64, MemFlags::new(), base_value, 0);
+                let load_address = self.function_builder.ins().iadd(base_address, offset_value);
+                let value = self.function_builder.ins().load(I64, MemFlags::new(), load_address, 0);
+                Some((value, Uniform))
+            }
+            CTerm::MemSet { base, offset, value } => {
+                let base_value = self.translate_v_term(base);
+                let offset_value = self.translate_v_term(offset);
+                let value_value = self.translate_v_term(value);
+                let base_value = self.to_special(base_value, StructPtr);
+                let offset_value = self.to_special(offset_value, Integer);
+                let value_value = self.to_uniform(value_value);
+                let base_address = self.function_builder.ins().load(I64, MemFlags::new(), base_value, 0);
+                let store_address = self.function_builder.ins().iadd(base_address, offset_value);
+                self.function_builder.ins().store(MemFlags::new(), value_value, store_address, 0);
+                // Return the base address so that the caller can continue to use it.
+                Some((base_value, Specialized(StructPtr)))
+            }
+            CTerm::PrimitiveCall { name, args } => {
+                let args = args.iter().map(|arg| { self.translate_v_term(arg) }).collect::<Vec<_>>();
+                let primitive_function = *PRIMITIVE_FUNCTIONS.get(name).unwrap();
+                let arg_values: Vec<Value> = primitive_function.arg_types.iter().zip(args).map(|(ty, arg)| self.adapt_type(arg, ty)).collect();
+                let return_value = (primitive_function.code_gen)(self.function_builder, &arg_values);
+                Some((return_value, primitive_function.return_type))
+            }
+            CTerm::SpecializedFunctionCall { name, args } => todo!(),
         }
     }
 
     fn create_branch_block(&mut self, is_tail: bool, next_block: Block, result_v_type: &VType, branch: Option<&CTerm>) -> Block {
         let branch_block = self.function_builder.create_block();
         self.function_builder.switch_to_block(branch_block);
-        let branch_value = match branch {
+        let typed_return_value = match branch {
             None => {
                 self.function_builder.ins().trap(TrapCode::UnreachableCodeReached);
                 None
             }
             Some(branch) => self.translate_c_term(branch, is_tail),
         };
-        match branch_value {
-            None => {}
-            Some(value_and_type) => {
-                let value = self.adapt_type(value_and_type, result_v_type);
+        match typed_return_value {
+            None => {
+                // Nothing to do since tail call is already a terminating instruction.
+            }
+            Some(..) => {
+                let value = self.adapt_type(typed_return_value, result_v_type);
                 self.function_builder.ins().jump(next_block, &[value]);
             }
         }
@@ -457,7 +487,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         todo!();
     }
 
-    fn adapt_type(&mut self, value_and_type: TypedValue, target_type: &VType) -> Value {
+    fn adapt_type(&mut self, value_and_type: TypedReturnValue, target_type: &VType) -> Value {
         todo!();
     }
 }
