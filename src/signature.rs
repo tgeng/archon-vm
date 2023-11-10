@@ -35,6 +35,7 @@ impl Signature {
     pub fn optimize(&mut self) {
         self.normalize_redex();
         self.lift_thunks();
+        // TODO: add a pass that converts redex to specialized function calls
     }
 
     fn normalize_redex(&mut self) {

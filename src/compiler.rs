@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use cranelift::codegen::ir::{FuncRef, Inst};
+use cranelift::codegen::ir::{FuncRef, Inst, JumpTable};
+use cranelift::frontend::Switch;
 use cbpv_runtime::runtime_utils::runtime_alloc;
 use cbpv_runtime::types::{UniformType};
 use cranelift::prelude::*;
@@ -7,14 +8,16 @@ use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
 use crate::signature::FunctionDefinition;
-use crate::term::{CTerm, VTerm, VType, PrimitiveType, PType};
+use crate::term::{CTerm, VTerm, VType, PrimitiveType, PType, CType};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use enum_map::{Enum, EnumMap};
 use VType::{Specialized, Uniform};
 use PrimitiveType::{Integer, PrimitivePtr, StructPtr};
 
-type ValueAndType = Option<(Value, VType)>;
+/// None means the function call is a tail call or returned so no value is returned.
+type TypedValue = (Value, VType);
+type TypedReturnValue = Option<TypedValue>;
 
 trait HasType {
     fn get_type(&self) -> Type;
@@ -237,14 +240,14 @@ struct FunctionTranslator<'a, M: Module> {
     builtin_functions: &'a EnumMap<BuiltinFunction, FuncId>,
     static_strings: &'a mut HashMap<String, DataId>,
     local_functions: &'a HashMap<String, FuncId>,
-    local_vars: &'a mut [ValueAndType],
+    local_vars: &'a mut [TypedReturnValue],
     base_address: Value,
     tip_address: Value,
     num_args: usize,
 }
 
 impl<'a, M: Module> FunctionTranslator<'a, M> {
-    fn translate_c_term(&mut self, c_term: &CTerm, is_tail: bool) -> ValueAndType {
+    fn translate_c_term(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
         match c_term {
             CTerm::Redex { box function, args } => {
                 let arg_values = args.iter().map(|arg| {
@@ -257,6 +260,9 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             CTerm::Return { value } => self.translate_v_term(value),
             CTerm::Force { thunk } => {
                 let thunk_value = self.translate_v_term(thunk);
+                // We must change the thunk value to uniform representation because the built-in
+                // function expects a uniform representation in order to tell a thunk from a raw
+                // function pointer.
                 let thunk_value = self.to_uniform(thunk_value);
                 let inst = self.call_builtin_func(BuiltinFunction::ForceThunk, &[thunk_value, self.tip_address]);
                 let func_pointer = self.function_builder.inst_results(inst)[0];
@@ -287,7 +293,45 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     self.extract_return_value(inst)
                 }
             }
-            CTerm::CaseInt { .. } => todo!(),
+            CTerm::CaseInt { t, result_type, branches, default_branch } => {
+                let t_value = self.translate_v_term(t);
+                let t_value = self.to_special(t_value, Integer);
+                let current_block = self.function_builder.current_block().unwrap();
+
+                // Create next block
+                let next_block = self.function_builder.create_block();
+                let result_v_type = match result_type {
+                    CType::Uniform => &Uniform,
+                    CType::SpecializedF(vty) => vty,
+                };
+                let result_value_type = result_v_type.get_type();
+                self.function_builder.append_block_param(next_block, result_value_type);
+
+                // Create branch blocks
+                let mut branch_blocks = HashMap::new();
+                for (value, branch) in branches.iter() {
+                    let branch_block = self.create_branch_block(is_tail, next_block, result_v_type, Some(branch));
+                    branch_blocks.insert(*value, branch_block);
+                }
+
+                let default_block = self.create_branch_block(is_tail, next_block, result_v_type, match default_branch {
+                    None => None,
+                    Some(box branch) => Some(branch),
+                });
+
+                // Create table jump
+                self.function_builder.switch_to_block(current_block);
+                let mut switch = Switch::new();
+                for (value, branch_block) in branch_blocks.iter() {
+                    switch.set_entry(*value as u128, *branch_block);
+                }
+                switch.emit(self.function_builder, t_value, default_block);
+
+                // Switch to next block for future code generation
+                self.function_builder.seal_all_blocks();
+                self.function_builder.switch_to_block(next_block);
+                Some((self.function_builder.block_params(next_block)[0], *result_v_type))
+            }
             CTerm::MemGet { .. } => todo!(),
             CTerm::MemSet { .. } => todo!(),
             CTerm::PrimitiveCall { .. } => todo!(),
@@ -295,7 +339,27 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         }
     }
 
-    fn extract_return_value(&mut self, inst: Inst) -> ValueAndType {
+    fn create_branch_block(&mut self, is_tail: bool, next_block: Block, result_v_type: &VType, branch: Option<&CTerm>) -> Block {
+        let branch_block = self.function_builder.create_block();
+        self.function_builder.switch_to_block(branch_block);
+        let branch_value = match branch {
+            None => {
+                self.function_builder.ins().trap(TrapCode::UnreachableCodeReached);
+                None
+            }
+            Some(branch) => self.translate_c_term(branch, is_tail),
+        };
+        match branch_value {
+            None => {}
+            Some(value_and_type) => {
+                let value = self.adapt_type(value_and_type, result_v_type);
+                self.function_builder.ins().jump(next_block, &[value]);
+            }
+        }
+        branch_block
+    }
+
+    fn extract_return_value(&mut self, inst: Inst) -> TypedReturnValue {
         let return_address = self.function_builder.inst_results(inst)[0];
         let return_value = self.function_builder.ins().load(I64, MemFlags::new(), return_address, 0);
         self.tip_address = self.function_builder.ins().iadd_imm(self.tip_address, 8);
@@ -310,7 +374,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         dest_value
     }
 
-    fn translate_v_term(&mut self, v_term: &VTerm) -> ValueAndType {
+    fn translate_v_term(&mut self, v_term: &VTerm) -> TypedReturnValue {
         match v_term {
             VTerm::Var { index } => self.local_vars[*index],
             VTerm::Thunk { box t } => {
@@ -385,15 +449,15 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         self.function_builder.ins().call(func_ref, args)
     }
 
-    fn to_uniform(&mut self, value_and_type: ValueAndType) -> Value {
+    fn to_uniform(&mut self, value_and_type: TypedReturnValue) -> Value {
         todo!();
     }
 
-    fn to_special(&mut self, value_and_type: ValueAndType, primitive_type: PrimitiveType) -> Value {
+    fn to_special(&mut self, value_and_type: TypedReturnValue, primitive_type: PrimitiveType) -> Value {
         todo!();
     }
 
-    fn adapt_type(&mut self, value_and_type: ValueAndType, target_type: &VType) -> ValueAndType {
+    fn adapt_type(&mut self, value_and_type: TypedValue, target_type: &VType) -> Value {
         todo!();
     }
 }
