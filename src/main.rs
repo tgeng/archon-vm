@@ -5,9 +5,9 @@
 mod term;
 mod signature;
 mod visitor;
-// mod u_term;
-// mod transpiler;
-// mod parser;
+mod u_term;
+mod transpiler;
+mod parser;
 mod test_utils;
 mod free_var;
 mod compiler;

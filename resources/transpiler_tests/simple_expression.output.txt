@@ -48,7 +48,7 @@ Defs
                     },
                     bound_index: 1,
                     body: Redex {
-                        function: Primitive {
+                        function: Def {
                             name: "_int_add",
                         },
                         args: [
@@ -62,6 +62,7 @@ Defs
                     },
                 },
             },
+            c_type: Default,
             var_bound: 2,
         },
     ),

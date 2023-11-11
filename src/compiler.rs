@@ -302,7 +302,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 // Create next block
                 let next_block = self.function_builder.create_block();
                 let result_v_type = match result_type {
-                    CType::Uniform => &Uniform,
+                    CType::Default => &Uniform,
                     CType::SpecializedF(vty) => vty,
                 };
                 let result_value_type = result_v_type.get_type();

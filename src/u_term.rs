@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use crate::term::{CType, VType};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UTerm {
@@ -6,11 +7,11 @@ pub enum UTerm {
     Int { value: i64 },
     Str { value: String },
     Struct { values: Vec<UTerm> },
-    Lambda { arg_names: Vec<String>, body: Box<UTerm> },
+    Lambda { arg_names: Vec<(String, VType)>, body: Box<UTerm> },
     Redex { function: Box<UTerm>, args: Vec<UTerm> },
     Force { thunk: Box<UTerm> },
     Thunk { computation: Box<UTerm> },
-    CaseInt { t: Box<UTerm>, branches: HashMap<i64, UTerm>, default_branch: Option<Box<UTerm>> },
+    CaseInt { t: Box<UTerm>, result_type: CType, branches: HashMap<i64, UTerm>, default_branch: Option<Box<UTerm>> },
     MemGet { base: Box<UTerm>, offset: Box<UTerm> },
     MemSet { base: Box<UTerm>, offset: Box<UTerm>, value: Box<UTerm> },
     Let { name: String, t: Box<UTerm>, body: Box<UTerm> },
@@ -19,6 +20,7 @@ pub enum UTerm {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Def {
-    pub args: Vec<String>,
+    pub args: Vec<(String, VType)>,
     pub body: Box<UTerm>,
+    pub c_type: CType,
 }

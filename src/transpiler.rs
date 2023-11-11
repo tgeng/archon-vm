@@ -1,8 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use either::{Either, Left, Right};
 use crate::signature::{FunctionDefinition, Signature};
-use crate::signature::CallConvention::PassArgs;
-use crate::term::{CTerm, VTerm};
+use crate::term::{CTerm, CType, VTerm, VType};
 use crate::u_term::{Def, UTerm};
 use crate::primitive_functions::PRIMITIVE_FUNCTIONS;
 
@@ -31,7 +30,7 @@ impl Transpiler {
         self.signature.insert("main".to_string(), FunctionDefinition {
             args: vec![],
             body: main,
-            call_convention: PassArgs,
+            c_type: CType::Default,
             var_bound: 0,
         });
     }
@@ -54,6 +53,7 @@ impl Transpiler {
                     defs: HashMap::from([(lambda_name.to_string(), Def {
                         args: arg_names.clone(),
                         body: body.clone(),
+                        c_type: CType::Default,
                     })]),
                     body: Some(Box::new(UTerm::Identifier { name: lambda_name })),
                 }, context)
@@ -65,14 +65,14 @@ impl Transpiler {
             }
             UTerm::Force { thunk } => self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t }),
             UTerm::Thunk { computation } => CTerm::Return { value: VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)) } },
-            UTerm::CaseInt { t, branches, default_branch } => {
+            UTerm::CaseInt { t, result_type, branches, default_branch } => {
                 let mut transpiled_branches = HashMap::new();
                 for (value, branch) in branches {
                     transpiled_branches.insert(value, self.transpile_impl(branch, context));
                 }
                 let transpiled_default_branch = default_branch.map(|b| Box::new(self.transpile_impl(*b, context)));
                 self.transpile_value_and_map(*t, context, |(_, t)| {
-                    CTerm::CaseInt { t, branches: transpiled_branches, default_branch: transpiled_default_branch }
+                    CTerm::CaseInt { t, result_type, branches: transpiled_branches, default_branch: transpiled_default_branch }
                 })
             }
             UTerm::MemGet { box base, box offset } => {
@@ -111,7 +111,7 @@ impl Transpiler {
                     let identifier_names: HashSet<&str> = HashSet::new();
                     Self::get_free_vars(&def.body, &identifier_names, &mut free_vars);
                     // remove all names bound inside the current def
-                    def.args.iter().for_each(|v| {
+                    def.args.iter().for_each(|(v, v_type)| {
                         free_vars.remove(v.as_str());
                     });
                     // remove all names matching defs bound in current scope
@@ -136,10 +136,10 @@ impl Transpiler {
                 }).collect();
                 def_with_names.into_iter().for_each(|(def, name, free_vars)| {
                     let mut var_map = HashMap::new();
-                    let bound_indexes: Vec<_> = free_vars.iter().chain(def.args.iter()).map(|arg| {
+                    let bound_indexes: Vec<_> = free_vars.iter().map(|v| (v.clone(), VType::Uniform)).chain(def.args.clone().into_iter()).map(|(arg, arg_type)| {
                         let index = self.new_local_index();
                         var_map.insert(arg.clone(), index);
-                        index
+                        (index, arg_type)
                     }).collect();
                     let def_body = self.transpile_impl(*def.body, &Context {
                         enclosing_def_name: &name,
@@ -147,8 +147,8 @@ impl Transpiler {
                         var_map: &var_map,
                     });
                     let mut free_var_strings: Vec<String> = free_vars.iter().map(|s| s.to_string()).collect();
-                    free_var_strings.extend(def.args.clone());
-                    self.signature.defs.insert(name.clone(), FunctionDefinition { args: bound_indexes, body: def_body, var_bound: self.local_counter });
+                    free_var_strings.extend(def.args.into_iter().map(|(v, _)| v));
+                    self.signature.defs.insert(name.clone(), FunctionDefinition { args: bound_indexes, body: def_body, c_type: def.c_type, var_bound: self.local_counter });
                 });
                 match body {
                     None => CTerm::Return { value: VTerm::Struct { values: Vec::new() } },
@@ -225,12 +225,12 @@ impl Transpiler {
     }
 
     fn transpile_identifier(&self, name: &str, context: &Context) -> Either<CTerm, VTerm> {
-        if let Some(term) = context.def_map.get(name) {
-            Left(term.clone())
-        } else if let Some(index) = context.var_map.get(name) {
+        if let Some(index) = context.var_map.get(name) {
             Right(VTerm::Var { index: *index })
+        } else if let Some(term) = context.def_map.get(name) {
+            Left(term.clone())
         } else if let Some(name) = PRIMITIVE_FUNCTIONS.get_key(name) {
-            Left(CTerm::Primitive { name })
+            Left(CTerm::Def { name: (*name).to_owned() })
         } else {
             // properly returning a Result is better but very annoying since that requires transposing out of various collection
             panic!("Unknown identifier: {}", name)
@@ -259,7 +259,7 @@ impl Transpiler {
             UTerm::Struct { values } => values.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars)),
             UTerm::Lambda { arg_names, body } => {
                 let mut new_bound_names = bound_names.clone();
-                new_bound_names.extend(arg_names.iter().map(|s| s.as_str()));
+                new_bound_names.extend(arg_names.iter().map(|(s, _)| s.as_str()));
                 Self::get_free_vars(body, &new_bound_names, free_vars);
             }
             UTerm::Redex { function, args } => {
@@ -268,7 +268,7 @@ impl Transpiler {
             }
             UTerm::Force { thunk } => Self::get_free_vars(thunk, bound_names, free_vars),
             UTerm::Thunk { computation } => Self::get_free_vars(computation, bound_names, free_vars),
-            UTerm::CaseInt { t, branches, default_branch } => {
+            UTerm::CaseInt { t, branches, default_branch, .. } => {
                 Self::get_free_vars(t, bound_names, free_vars);
                 branches.values().for_each(|v| Self::get_free_vars(v, bound_names, free_vars));
                 if let Some(default_branch) = default_branch {
@@ -295,7 +295,7 @@ impl Transpiler {
                 new_bound_names.extend(defs.keys().map(|s| s.as_str()));
                 defs.values().for_each(|def| {
                     let mut def_bound_names = new_bound_names.clone();
-                    def_bound_names.extend(def.args.iter().map(|s| s.as_str()));
+                    def_bound_names.extend(def.args.iter().map(|(s, _)| s.as_str()));
                     Self::get_free_vars(&def.body, &def_bound_names, free_vars)
                 });
                 if let Some(body) = body {

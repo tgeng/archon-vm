@@ -4,7 +4,10 @@ Defs {
     defs: {
         "f": Def {
             args: [
-                "x",
+                (
+                    "x",
+                    Uniform,
+                ),
             ],
             body: Let {
                 name: "y",
@@ -41,6 +44,7 @@ Defs {
                     ],
                 },
             },
+            c_type: Default,
         },
     },
     body: None,
@@ -53,7 +57,10 @@ Defs
         "f",
         FunctionDefinition {
             args: [
-                0,
+                (
+                    0,
+                    Uniform,
+                ),
             ],
             body: Let {
                 t: Let {
@@ -64,7 +71,7 @@ Defs
                     },
                     bound_index: 1,
                     body: Redex {
-                        function: Primitive {
+                        function: Def {
                             name: "_int_add",
                         },
                         args: [
@@ -79,7 +86,7 @@ Defs
                 },
                 bound_index: 2,
                 body: Redex {
-                    function: Primitive {
+                    function: Def {
                         name: "_int_add",
                     },
                     args: [
@@ -92,6 +99,7 @@ Defs
                     ],
                 },
             },
+            c_type: Default,
             var_bound: 3,
         },
     ),
@@ -104,6 +112,7 @@ Defs
                     values: [],
                 },
             },
+            c_type: Default,
             var_bound: 0,
         },
     ),

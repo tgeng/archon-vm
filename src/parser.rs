@@ -11,6 +11,7 @@ use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use crate::u_term::{Def, UTerm};
 use nom_locate::{LocatedSpan};
 use crate::parser::Fixity::{*};
+use crate::term::{CType, PrimitiveType, PType, VType};
 
 type Span<'a> = LocatedSpan<&'a str>;
 
@@ -37,7 +38,7 @@ static PRECEDENCE: &[(&[OperatorAndName], Fixity)] = &[
 
 // keywords
 static KEYWORDS: &[&str] = &[
-    "let", "def", "case_int", "case_str", "force", "thunk", "=>", "=", "(", ")", ",", "\\", "{", "}", "@", "_", ":"
+    "let", "def", "case", "force", "thunk", "=>", "=", "(", ")", ",", "\\", "{", "}", "@", "_", ":", "->"
 ];
 
 // tokenizer
@@ -217,6 +218,40 @@ fn scoped<'a, F, R>(mut f: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, R> 
             }
         }
     }
+}
+
+fn v_type(input: Input) -> IResult<Input, VType> {
+    map(
+        alt((
+            token("uni").map(|_| VType::Uniform),
+            token("int").map(|_| VType::Specialized(PrimitiveType::Integer)),
+            token("sptr").map(|_| VType::Specialized(PrimitiveType::StructPtr)),
+            token("pptr").map(|_| VType::Specialized(PrimitiveType::PrimitivePtr)),
+            token("i64").map(|_| VType::Specialized(PrimitiveType::Primitive(PType::I64))),
+            token("f64").map(|_| VType::Specialized(PrimitiveType::Primitive(PType::F64))),
+            token("i32").map(|_| VType::Specialized(PrimitiveType::Primitive(PType::I32))),
+            token("f32").map(|_| VType::Specialized(PrimitiveType::Primitive(PType::F32))),
+        )),
+        |v_type| v_type,
+    )(input)
+}
+
+fn v_type_decl(input: Input) -> IResult<Input, VType> {
+    map(
+        opt(preceded(token(":"), v_type)),
+        |v_type_option| v_type_option.unwrap_or(VType::Uniform),
+    )(input)
+}
+
+fn specialized_c_type(input: Input) -> IResult<Input, CType> {
+    map(v_type, CType::SpecializedF)(input)
+}
+
+fn c_type_decl(input: Input) -> IResult<Input, CType> {
+    map(
+        opt(preceded(token("->"), specialized_c_type)),
+        |c_type_option| c_type_option.unwrap_or(CType::Default),
+    )(input)
 }
 
 fn newline(input: Input) -> IResult<Input, ()> {
@@ -602,7 +637,7 @@ fn lambda(input: Input) -> IResult<Input, UTerm> {
             pair(
                 delimited(
                     token("\\"),
-                    separated_list0(newline_opt, id),
+                    separated_list0(newline_opt, pair(id, v_type_decl)),
                     token("=>")),
                 expr),
             |(arg_names, body)| UTerm::Lambda { arg_names, body: Box::new(body) },
@@ -613,13 +648,14 @@ fn case(input: Input) -> IResult<Input, UTerm> {
     context("case", scoped(
         map(
             tuple((
-                preceded(token("case_int"), map(expr, Box::new)),
+                preceded(token("case"), map(expr, Box::new)),
+                c_type_decl,
                 many0(map(preceded(newline, scoped(tuple((int, preceded(token("=>"), u_term))))), |(i, branch)| (i, branch))),
                 preceded(newline, scoped(preceded(pair(token("_"), token("=>")), opt(map(u_term, Box::new))))),
             )),
-            |(t, branch_entries, default_branch)| {
+            |(t, result_type, branch_entries, default_branch)| {
                 let branches = HashMap::from_iter(branch_entries);
-                UTerm::CaseInt { t, branches, default_branch }
+                UTerm::CaseInt { t, result_type, branches, default_branch }
             })
     ))(input)
 }
@@ -646,9 +682,10 @@ fn defs_term(input: Input) -> IResult<Input, UTerm> {
                     scoped(
                         tuple((
                             preceded(token("def"), id),
-                            many0(id),
+                            many0(pair(id, v_type_decl)),
+                            c_type_decl,
                             preceded(preceded(token("=>"), newline_opt), map(u_term, Box::new))))),
-                    |(name, args, body)| (name, Def { args, body }),
+                    |(name, args, c_type, body)| (name, Def { args, c_type, body }),
                 )
             ), opt(preceded(newline, map(u_term, Box::new)))),
         |(defs, body)| UTerm::Defs { defs: HashMap::from_iter(defs), body },
@@ -1030,13 +1067,18 @@ x")?), r#"Let {
 
     #[test]
     fn check_case_int() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("case_int 1
+        assert_eq!(debug_print(parse_u_term("case 1 -> int
   1 => 2
   _ => 3
 ")?), r#"CaseInt {
     t: Int {
         value: 1,
     },
+    result_type: SpecializedF(
+        Specialized(
+            Integer,
+        ),
+    ),
     branches: {
         1: Int {
             value: 2,
@@ -1121,11 +1163,15 @@ g (f 1) 2
     defs: {
         "f": Def {
             args: [
-                "x",
+                (
+                    "x",
+                    Uniform,
+                ),
             ],
             body: Identifier {
                 name: "x",
             },
+            c_type: Default,
         },
     },
     body: Some(
@@ -1133,8 +1179,14 @@ g (f 1) 2
             defs: {
                 "g": Def {
                     args: [
-                        "x",
-                        "y",
+                        (
+                            "x",
+                            Uniform,
+                        ),
+                        (
+                            "y",
+                            Uniform,
+                        ),
                     ],
                     body: Redex {
                         function: Identifier {
@@ -1149,6 +1201,7 @@ g (f 1) 2
                             },
                         ],
                     },
+                    c_type: Default,
                 },
             },
             body: Some(

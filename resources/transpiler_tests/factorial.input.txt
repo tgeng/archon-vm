@@ -1,5 +1,5 @@
 def factorial n =>
-  case_int n
+  case n
     0 => 1
     _ => n * factorial (n - 1)
 

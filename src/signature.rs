@@ -166,11 +166,11 @@ impl<'a> ThunkLifter<'a> {
                 args: free_vars.iter().map(|i| VTerm::Var { index: *i }).collect(),
             };
         std::mem::swap(thunk, &mut redex);
-        let var_bound = *free_vars.iter().max().unwrap();
+        let var_bound = *free_vars.iter().max().unwrap_or(&0);
         self.new_defs.push((thunk_def_name, FunctionDefinition {
             args: free_vars.into_iter().map(|v| (v, self.local_var_types[v])).collect(),
             body: redex,
-            c_type: CType::Uniform,
+            c_type: CType::Default,
             var_bound,
         }));
     }
@@ -178,6 +178,9 @@ impl<'a> ThunkLifter<'a> {
 
 impl<'a> Transformer for ThunkLifter<'a> {
     fn transform_thunk(&mut self, v_term: &mut VTerm) {
+        // TODO: generate thunks with more parameters for primitive calls. Note that primitive calls
+        //  still need to be wrapped inside functions because thunks are always invoked via pushing
+        //  args, which is not supported by primitive calls.
         if let VTerm::Thunk { t: box CTerm::Redex { function: box CTerm::Def { .. }, .. } | box CTerm::Def { .. }, .. } = v_term {
             // There is no need to lift the thunk if it's already a simple function call.
             return;

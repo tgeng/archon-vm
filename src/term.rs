@@ -8,11 +8,21 @@ pub enum PType {
     F32,
 }
 
+/// See [[cbpv_runtime::types::UniformType]] for how these are represented in uniform representation.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PrimitiveType {
+    /// 61-bit integer
     Integer,
+
+    /// A pointer to a struct, whose members are all in uniform representation.
     StructPtr,
+
+    /// A pointer to an array of non-pointers. The array may contain raw functions, 64-bit integers,
+    /// double precision floating point numbers, or arrays of such values. It may also point to a
+    /// UTF-8 encoded string.
     PrimitivePtr,
+
+    /// A primitive value using the highest bits represented in the standard format.
     Primitive(PType),
 }
 
@@ -40,7 +50,7 @@ pub enum CType {
     /// Default type for computations. The computation may return a value or continue another
     /// computation (for example consuming more arguments to produce a value through a tail call).
     /// All thunks have this type to support flexible ways of calling them.
-    Uniform,
+    Default,
     /// A computation that returns a value. A function having this as the return type can be
     /// specialized to be called by passing values instead of pushing values to the argument stack.
     SpecializedF(VType),
@@ -72,7 +82,7 @@ pub enum CTerm {
     /// Note on result type, different branches can have different computation types. For example,
     /// for record instance or function with large elimination, one branch may return a value while
     /// another consumes more arguments (aka tail call). In this case the result type is
-    /// [CType::Uniform].
+    /// [CType::Default].
     CaseInt { t: VTerm, result_type: CType, branches: HashMap<i64, CTerm>, default_branch: Option<Box<CTerm>> },
     MemGet { base: VTerm, offset: VTerm },
     MemSet { base: VTerm, offset: VTerm, value: VTerm },

@@ -4,12 +4,16 @@ Defs {
     defs: {
         "factorial": Def {
             args: [
-                "n",
+                (
+                    "n",
+                    Uniform,
+                ),
             ],
             body: CaseInt {
                 t: Identifier {
                     name: "n",
                 },
+                result_type: Default,
                 branches: {
                     0: Int {
                         value: 1,
@@ -48,6 +52,7 @@ Defs {
                     },
                 ),
             },
+            c_type: Default,
         },
     },
     body: Some(
@@ -71,12 +76,16 @@ Defs
         "factorial",
         FunctionDefinition {
             args: [
-                0,
+                (
+                    0,
+                    Uniform,
+                ),
             ],
             body: CaseInt {
                 t: Var {
                     index: 0,
                 },
+                result_type: Default,
                 branches: {
                     0: Return {
                         value: Int {
@@ -88,7 +97,7 @@ Defs
                     Let {
                         t: Let {
                             t: Redex {
-                                function: Primitive {
+                                function: Def {
                                     name: "_int_sub",
                                 },
                                 args: [
@@ -114,7 +123,7 @@ Defs
                         },
                         bound_index: 2,
                         body: Redex {
-                            function: Primitive {
+                            function: Def {
                                 name: "_int_mul",
                             },
                             args: [
@@ -129,6 +138,7 @@ Defs
                     },
                 ),
             },
+            c_type: Default,
             var_bound: 3,
         },
     ),
@@ -146,6 +156,7 @@ Defs
                     },
                 ],
             },
+            c_type: Default,
             var_bound: 0,
         },
     ),

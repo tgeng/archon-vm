@@ -9,7 +9,10 @@ Let {
         defs: {
             "f": Def {
                 args: [
-                    "x",
+                    (
+                        "x",
+                        Uniform,
+                    ),
                 ],
                 body: Redex {
                     function: Identifier {
@@ -24,6 +27,7 @@ Let {
                         },
                     ],
                 },
+                c_type: Default,
             },
         },
         body: Some(
@@ -48,11 +52,17 @@ Defs
         "f",
         FunctionDefinition {
             args: [
-                0,
-                1,
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
             ],
             body: Redex {
-                function: Primitive {
+                function: Def {
                     name: "_int_add",
                 },
                 args: [
@@ -64,6 +74,7 @@ Defs
                     },
                 ],
             },
+            c_type: Default,
             var_bound: 2,
         },
     ),
@@ -92,6 +103,7 @@ Defs
                     ],
                 },
             },
+            c_type: Default,
             var_bound: 1,
         },
     ),
