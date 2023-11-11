@@ -1,5 +1,7 @@
+use std::cmp::Ordering;
 use std::collections::{HashMap};
 use crate::free_var::HasFreeVar;
+use crate::primitive_functions::{PRIMITIVE_FUNCTIONS, PrimitiveFunction};
 use crate::term::{CTerm, CType, VTerm, VType};
 use crate::transformer::Transformer;
 
@@ -34,6 +36,7 @@ impl Signature {
 
     pub fn optimize(&mut self) {
         self.normalize_redex();
+        self.specialize_calls();
         self.lift_thunks();
         // TODO: add a pass that converts redex to specialized function calls
     }
@@ -43,6 +46,16 @@ impl Signature {
         self.defs.iter_mut().for_each(|(_, FunctionDefinition { body, .. })| {
             normalizer.transform_c_term(body);
         });
+    }
+
+
+    fn specialize_calls(&mut self) {
+        let mut new_defs: Vec<(String, FunctionDefinition)> = Vec::new();
+        self.defs.iter_mut().for_each(|(name, FunctionDefinition { args, body, var_bound, .. })| {
+            let mut specializer = CallSpecializer { def_name: name, new_defs: &mut new_defs, specializer_counter: 0 };
+            specializer.transform_c_term(body);
+        });
+        self.insert_new_defs(new_defs);
     }
 
     fn lift_thunks(&mut self) {
@@ -57,6 +70,10 @@ impl Signature {
             let mut thunk_lifter = lifter;
             thunk_lifter.transform_c_term(body);
         });
+        self.insert_new_defs(new_defs);
+    }
+
+    fn insert_new_defs(&mut self, new_defs: Vec<(String, FunctionDefinition)>) {
         for (name, FunctionDefinition { mut args, mut body, c_type, var_bound: mut max_arg_size }) in new_defs.into_iter() {
             Self::rename_local_vars_in_def(&mut args, &mut body, &mut max_arg_size);
             self.insert(name, FunctionDefinition {
@@ -73,7 +90,6 @@ impl Signature {
             Self::rename_local_vars_in_def(args, body, max_arg_size);
         });
     }
-
     fn rename_local_vars_in_def(args: &mut [(usize, VType)], body: &mut CTerm, max_arg_size: &mut usize) {
         let mut renamer = DistinctVarRenamer { bindings: HashMap::new(), counter: 0 };
         for (i, _) in args.iter_mut() {
@@ -151,6 +167,48 @@ impl Transformer for RedexNormalizer {
     }
 }
 
+struct CallSpecializer<'a> {
+    def_name: &'a str,
+    new_defs: &'a mut Vec<(String, FunctionDefinition)>,
+    specializer_counter: usize,
+}
+
+impl<'a> Transformer for CallSpecializer<'a> {
+    fn transform_redex(&mut self, c_term: &mut CTerm) {
+        let CTerm::Redex { box function, args } = c_term else { unreachable!() };
+        let CTerm::Def { name } = function else { return; };
+        if let Some((name, PrimitiveFunction { arg_types, return_type, .. })) = PRIMITIVE_FUNCTIONS.get_entry(name) {
+            match arg_types.len().cmp(&args.len()) {
+                Ordering::Greater => {
+                    let specialized_function_name = format!("{}$__specialized_{}", self.def_name, self.specializer_counter);
+                    *function = CTerm::Def { name: specialized_function_name.clone() };
+                    self.new_defs.push((specialized_function_name, FunctionDefinition {
+                        args: arg_types.iter().enumerate().map(|(i, t)| (i, *t)).collect(),
+                        body: CTerm::PrimitiveCall {
+                            name,
+                            args: (0..arg_types.len()).map(|index| VTerm::Var { index }).collect(),
+                        },
+                        c_type: CType::SpecializedF(*return_type),
+                        var_bound: arg_types.len(),
+                    }))
+                }
+                Ordering::Equal => {
+                    let CTerm::Redex { args, .. } = std::mem::replace(
+                        c_term,
+                        CTerm::PrimitiveCall { name, args: vec![] },
+                    ) else { unreachable!() };
+                    let CTerm::PrimitiveCall { args: new_args, .. } = c_term else { unreachable!() };
+                    *new_args = args;
+                }
+                Ordering::Less => {
+                    unreachable!()
+                }
+            }
+        }
+        // TODO: specialize function calls
+    }
+}
+
 struct ThunkLifter<'a> {
     def_name: &'a str,
     thunk_counter: usize,
@@ -159,7 +217,10 @@ struct ThunkLifter<'a> {
 }
 
 impl<'a> ThunkLifter<'a> {
-    fn replace_thunk(&mut self, thunk_def_name: String, free_vars: Vec<usize>, thunk: &mut CTerm) {
+    fn replace_thunk(&mut self, free_vars: Vec<usize>, thunk: &mut CTerm) {
+        let thunk_def_name = format!("{}$__thunk_{}", self.def_name, self.thunk_counter);
+        self.thunk_counter += 1;
+
         let mut redex =
             CTerm::Redex {
                 function: Box::new(CTerm::Def { name: thunk_def_name.clone() }),
@@ -167,12 +228,13 @@ impl<'a> ThunkLifter<'a> {
             };
         std::mem::swap(thunk, &mut redex);
         let var_bound = *free_vars.iter().max().unwrap_or(&0);
-        self.new_defs.push((thunk_def_name, FunctionDefinition {
+        let function_definition = FunctionDefinition {
             args: free_vars.into_iter().map(|v| (v, self.local_var_types[v])).collect(),
             body: redex,
             c_type: CType::Default,
             var_bound,
-        }));
+        };
+        self.new_defs.push((thunk_def_name, function_definition));
     }
 }
 
@@ -188,10 +250,7 @@ impl<'a> Transformer for ThunkLifter<'a> {
         let mut free_vars: Vec<_> = v_term.free_vars().into_iter().collect();
         free_vars.sort();
 
-        let thunk_def_name = format!("{}$__thunk_{}", self.def_name, self.thunk_counter);
-        self.thunk_counter += 1;
-
         let VTerm::Thunk { t } = v_term else { unreachable!() };
-        self.replace_thunk(thunk_def_name, free_vars, t);
+        self.replace_thunk(free_vars, t);
     }
 }

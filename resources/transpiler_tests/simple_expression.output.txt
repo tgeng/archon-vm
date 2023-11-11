@@ -47,10 +47,8 @@ Defs
                         },
                     },
                     bound_index: 1,
-                    body: Redex {
-                        function: Def {
-                            name: "_int_add",
-                        },
+                    body: PrimitiveCall {
+                        name: "_int_add",
                         args: [
                             Var {
                                 index: 0,

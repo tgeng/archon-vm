@@ -96,10 +96,8 @@ Defs
                 default_branch: Some(
                     Let {
                         t: Let {
-                            t: Redex {
-                                function: Def {
-                                    name: "_int_sub",
-                                },
+                            t: PrimitiveCall {
+                                name: "_int_sub",
                                 args: [
                                     Var {
                                         index: 0,
@@ -122,10 +120,8 @@ Defs
                             },
                         },
                         bound_index: 2,
-                        body: Redex {
-                            function: Def {
-                                name: "_int_mul",
-                            },
+                        body: PrimitiveCall {
+                            name: "_int_mul",
                             args: [
                                 Var {
                                     index: 0,
