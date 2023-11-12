@@ -5,7 +5,7 @@ use cbpv_runtime::runtime_utils::runtime_alloc;
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder, JITModule};
-use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
+use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module, ModuleResult};
 use crate::signature::FunctionDefinition;
 use crate::term::{CTerm, VTerm, VType, SpecializedType, PType, CType};
 use strum::IntoEnumIterator;
@@ -13,6 +13,7 @@ use strum_macros::EnumIter;
 use enum_map::{Enum, EnumMap};
 use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
+use crate::main;
 use crate::primitive_functions::PRIMITIVE_FUNCTIONS;
 
 /// None means the function call is a tail call or returned so no value is returned.
@@ -137,6 +138,17 @@ impl Default for Compiler<JITModule> {
     }
 }
 
+impl Compiler<JITModule> {
+    pub fn finalize_and_get_main(&mut self) -> fn() -> usize {
+        self.module.finalize_definitions().unwrap();
+        let main_func_id = self.local_functions.get("__main__").unwrap();
+        unsafe {
+            let func_ptr = self.module.get_finalized_function(*main_func_id);
+            std::mem::transmute::<_, fn() -> usize>(func_ptr)
+        }
+    }
+}
+
 impl<M: Module> Compiler<M> {
     fn new(module: M, builtin_functions: EnumMap<BuiltinFunction, FuncId>) -> Self {
         Self {
@@ -149,7 +161,7 @@ impl<M: Module> Compiler<M> {
         }
     }
 
-    pub fn process(&mut self, defs: &HashMap<String, FunctionDefinition>) {
+    pub fn compile(&mut self, defs: &[(String, FunctionDefinition)]) {
         for (name, _) in defs.iter() {
             let mut sig = self.module.make_signature();
             sig.params.push(AbiParam::new(I64));
@@ -158,11 +170,17 @@ impl<M: Module> Compiler<M> {
         }
 
         for (name, function_definition) in defs.iter() {
-            self.process_function(function_definition);
+            self.compile_function(function_definition);
+            let func_id = self.local_functions.get(name).unwrap();
+            self.module.define_function(*func_id, &mut self.ctx).unwrap();
+            self.module.clear_context(&mut self.ctx);
         }
+
+        // TODO: define wrapper __main__ function that sets up the parameter stack and calls the
+        //  user main function.
     }
 
-    fn process_function(&mut self, function_definition: &FunctionDefinition) {
+    fn compile_function(&mut self, function_definition: &FunctionDefinition) {
         // All functions have the same signature `i64 -> i64`, where the single argument is the
         // base address of the parameter stack and the single return value is the address of the
         // return address. Actual parameters can be obtained by offsetting this base address.
@@ -208,7 +226,7 @@ impl<M: Module> Compiler<M> {
         let base_address = function_builder.block_params(entry_block)[0];
         let mut translator = FunctionTranslator {
             module: &mut self.module,
-            function_builder: &mut function_builder,
+            function_builder,
             data_description: &mut DataDescription::new(),
             builtin_functions: &self.builtin_functions,
             static_strings: &mut self.static_strings,
@@ -240,12 +258,14 @@ impl<M: Module> Compiler<M> {
                 // Nothing to do since tail call is already a terminating instruction.
             }
         }
+        translator.function_builder.seal_all_blocks();
+        translator.function_builder.finalize();
     }
 }
 
 struct FunctionTranslator<'a, M: Module> {
     module: &'a mut M,
-    function_builder: &'a mut FunctionBuilder<'a>,
+    function_builder: FunctionBuilder<'a>,
     data_description: &'a mut DataDescription,
     builtin_functions: &'a EnumMap<BuiltinFunction, FuncId>,
     static_strings: &'a mut HashMap<String, DataId>,
@@ -335,7 +355,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 for (value, branch_block) in branch_blocks.iter() {
                     switch.set_entry(*value as u128, *branch_block);
                 }
-                switch.emit(self.function_builder, t_value, default_block);
+                switch.emit(&mut self.function_builder, t_value, default_block);
 
                 // Switch to next block for future code generation
                 self.function_builder.seal_all_blocks();
@@ -369,7 +389,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 let args = args.iter().map(|arg| { self.translate_v_term(arg) }).collect::<Vec<_>>();
                 let primitive_function = *PRIMITIVE_FUNCTIONS.get(name).unwrap();
                 let arg_values: Vec<Value> = primitive_function.arg_types.iter().zip(args).map(|(ty, arg)| self.adapt_type(arg, ty)).collect();
-                let return_value = (primitive_function.code_gen)(self.function_builder, &arg_values);
+                let return_value = (primitive_function.code_gen)(&mut self.function_builder, &arg_values);
                 Some((return_value, primitive_function.return_type))
             }
             CTerm::SpecializedFunctionCall { name, args } => todo!(),

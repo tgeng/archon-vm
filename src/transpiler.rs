@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use either::{Either, Left, Right};
 use crate::signature::{FunctionDefinition, Signature};
-use crate::term::{CTerm, CType, VTerm, VType};
+use crate::term::{CTerm, CType, PType, SpecializedType, VTerm, VType};
 use crate::u_term::{Def, UTerm};
 use crate::primitive_functions::PRIMITIVE_FUNCTIONS;
 
@@ -30,7 +30,7 @@ impl Transpiler {
         self.signature.insert("main".to_string(), FunctionDefinition {
             args: vec![],
             body: main,
-            c_type: CType::Default,
+            c_type: CType::SpecializedF(VType::Specialized(SpecializedType::Primitive(PType::I64))),
             var_bound: 0,
         });
     }
@@ -310,6 +310,8 @@ impl Transpiler {
 mod tests {
     use std::fs;
     use std::path::PathBuf;
+    use cranelift_jit::JITModule;
+    use crate::compiler::Compiler;
     use crate::parser::parse_u_term;
     use crate::signature::Signature;
     use crate::transpiler::Transpiler;
@@ -326,6 +328,10 @@ mod tests {
         signature.optimize();
         let mut defs = signature.into_defs().into_iter().collect::<Vec<_>>();
         defs.sort_by_key(|(name, _)| name.clone());
+        let mut compiler: Compiler<JITModule> = Default::default();
+        compiler.compile(&defs);
+        let main_func = compiler.finalize_and_get_main();
+        let result = main_func();
 
         let actual = format!("UTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}", u_term, defs);
         let expected = match fs::read_to_string(test_output_path) {
