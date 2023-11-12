@@ -1,8 +1,8 @@
 use cranelift::prelude::{FunctionBuilder, InstBuilder, Value};
 use phf::phf_map;
 use crate::term::VType;
-use crate::term::PrimitiveType;
-use PrimitiveType::*;
+use crate::term::SpecializedType;
+use SpecializedType::*;
 use VType::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]

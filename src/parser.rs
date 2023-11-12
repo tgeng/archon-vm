@@ -11,7 +11,7 @@ use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use crate::u_term::{Def, UTerm};
 use nom_locate::{LocatedSpan};
 use crate::parser::Fixity::{*};
-use crate::term::{CType, PrimitiveType, PType, VType};
+use crate::term::{CType, SpecializedType, PType, VType};
 
 type Span<'a> = LocatedSpan<&'a str>;
 
@@ -224,13 +224,13 @@ fn v_type(input: Input) -> IResult<Input, VType> {
     map(
         alt((
             token("uni").map(|_| VType::Uniform),
-            token("int").map(|_| VType::Specialized(PrimitiveType::Integer)),
-            token("sptr").map(|_| VType::Specialized(PrimitiveType::StructPtr)),
-            token("pptr").map(|_| VType::Specialized(PrimitiveType::PrimitivePtr)),
-            token("i64").map(|_| VType::Specialized(PrimitiveType::Primitive(PType::I64))),
-            token("f64").map(|_| VType::Specialized(PrimitiveType::Primitive(PType::F64))),
-            token("i32").map(|_| VType::Specialized(PrimitiveType::Primitive(PType::I32))),
-            token("f32").map(|_| VType::Specialized(PrimitiveType::Primitive(PType::F32))),
+            token("int").map(|_| VType::Specialized(SpecializedType::Integer)),
+            token("sptr").map(|_| VType::Specialized(SpecializedType::StructPtr)),
+            token("pptr").map(|_| VType::Specialized(SpecializedType::PrimitivePtr)),
+            token("i64").map(|_| VType::Specialized(SpecializedType::Primitive(PType::I64))),
+            token("f64").map(|_| VType::Specialized(SpecializedType::Primitive(PType::F64))),
+            token("i32").map(|_| VType::Specialized(SpecializedType::Primitive(PType::I32))),
+            token("f32").map(|_| VType::Specialized(SpecializedType::Primitive(PType::F32))),
         )),
         |v_type| v_type,
     )(input)

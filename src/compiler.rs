@@ -1,21 +1,19 @@
 use std::collections::HashMap;
-use cranelift::codegen::ir::{FuncRef, Inst, JumpTable};
+use cranelift::codegen::ir::{FuncRef, Inst};
 use cranelift::frontend::Switch;
 use cbpv_runtime::runtime_utils::runtime_alloc;
-use cbpv_runtime::types::{UniformType};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
 use crate::signature::FunctionDefinition;
-use crate::term::{CTerm, VTerm, VType, PrimitiveType, PType, CType};
+use crate::term::{CTerm, VTerm, VType, SpecializedType, PType, CType};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use enum_map::{Enum, EnumMap};
 use VType::{Specialized, Uniform};
-use PrimitiveType::{Integer, PrimitivePtr, StructPtr};
+use SpecializedType::{Integer, PrimitivePtr, StructPtr};
 use crate::primitive_functions::PRIMITIVE_FUNCTIONS;
-use crate::term::VTerm::Str;
 
 /// None means the function call is a tail call or returned so no value is returned.
 type TypedValue = (Value, VType);
@@ -33,13 +31,24 @@ impl HasType for VType {
                 Integer => I64,
                 StructPtr => I64,
                 PrimitivePtr => I64,
-                PrimitiveType::Primitive(t) => match t {
+                SpecializedType::Primitive(t) => match t {
                     PType::I64 => I64,
                     PType::I32 => I32,
                     PType::F64 => F64,
                     PType::F32 => F32,
                 }
             }
+        }
+    }
+}
+
+impl HasType for PType {
+    fn get_type(&self) -> Type {
+        match self {
+            PType::I64 => I64,
+            PType::I32 => I32,
+            PType::F64 => F64,
+            PType::F32 => F32,
         }
     }
 }
@@ -149,11 +158,11 @@ impl<M: Module> Compiler<M> {
         }
 
         for (name, function_definition) in defs.iter() {
-            self.process_function(name, function_definition);
+            self.process_function(function_definition);
         }
     }
 
-    fn process_function(&mut self, name: &str, function_definition: &FunctionDefinition) {
+    fn process_function(&mut self, function_definition: &FunctionDefinition) {
         // All functions have the same signature `i64 -> i64`, where the single argument is the
         // base address of the parameter stack and the single return value is the address of the
         // return address. Actual parameters can be obtained by offsetting this base address.
@@ -480,14 +489,82 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
     }
 
     fn to_uniform(&mut self, value_and_type: TypedReturnValue) -> Value {
-        todo!();
+        let (value, value_type) = Self::extract_value_and_type(value_and_type);
+        match value_type {
+            Uniform => value,
+            Specialized(s) => match s {
+                Integer => self.function_builder.ins().ishl_imm(value, 1),
+                StructPtr => self.function_builder.ins().iadd_imm(value, 1),
+                PrimitivePtr => self.function_builder.ins().iadd_imm(value, 0b011),
+                SpecializedType::Primitive(p) => match p {
+                    PType::I64 | PType::F64 => {
+                        let alloc_size = self.function_builder.ins().iconst(I64, 8);
+                        let inst = self.call_builtin_func(BuiltinFunction::Alloc, &[alloc_size]);
+                        let ptr = self.function_builder.inst_results(inst)[0];
+                        self.function_builder.ins().store(MemFlags::new(), value, ptr, 0);
+                        // Add 0b011 to the end to signify this is a primitive pointer
+                        self.function_builder.ins().iadd_imm(ptr, 0b011)
+                    }
+                    PType::I32 => {
+                        let extended = self.function_builder.ins().sextend(I64, value);
+                        let shifted = self.function_builder.ins().ishl_imm(extended, 32);
+                        self.function_builder.ins().iadd_imm(shifted, 0b100)
+                    }
+                    PType::F32 => {
+                        let casted = self.function_builder.ins().bitcast(I32, MemFlags::new(), value);
+                        let extended = self.function_builder.ins().sextend(I64, casted);
+                        let shifted = self.function_builder.ins().ishl_imm(extended, 32);
+                        self.function_builder.ins().iadd_imm(shifted, 0b100)
+                    }
+                }
+            }
+        }
     }
 
-    fn to_special(&mut self, value_and_type: TypedReturnValue, primitive_type: PrimitiveType) -> Value {
-        todo!();
+    fn to_special(&mut self, value_and_type: TypedReturnValue, specialized_type: SpecializedType) -> Value {
+        let (value, value_type) = Self::extract_value_and_type(value_and_type);
+        match value_type {
+            Uniform => match specialized_type {
+                Integer => self.function_builder.ins().sshr_imm(value, 1),
+                StructPtr => self.function_builder.ins().iadd_imm(value, -1),
+                PrimitivePtr => self.function_builder.ins().iadd_imm(value, -0b011),
+                SpecializedType::Primitive(p) => match p {
+                    PType::I64 | PType::F64 => {
+                        let ptr = self.function_builder.ins().iadd_imm(value, -0b011);
+                        self.function_builder.ins().load(p.get_type(), MemFlags::new(), ptr, 0)
+                    }
+                    PType::I32 => {
+                        let shifted = self.function_builder.ins().sshr_imm(value, 32);
+                        self.function_builder.ins().ireduce(I32, shifted)
+                    }
+                    PType::F32 => {
+                        let shifted = self.function_builder.ins().sshr_imm(value, 32);
+                        let truncated = self.function_builder.ins().ireduce(I32, shifted);
+                        self.function_builder.ins().bitcast(F32, MemFlags::new(), truncated)
+                    }
+                }
+            }
+            Specialized(s) => if s == specialized_type {
+                value
+            } else {
+                unreachable!("type conversion between two specialized types is not supported and this must be a type error in the input program")
+            }
+        }
     }
 
     fn adapt_type(&mut self, value_and_type: TypedReturnValue, target_type: &VType) -> Value {
-        todo!();
+        let (value, value_type) = Self::extract_value_and_type(value_and_type);
+        if value_type == *target_type {
+            return value;
+        }
+        match (value_type, target_type) {
+            (Uniform, Specialized(s)) => self.to_special(value_and_type, s.clone()),
+            (Specialized(_), Uniform) => self.to_uniform(value_and_type),
+            _ => unreachable!("type conversion between two specialized types is not supported and this must be a type error in the input program"),
+        }
+    }
+
+    fn extract_value_and_type(value_and_type: TypedReturnValue) -> (Value, VType) {
+        value_and_type.expect("non-local return value cannot be converted and this must be a bug in the compilation logic or input is not well-typed")
     }
 }

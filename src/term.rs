@@ -10,7 +10,7 @@ pub enum PType {
 
 /// See [[cbpv_runtime::types::UniformType]] for how these are represented in uniform representation.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum PrimitiveType {
+pub enum SpecializedType {
     /// 61-bit integer
     Integer,
 
@@ -42,7 +42,7 @@ pub enum VType {
     /// pointers that can be dereferenced. Integer and floats are unboxed values. This is only used
     /// inside functions or across specialized function calls (aka a [CTerm::PrimitiveCall] or
     /// [CTerm::FunctionCall]).
-    Specialized(PrimitiveType),
+    Specialized(SpecializedType),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
