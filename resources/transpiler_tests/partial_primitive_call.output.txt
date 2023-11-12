@@ -1,0 +1,109 @@
+UTerm
+========
+Defs {
+    defs: {
+        "f": Def {
+            args: [],
+            body: Redex {
+                function: Identifier {
+                    name: "_int_add",
+                },
+                args: [
+                    Int {
+                        value: 1,
+                    },
+                ],
+            },
+            c_type: Default,
+        },
+    },
+    body: Some(
+        Redex {
+            function: Identifier {
+                name: "f",
+            },
+            args: [
+                Int {
+                    value: 2,
+                },
+            ],
+        },
+    ),
+}
+
+Defs
+========
+[
+    (
+        "f",
+        FunctionDefinition {
+            args: [],
+            body: Redex {
+                function: Def {
+                    name: "f$__specialized_0",
+                },
+                args: [
+                    Int {
+                        value: 1,
+                    },
+                ],
+            },
+            c_type: Default,
+            var_bound: 0,
+        },
+    ),
+    (
+        "f$__specialized_0",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                (
+                    1,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            ],
+            body: PrimitiveCall {
+                name: "_int_add",
+                args: [
+                    Var {
+                        index: 0,
+                    },
+                    Var {
+                        index: 1,
+                    },
+                ],
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 2,
+        },
+    ),
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Redex {
+                function: Def {
+                    name: "f",
+                },
+                args: [
+                    Int {
+                        value: 2,
+                    },
+                ],
+            },
+            c_type: Default,
+            var_bound: 0,
+        },
+    ),
+]

@@ -1,0 +1,2 @@
+def f => _int_add 1
+f 2
