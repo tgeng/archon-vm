@@ -200,7 +200,6 @@ impl<M: Module> Compiler<M> {
         let main_wrapper_id = self.module.declare_function(MAIN_WRAPPER_NAME, Linkage::Local, &self.uniform_func_signature).unwrap();
         self.local_functions.insert(MAIN_WRAPPER_NAME.to_string(), main_wrapper_id);
         self.ctx.clear();
-        self.ctx.func.signature.call_conv = CallConv::AppleAarch64;
         self.ctx.func.signature.returns.push(AbiParam::new(I64));
 
         let mut function_builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.builder_context);
