@@ -311,7 +311,10 @@ impl<M: Module> Compiler<M> {
         let return_value_or_param = translator.translate_c_term(&function_definition.body, true);
         match return_value_or_param {
             Some((value, _)) => {
-                translator.function_builder.ins().return_(&[value]);
+                let return_address_offset = ((function_definition.args.len() as i64 - 1) * 8);
+                let return_address = translator.function_builder.ins().iadd_imm(translator.base_address, return_address_offset);
+                translator.function_builder.ins().store(MemFlags::new(), value, return_address, 0);
+                translator.function_builder.ins().return_(&[return_address]);
             }
             None => {
                 // Nothing to do since tail call is already a terminating instruction.
