@@ -5,7 +5,7 @@ use cbpv_runtime::runtime_utils::runtime_alloc;
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder, JITModule};
-use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module, ModuleResult};
+use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
 use crate::signature::FunctionDefinition;
 use crate::term::{CTerm, VTerm, VType, SpecializedType, PType, CType};
 use strum::IntoEnumIterator;
@@ -13,7 +13,6 @@ use strum_macros::EnumIter;
 use enum_map::{Enum, EnumMap};
 use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
-use crate::main;
 use crate::primitive_functions::PRIMITIVE_FUNCTIONS;
 
 /// None means the function call is a tail call or returned so no value is returned.
@@ -339,23 +338,30 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
 
                 // Create branch blocks
                 let mut branch_blocks = HashMap::new();
-                for (value, branch) in branches.iter() {
-                    let branch_block = self.create_branch_block(is_tail, next_block, result_v_type, Some(branch));
+                for (value, _) in branches.iter() {
+                    let branch_block = self.function_builder.create_block();
                     branch_blocks.insert(*value, branch_block);
                 }
 
-                let default_block = self.create_branch_block(is_tail, next_block, result_v_type, match default_branch {
-                    None => None,
-                    Some(box branch) => Some(branch),
-                });
+                let default_block = self.function_builder.create_block();
 
                 // Create table jump
-                self.function_builder.switch_to_block(current_block);
                 let mut switch = Switch::new();
                 for (value, branch_block) in branch_blocks.iter() {
                     switch.set_entry(*value as u128, *branch_block);
                 }
                 switch.emit(&mut self.function_builder, t_value, default_block);
+
+                // Fill branch blocks
+                for (value, branch_block) in branch_blocks.into_iter() {
+                    let branch = branches.get(&value).unwrap();
+                    self.create_branch_block(branch_block, is_tail, next_block, result_v_type, Some(branch));
+                }
+
+                self.create_branch_block(default_block, is_tail, next_block, result_v_type, match default_branch {
+                    None => None,
+                    Some(box branch) => Some(branch),
+                });
 
                 // Switch to next block for future code generation
                 self.function_builder.seal_all_blocks();
@@ -396,8 +402,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         }
     }
 
-    fn create_branch_block(&mut self, is_tail: bool, next_block: Block, result_v_type: &VType, branch: Option<&CTerm>) -> Block {
-        let branch_block = self.function_builder.create_block();
+    fn create_branch_block(&mut self, branch_block: Block, is_tail: bool, next_block: Block, result_v_type: &VType, branch: Option<&CTerm>) {
         self.function_builder.switch_to_block(branch_block);
         let typed_return_value = match branch {
             None => {
@@ -415,7 +420,6 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 self.function_builder.ins().jump(next_block, &[value]);
             }
         }
-        branch_block
     }
 
     fn extract_return_value(&mut self, inst: Inst) -> TypedReturnValue {
