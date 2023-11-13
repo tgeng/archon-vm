@@ -58,13 +58,15 @@ impl HasType for PType {
 enum BuiltinFunction {
     Alloc,
     ForceThunk,
+    MainInvoker,
 }
 
 impl BuiltinFunction {
     fn func_name(&self) -> &'static str {
         match self {
             BuiltinFunction::Alloc => "__runtime_alloc__",
-            BuiltinFunction::ForceThunk => "__runtime_force_thunk__"
+            BuiltinFunction::ForceThunk => "__runtime_force_thunk__",
+            BuiltinFunction::MainInvoker => "__runtime_main_invoker__",
         }
     }
 
@@ -83,6 +85,11 @@ impl BuiltinFunction {
             BuiltinFunction::ForceThunk => {
                 sig.params.push(AbiParam::new(I64));
                 sig.params.push(AbiParam::new(I64));
+                sig.returns.push(AbiParam::new(I64));
+            }
+            BuiltinFunction::MainInvoker => {
+                sig.params.push(AbiParam::new(I64));
+                sig.returns.push(AbiParam::new(I64));
             }
         }
         sig
@@ -141,10 +148,12 @@ impl Default for Compiler<JITModule> {
     }
 }
 
+const MAIN_WRAPPER_NAME: &'static str = "__main__";
+
 impl Compiler<JITModule> {
     pub fn finalize_and_get_main(&mut self) -> fn() -> usize {
         self.module.finalize_definitions().unwrap();
-        let main_func_id = self.local_functions.get("__main__").unwrap();
+        let main_func_id = self.local_functions.get(MAIN_WRAPPER_NAME).unwrap();
         unsafe {
             let func_ptr = self.module.get_finalized_function(*main_func_id);
             std::mem::transmute::<_, fn() -> usize>(func_ptr)
@@ -181,8 +190,39 @@ impl<M: Module> Compiler<M> {
             self.module.clear_context(&mut self.ctx);
         }
 
-        // TODO: define wrapper __main__ function that sets up the parameter stack and calls the
-        //  user main function.
+        self.generate_main_wrapper();
+    }
+
+    /// Creates a main wrapper function (named `__main__`) that calls the main invoker (defined in
+    /// the runtime with name `__runtime_main_invoker__`), which sets up the parameter stack and
+    /// invokes the user-defined `main` function.
+    fn generate_main_wrapper(&mut self) {
+        let main_wrapper_id = self.module.declare_function(MAIN_WRAPPER_NAME, Linkage::Local, &self.uniform_func_signature).unwrap();
+        self.local_functions.insert(MAIN_WRAPPER_NAME.to_string(), main_wrapper_id);
+        self.ctx.clear();
+        self.ctx.func.signature.call_conv = CallConv::AppleAarch64;
+        self.ctx.func.signature.returns.push(AbiParam::new(I64));
+
+        let mut function_builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.builder_context);
+        let entry_block = function_builder.create_block();
+
+        function_builder.append_block_params_for_function_params(entry_block);
+        function_builder.switch_to_block(entry_block);
+        function_builder.seal_block(entry_block);
+
+        let main_id = self.local_functions.get("main").unwrap();
+        let main_func_ref = self.module.declare_func_in_func(*main_id, function_builder.func);
+        let main_func_ptr = function_builder.ins().func_addr(I64, main_func_ref);
+        let main_invoker_id = self.builtin_functions[BuiltinFunction::MainInvoker];
+        let main_invoker_func_ref = self.module.declare_func_in_func(main_invoker_id, function_builder.func);
+        let inst = function_builder.ins().call(main_invoker_func_ref, &[main_func_ptr]);
+        let return_value = function_builder.inst_results(inst)[0];
+        function_builder.ins().return_(&[return_value]);
+
+        function_builder.finalize();
+
+        self.module.define_function(main_wrapper_id, &mut self.ctx).unwrap();
+        self.module.clear_context(&mut self.ctx);
     }
 
     fn compile_function(&mut self, function_definition: &FunctionDefinition) {
@@ -218,9 +258,7 @@ impl<M: Module> Compiler<M> {
         // size of one word, so that the next call can happen normally.
 
         self.ctx.clear();
-        self.ctx.func.signature.params.push(AbiParam::new(I64));
-        self.ctx.func.signature.returns.push(AbiParam::new(I64));
-        self.ctx.func.signature.call_conv = CallConv::Tail;
+        self.ctx.func.signature = self.uniform_func_signature.clone();
 
         let mut function_builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.builder_context);
         let entry_block = function_builder.create_block();

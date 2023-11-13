@@ -333,7 +333,7 @@ mod tests {
         let main_func = compiler.finalize_and_get_main();
         let result = main_func();
 
-        let actual = format!("UTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}", u_term, defs);
+        let actual = format!("UTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}\n\nResult========\n{}", u_term, defs, result);
         let expected = match fs::read_to_string(test_output_path) {
             Ok(s) => s,
             Err(_) => {

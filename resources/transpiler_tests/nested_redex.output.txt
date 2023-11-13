@@ -101,8 +101,17 @@ Defs
                     ],
                 },
             },
-            c_type: Default,
+            c_type: SpecializedF(
+                Specialized(
+                    Primitive(
+                        I64,
+                    ),
+                ),
+            ),
             var_bound: 1,
         },
     ),
 ]
+
+Result========
+34830041088

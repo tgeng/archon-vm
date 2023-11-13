@@ -40,6 +40,17 @@ pub unsafe fn runtime_force_thunk(thunk: *const usize, tip_address_ptr: *mut *mu
     }
 }
 
+/// Alocate
+pub unsafe fn runtime_main_invoker(main_ptr: fn(*mut usize) -> *mut usize) -> usize {
+    // Allocate a stack with 8MB of space
+    let stack_size = 1 << 6;
+    let mut vec: Vec<usize> = Vec::with_capacity(stack_size);
+    let start: *mut usize = vec.as_mut_ptr();
+    let end = start.add(stack_size);
+    main_ptr(end);
+    end.sub(8).read()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

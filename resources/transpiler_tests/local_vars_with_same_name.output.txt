@@ -47,7 +47,18 @@ Defs {
             c_type: Default,
         },
     },
-    body: None,
+    body: Some(
+        Redex {
+            function: Identifier {
+                name: "f",
+            },
+            args: [
+                Int {
+                    value: 0,
+                },
+            ],
+        },
+    ),
 }
 
 Defs
@@ -103,13 +114,27 @@ Defs
         "main",
         FunctionDefinition {
             args: [],
-            body: Return {
-                value: Struct {
-                    values: [],
+            body: Redex {
+                function: Def {
+                    name: "f",
                 },
+                args: [
+                    Int {
+                        value: 0,
+                    },
+                ],
             },
-            c_type: Default,
+            c_type: SpecializedF(
+                Specialized(
+                    Primitive(
+                        I64,
+                    ),
+                ),
+            ),
             var_bound: 0,
         },
     ),
 ]
+
+Result========
+41004056576

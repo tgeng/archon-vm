@@ -341,7 +341,13 @@ Defs
                     },
                 },
             },
-            c_type: Default,
+            c_type: SpecializedF(
+                Specialized(
+                    Primitive(
+                        I64,
+                    ),
+                ),
+            ),
             var_bound: 9,
         },
     ),
@@ -373,3 +379,6 @@ Defs
         },
     ),
 ]
+
+Result========
+41004187648
