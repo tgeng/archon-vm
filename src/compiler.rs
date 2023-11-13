@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use cranelift::codegen::ir::{FuncRef, Inst};
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
-use cbpv_runtime::runtime_utils::runtime_alloc;
+use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_main_invoker};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder, JITModule};
@@ -71,12 +71,17 @@ impl BuiltinFunction {
     }
 
     fn declare_symbol(&self, builder: &mut JITBuilder) {
-        builder.symbol(self.func_name(), runtime_alloc as *const u8);
+        let func_ptr = match self {
+            BuiltinFunction::Alloc => runtime_alloc as *const u8,
+            BuiltinFunction::ForceThunk => runtime_force_thunk as *const u8,
+            BuiltinFunction::MainInvoker => runtime_main_invoker as *const u8
+        };
+
+        builder.symbol(self.func_name(), func_ptr);
     }
 
     fn signature<M: Module>(&self, m: &mut M) -> Signature {
         let mut sig = m.make_signature();
-        sig.call_conv = CallConv::Tail;
         match self {
             BuiltinFunction::Alloc => {
                 sig.params.push(AbiParam::new(I64));
@@ -140,7 +145,6 @@ impl Default for Compiler<JITModule> {
         }
 
         let mut module = JITModule::new(builder);
-        module.target_config().default_call_conv = CallConv::Tail;
 
         let builtin_functions = EnumMap::from_fn(|e: BuiltinFunction| e.declare(&mut module));
 

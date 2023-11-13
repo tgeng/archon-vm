@@ -1,4 +1,3 @@
-use std::ops::BitAnd;
 use crate::types::{UniformPtr, UniformType};
 
 pub unsafe fn runtime_alloc(num_words: usize) -> *mut usize {
