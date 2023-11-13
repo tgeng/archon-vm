@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use cranelift::codegen::ir::{FuncRef, Inst};
+use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
 use cbpv_runtime::runtime_utils::runtime_alloc;
 use cranelift::prelude::*;
@@ -73,6 +74,7 @@ impl BuiltinFunction {
 
     fn signature<M: Module>(&self, m: &mut M) -> Signature {
         let mut sig = m.make_signature();
+        sig.call_conv = CallConv::Tail;
         match self {
             BuiltinFunction::Alloc => {
                 sig.params.push(AbiParam::new(I64));
@@ -110,6 +112,7 @@ pub struct Compiler<M: Module> {
     builtin_functions: EnumMap<BuiltinFunction, FuncId>,
     static_strings: HashMap<String, DataId>,
     local_functions: HashMap<String, FuncId>,
+    uniform_func_signature: Signature,
 }
 
 impl Default for Compiler<JITModule> {
@@ -130,6 +133,7 @@ impl Default for Compiler<JITModule> {
         }
 
         let mut module = JITModule::new(builder);
+        module.target_config().default_call_conv = CallConv::Tail;
 
         let builtin_functions = EnumMap::from_fn(|e: BuiltinFunction| e.declare(&mut module));
 
@@ -150,6 +154,10 @@ impl Compiler<JITModule> {
 
 impl<M: Module> Compiler<M> {
     fn new(module: M, builtin_functions: EnumMap<BuiltinFunction, FuncId>) -> Self {
+        let mut uniform_func_signature = module.make_signature();
+        uniform_func_signature.params.push(AbiParam::new(I64));
+        uniform_func_signature.returns.push(AbiParam::new(I64));
+        uniform_func_signature.call_conv = CallConv::Tail;
         Self {
             builder_context: FunctionBuilderContext::new(),
             ctx: module.make_context(),
@@ -157,15 +165,13 @@ impl<M: Module> Compiler<M> {
             builtin_functions,
             static_strings: HashMap::new(),
             local_functions: HashMap::new(),
+            uniform_func_signature,
         }
     }
 
     pub fn compile(&mut self, defs: &[(String, FunctionDefinition)]) {
         for (name, _) in defs.iter() {
-            let mut sig = self.module.make_signature();
-            sig.params.push(AbiParam::new(I64));
-            sig.returns.push(AbiParam::new(I64));
-            self.local_functions.insert(name.clone(), self.module.declare_function(name, Linkage::Local, &sig).unwrap());
+            self.local_functions.insert(name.clone(), self.module.declare_function(name, Linkage::Local, &self.uniform_func_signature).unwrap());
         }
 
         for (name, function_definition) in defs.iter() {
@@ -214,6 +220,7 @@ impl<M: Module> Compiler<M> {
         self.ctx.clear();
         self.ctx.func.signature.params.push(AbiParam::new(I64));
         self.ctx.func.signature.returns.push(AbiParam::new(I64));
+        self.ctx.func.signature.call_conv = CallConv::Tail;
 
         let mut function_builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.builder_context);
         let entry_block = function_builder.create_block();
@@ -234,6 +241,7 @@ impl<M: Module> Compiler<M> {
             base_address,
             tip_address: base_address,
             num_args: function_definition.args.len(),
+            uniform_func_signature: &self.uniform_func_signature,
         };
         // Here we transform the function body to non-specialized version, hence the argument types
         // are ignored.
@@ -273,6 +281,7 @@ struct FunctionTranslator<'a, M: Module> {
     base_address: Value,
     tip_address: Value,
     num_args: usize,
+    uniform_func_signature: &'a Signature,
 }
 
 impl<'a, M: Module> FunctionTranslator<'a, M> {
@@ -295,8 +304,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 let thunk_value = self.to_uniform(thunk_value);
                 let inst = self.call_builtin_func(BuiltinFunction::ForceThunk, &[thunk_value, self.tip_address]);
                 let func_pointer = self.function_builder.inst_results(inst)[0];
-                let signature = &self.function_builder.func.signature;
-                let sig_ref = self.function_builder.import_signature(signature.clone());
+                let sig_ref = self.function_builder.import_signature(self.uniform_func_signature.clone());
                 if is_tail {
                     let dest_value = self.copy_tail_call_args();
                     self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[dest_value]);
@@ -325,7 +333,6 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             CTerm::CaseInt { t, result_type, branches, default_branch } => {
                 let t_value = self.translate_v_term(t);
                 let t_value = self.to_special(t_value, Integer);
-                let current_block = self.function_builder.current_block().unwrap();
 
                 // Create next block
                 let next_block = self.function_builder.create_block();
