@@ -7,6 +7,7 @@ use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
+use cranelift_object::ObjectModule;
 use crate::signature::FunctionDefinition;
 use crate::term::{CTerm, VTerm, VType, SpecializedType, PType, CType};
 use strum::IntoEnumIterator;
@@ -127,6 +128,8 @@ pub struct Compiler<M: Module> {
     uniform_func_signature: Signature,
 }
 
+const MAIN_WRAPPER_NAME: &'static str = "__main__";
+
 impl Default for Compiler<JITModule> {
     fn default() -> Self {
         let mut flag_builder = settings::builder();
@@ -152,8 +155,6 @@ impl Default for Compiler<JITModule> {
     }
 }
 
-const MAIN_WRAPPER_NAME: &'static str = "__main__";
-
 impl Compiler<JITModule> {
     pub fn finalize_and_get_main(&mut self) -> fn() -> usize {
         self.module.finalize_definitions().unwrap();
@@ -163,6 +164,16 @@ impl Compiler<JITModule> {
             std::mem::transmute::<_, fn() -> usize>(func_ptr)
         }
     }
+}
+
+impl Default for Compiler<ObjectModule> {
+    fn default() -> Self {
+        todo!()
+    }
+}
+
+impl Compiler<ObjectModule> {
+    // TODO: implement this for object file emission.
 }
 
 impl<M: Module> Compiler<M> {
