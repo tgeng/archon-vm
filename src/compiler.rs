@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use cranelift::codegen::Context;
 use cranelift::codegen::ir::{FuncRef, Inst, StackSlot};
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
@@ -192,7 +193,7 @@ impl<M: Module> Compiler<M> {
         }
     }
 
-    pub fn compile(&mut self, defs: &[(String, FunctionDefinition)]) {
+    pub fn compile(&mut self, defs: &[(String, FunctionDefinition)], clir: &mut Option<&mut Vec<(String, String)>>) {
         for (name, _) in defs.iter() {
             self.local_functions.insert(name.clone(), self.module.declare_function(name, Linkage::Local, &self.uniform_func_signature).unwrap());
         }
@@ -200,16 +201,14 @@ impl<M: Module> Compiler<M> {
         for (name, function_definition) in defs.iter() {
             self.compile_function(function_definition);
             let func_id = self.local_functions.get(name).unwrap();
-            self.module.define_function(*func_id, &mut self.ctx).unwrap();
+            self.define_function(name, *func_id, clir);
             self.module.clear_context(&mut self.ctx);
         }
-
-        self.generate_main_wrapper();
     }
 
     /// Creates a main wrapper function (named `__main__`) that calls the `__runtime_alloc_stack__`,
     /// which sets up the parameter stack and invokes the user-defined `main` function.
-    fn generate_main_wrapper(&mut self) {
+    pub fn generate_main_wrapper(&mut self, clir: &mut Option<&mut Vec<(String, String)>>) {
         let main_wrapper_id = self.module.declare_function(MAIN_WRAPPER_NAME, Linkage::Local, &self.uniform_func_signature).unwrap();
         self.local_functions.insert(MAIN_WRAPPER_NAME.to_string(), main_wrapper_id);
         self.ctx.clear();
@@ -238,8 +237,15 @@ impl<M: Module> Compiler<M> {
 
         function_builder.finalize();
 
-        self.module.define_function(main_wrapper_id, &mut self.ctx).unwrap();
+        self.define_function("__main__", main_wrapper_id, clir);
         self.module.clear_context(&mut self.ctx);
+    }
+
+    pub fn define_function(&mut self, name: &str, func_id: FuncId, clir: &mut Option<&mut Vec<(String, String)>>) {
+        if let Some(clir) = clir {
+            clir.push((name.to_owned(), format!("{}", self.ctx.func.display())));
+        }
+        self.module.define_function(func_id, &mut self.ctx).unwrap();
     }
 
     fn compile_function(&mut self, function_definition: &FunctionDefinition) {
