@@ -1,0 +1,32 @@
+UTerm
+========
+Int {
+    value: 123,
+}
+
+Defs
+========
+[
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Return {
+                value: Int {
+                    value: 123,
+                },
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Primitive(
+                        I64,
+                    ),
+                ),
+            ),
+            var_bound: 0,
+        },
+    ),
+]
+
+Result========
+123

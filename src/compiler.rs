@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use cranelift::codegen::ir::{FuncRef, Inst};
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
-use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_main_invoker};
+use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder, JITModule};
@@ -59,7 +59,7 @@ impl HasType for PType {
 enum BuiltinFunction {
     Alloc,
     ForceThunk,
-    MainInvoker,
+    AllocStack,
 }
 
 impl BuiltinFunction {
@@ -67,7 +67,7 @@ impl BuiltinFunction {
         match self {
             BuiltinFunction::Alloc => "__runtime_alloc__",
             BuiltinFunction::ForceThunk => "__runtime_force_thunk__",
-            BuiltinFunction::MainInvoker => "__runtime_main_invoker__",
+            BuiltinFunction::AllocStack => "__runtime_alloc_stack__",
         }
     }
 
@@ -75,7 +75,7 @@ impl BuiltinFunction {
         let func_ptr = match self {
             BuiltinFunction::Alloc => runtime_alloc as *const u8,
             BuiltinFunction::ForceThunk => runtime_force_thunk as *const u8,
-            BuiltinFunction::MainInvoker => runtime_main_invoker as *const u8
+            BuiltinFunction::AllocStack => runtime_alloc_stack as *const u8
         };
 
         builder.symbol(self.func_name(), func_ptr);
@@ -93,8 +93,7 @@ impl BuiltinFunction {
                 sig.params.push(AbiParam::new(I64));
                 sig.returns.push(AbiParam::new(I64));
             }
-            BuiltinFunction::MainInvoker => {
-                sig.params.push(AbiParam::new(I64));
+            BuiltinFunction::AllocStack => {
                 sig.returns.push(AbiParam::new(I64));
             }
         }
@@ -208,9 +207,8 @@ impl<M: Module> Compiler<M> {
         self.generate_main_wrapper();
     }
 
-    /// Creates a main wrapper function (named `__main__`) that calls the main invoker (defined in
-    /// the runtime with name `__runtime_main_invoker__`), which sets up the parameter stack and
-    /// invokes the user-defined `main` function.
+    /// Creates a main wrapper function (named `__main__`) that calls the `__runtime_alloc_stack__`,
+    /// which sets up the parameter stack and invokes the user-defined `main` function.
     fn generate_main_wrapper(&mut self) {
         let main_wrapper_id = self.module.declare_function(MAIN_WRAPPER_NAME, Linkage::Local, &self.uniform_func_signature).unwrap();
         self.local_functions.insert(MAIN_WRAPPER_NAME.to_string(), main_wrapper_id);
@@ -224,13 +222,18 @@ impl<M: Module> Compiler<M> {
         function_builder.switch_to_block(entry_block);
         function_builder.seal_block(entry_block);
 
+        let alloc_stack_id = self.builtin_functions[BuiltinFunction::AllocStack];
+        let alloc_stack_func_ref = self.module.declare_func_in_func(alloc_stack_id, function_builder.func);
+        let inst = function_builder.ins().call(alloc_stack_func_ref, &[]);
+        let stack_base = function_builder.inst_results(inst)[0];
+
         let main_id = self.local_functions.get("main").unwrap();
         let main_func_ref = self.module.declare_func_in_func(*main_id, function_builder.func);
-        let main_func_ptr = function_builder.ins().func_addr(I64, main_func_ref);
-        let main_invoker_id = self.builtin_functions[BuiltinFunction::MainInvoker];
-        let main_invoker_func_ref = self.module.declare_func_in_func(main_invoker_id, function_builder.func);
-        let inst = function_builder.ins().call(main_invoker_func_ref, &[main_func_ptr]);
-        let return_value = function_builder.inst_results(inst)[0];
+        let inst = function_builder.ins().call(main_func_ref, &[stack_base]);
+        let return_address = function_builder.inst_results(inst)[0];
+        let return_value = function_builder.ins().load(I64, MemFlags::new(), return_address, 0);
+        // Main function returns an integer in uniform representation, so we need to shift it
+        let return_value = function_builder.ins().sshr_imm(return_value, 1);
         function_builder.ins().return_(&[return_value]);
 
         function_builder.finalize();
@@ -310,7 +313,8 @@ impl<M: Module> Compiler<M> {
         // is sufficient.
         let return_value_or_param = translator.translate_c_term(&function_definition.body, true);
         match return_value_or_param {
-            Some((value, _)) => {
+            Some(_) => {
+                let value = translator.to_uniform(return_value_or_param);
                 let return_address_offset = ((function_definition.args.len() as i64 - 1) * 8);
                 let return_address = translator.function_builder.ins().iadd_imm(translator.base_address, return_address_offset);
                 translator.function_builder.ins().store(MemFlags::new(), value, return_address, 0);
