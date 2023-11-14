@@ -507,8 +507,11 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         match v_term {
             VTerm::Var { index } => self.local_vars[*index],
             VTerm::Thunk { box t } => {
-                let CTerm::Redex { function: box CTerm::Def { name }, args } = t else {
-                    unreachable!("thunk lifting should have guaranteed this")
+                let empty_args = &vec![];
+                let (name, args) = match t {
+                    CTerm::Redex { function: box CTerm::Def { name }, args } => (name, args),
+                    CTerm::Def { name } => (name, empty_args),
+                    _ => unreachable!("thunk lifting should have guaranteed this")
                 };
                 let func_ref = self.get_local_function(name);
                 let func_pointer = self.function_builder.ins().func_addr(I64, func_ref);
