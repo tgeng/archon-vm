@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use cranelift::codegen::Context;
 use cranelift::codegen::ir::{FuncRef, Inst, StackSlot};
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
@@ -531,6 +530,9 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 };
                 let func_ref = self.get_local_function(name);
                 let func_pointer = self.function_builder.ins().func_addr(I64, func_ref);
+                if args.is_empty() {
+                    return Some((func_pointer, Specialized(PrimitivePtr)));
+                }
                 // Plus 1 to indicate this pointer points to a bare function (rather than a closure).
                 let func_pointer_plus_one = self.function_builder.ins().iadd_imm(func_pointer, 1);
                 let arg_size = self.function_builder.ins().iconst(I64, args.len() as i64);
