@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use cranelift::codegen::ir::{FuncRef, Inst};
+use cranelift::codegen::ir::{FuncRef, Inst, StackSlot};
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
 use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack};
@@ -280,6 +280,9 @@ impl<M: Module> Compiler<M> {
         let mut function_builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.builder_context);
         let entry_block = function_builder.create_block();
 
+        // Allocate slot for storing the tip address so that a pointer to the tip address can be
+        // passed to built-in force call helper function in order to have the tip address updated.
+        let tip_address_slot = function_builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8));
         function_builder.append_block_params_for_function_params(entry_block);
         function_builder.switch_to_block(entry_block);
         function_builder.seal_block(entry_block);
@@ -297,6 +300,7 @@ impl<M: Module> Compiler<M> {
             tip_address: base_address,
             num_args: function_definition.args.len(),
             uniform_func_signature: &self.uniform_func_signature,
+            tip_address_slot,
         };
         // Here we transform the function body to non-specialized version, hence the argument types
         // are ignored.
@@ -341,6 +345,7 @@ struct FunctionTranslator<'a, M: Module> {
     tip_address: Value,
     num_args: usize,
     uniform_func_signature: &'a Signature,
+    tip_address_slot: StackSlot,
 }
 
 impl<'a, M: Module> FunctionTranslator<'a, M> {
@@ -361,8 +366,13 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 // function expects a uniform representation in order to tell a thunk from a raw
                 // function pointer.
                 let thunk_value = self.to_uniform(thunk_value);
-                let inst = self.call_builtin_func(BuiltinFunction::ForceThunk, &[thunk_value, self.tip_address]);
+
+                self.function_builder.ins().stack_store(self.tip_address, self.tip_address_slot, 0);
+                let tip_address_ptr = self.function_builder.ins().stack_addr(I64, self.tip_address_slot, 0);
+                let inst = self.call_builtin_func(BuiltinFunction::ForceThunk, &[thunk_value, tip_address_ptr]);
                 let func_pointer = self.function_builder.inst_results(inst)[0];
+                self.tip_address = self.function_builder.ins().stack_load(I64, self.tip_address_slot, 0);
+
                 let sig_ref = self.function_builder.import_signature(self.uniform_func_signature.clone());
                 if is_tail {
                     let dest_value = self.copy_tail_call_args();
@@ -562,18 +572,18 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
     }
 
     fn create_struct(&mut self, values: Vec<Value>) -> Value {
-        let array_size = values.len() * 8;
-        let array_size_arg = self.function_builder.ins().iconst(I64, array_size as i64);
-        let runtime_alloc_call = self.call_builtin_func(BuiltinFunction::Alloc, &[array_size_arg]);
-        let array_address = self.function_builder.inst_results(runtime_alloc_call)[0];
+        let struct_size = values.len() * 8;
+        let struct_size_value = self.function_builder.ins().iconst(I64, struct_size as i64);
+        let runtime_alloc_call = self.call_builtin_func(BuiltinFunction::Alloc, &[struct_size_value]);
+        let struct_address = self.function_builder.inst_results(runtime_alloc_call)[0];
         for (offset, value) in values.into_iter().enumerate() {
             self.function_builder.ins().store(
                 MemFlags::new().with_aligned(),
                 value,
-                array_address,
+                struct_address,
                 (offset * 8) as i32);
         }
-        array_address
+        struct_address
     }
 
     fn call_builtin_func(&mut self, builtin_function: BuiltinFunction, args: &[Value]) -> Inst {
