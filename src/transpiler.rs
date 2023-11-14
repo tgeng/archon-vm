@@ -338,15 +338,19 @@ mod tests {
             Ok(s) => s,
             Err(_) => "".to_owned(),
         };
-
-        let result = main_func();
-        // let result = 0;
-        let actual = format!(
-            "UTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}\n\nCLIR\n========\n{}\n\nResult\n========\n{}",
+        let partial_actual = format!(
+            "UTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}\n\nCLIR\n========\n{}",
             u_term,
             defs,
-            clir.iter().map(|(name, clir)| format!("[{}]\n{}", name, clir)).collect::<Vec<_>>().join("\n\n"),
-            result);
+            clir.iter().map(|(name, clir)| format!("[{}]\n{}", name, clir)).collect::<Vec<_>>().join("\n\n"));
+        if !expected.starts_with(&partial_actual) {
+            // Write partial actual to expected in case executing the compiled function crashes the
+            // test.
+            fs::write(test_output_path, &partial_actual).unwrap();
+        }
+
+        let result = main_func();
+        let actual = format!("{}\n\nResult\n========\n{}", partial_actual, result);
         if expected != actual {
             fs::write(test_output_path, actual).unwrap();
             Err(format!("Output mismatch for {}", test_input_path))
@@ -362,7 +366,7 @@ mod tests {
         let mut test_input_paths = fs::read_dir(resource_dir)
             .unwrap()
             .map(|r| r.unwrap().path())
-            .filter(|p| p.file_name().unwrap().to_str().unwrap().ends_with(".input.txt"))
+            .filter(|p| p.file_name().unwrap().to_str().unwrap().ends_with("thunk.input.txt"))
             .collect::<Vec<_>>();
         test_input_paths.sort();
         let all_results = test_input_paths.into_iter().map(|test_input_path| {

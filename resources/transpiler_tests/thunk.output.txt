@@ -1,25 +1,22 @@
 UTerm
 ========
 Let {
-    name: "a",
-    t: Int {
-        value: 1,
+    name: "t0",
+    t: Thunk {
+        computation: Int {
+            value: 0,
+        },
     },
-    body: Force {
-        thunk: Lambda {
-            arg_names: [],
-            body: Redex {
-                function: Identifier {
-                    name: "_int_add",
-                },
-                args: [
-                    Identifier {
-                        name: "a",
-                    },
-                    Int {
-                        value: 1,
-                    },
-                ],
+    body: Let {
+        name: "t1",
+        t: Thunk {
+            computation: Int {
+                value: 1,
+            },
+        },
+        body: Force {
+            thunk: Identifier {
+                name: "t0",
             },
         },
     },
@@ -29,51 +26,36 @@ Defs
 ========
 [
     (
-        "__lambda_0",
-        FunctionDefinition {
-            args: [
-                (
-                    0,
-                    Uniform,
-                ),
-            ],
-            body: PrimitiveCall {
-                name: "_int_add",
-                args: [
-                    Var {
-                        index: 0,
-                    },
-                    Int {
-                        value: 1,
-                    },
-                ],
-            },
-            c_type: Default,
-            var_bound: 1,
-        },
-    ),
-    (
         "main",
         FunctionDefinition {
             args: [],
             body: Let {
                 t: Return {
-                    value: Int {
-                        value: 1,
+                    value: Thunk {
+                        t: Redex {
+                            function: Def {
+                                name: "main$__thunk_0",
+                            },
+                            args: [],
+                        },
                     },
                 },
                 bound_index: 0,
-                body: Force {
-                    thunk: Thunk {
-                        t: Redex {
-                            function: Def {
-                                name: "__lambda_0",
-                            },
-                            args: [
-                                Var {
-                                    index: 0,
+                body: Let {
+                    t: Return {
+                        value: Thunk {
+                            t: Redex {
+                                function: Def {
+                                    name: "main$__thunk_1",
                                 },
-                            ],
+                                args: [],
+                            },
+                        },
+                    },
+                    bound_index: 1,
+                    body: Force {
+                        thunk: Var {
+                            index: 0,
                         },
                     },
                 },
@@ -85,57 +67,85 @@ Defs
                     ),
                 ),
             ),
-            var_bound: 1,
+            var_bound: 2,
+        },
+    ),
+    (
+        "main$__thunk_0",
+        FunctionDefinition {
+            args: [],
+            body: Return {
+                value: Int {
+                    value: 0,
+                },
+            },
+            c_type: Default,
+            var_bound: 0,
+        },
+    ),
+    (
+        "main$__thunk_1",
+        FunctionDefinition {
+            args: [],
+            body: Return {
+                value: Int {
+                    value: 1,
+                },
+            },
+            c_type: Default,
+            var_bound: 0,
         },
     ),
 ]
 
 CLIR
 ========
-[__lambda_0]
-function u0:0(i64) -> i64 tail {
-    ss0 = explicit_slot 8
-
-block0(v0: i64):
-    v1 = load.i64 v0
-    v2 = iconst.i64 1
-    v3 = sshr_imm v1, 1
-    v4 = iadd v3, v2  ; v2 = 1
-    v5 = ishl_imm v4, 1
-    v6 = iadd_imm v0, 0
-    store v5, v6
-    return v6
-}
-
-
 [main]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 tail
-    sig1 = (i64) -> i64 apple_aarch64
+    sig1 = (i64) -> i64 tail
     sig2 = (i64, i64) -> i64 apple_aarch64
     sig3 = (i64) -> i64 tail
-    fn0 = colocated u0:3 sig0
-    fn1 = u0:0 sig1
+    fn0 = colocated u0:4 sig0
+    fn1 = colocated u0:5 sig1
     fn2 = u0:1 sig2
 
 block0(v0: i64):
-    v1 = iconst.i64 1
-    v2 = func_addr.i64 fn0
-    v3 = iconst.i64 1
-    v4 = iadd_imm v2, 3
-    v5 = ishl_imm v1, 1  ; v1 = 1
-    v6 = iconst.i64 24
-    v7 = call fn1(v6)  ; v6 = 24
-    store aligned v4, v7
-    store aligned v3, v7+8  ; v3 = 1
-    store aligned v5, v7+16
-    v8 = iadd_imm v7, 1
+    v1 = func_addr.i64 fn0
+    v2 = func_addr.i64 fn1
+    v3 = iadd_imm v1, 3
     stack_store v0, ss0
-    v9 = stack_addr.i64 ss0
-    v10 = call fn2(v8, v9)
-    v11 = stack_load.i64 ss0
-    return_call_indirect sig3, v10(v11)
+    v4 = stack_addr.i64 ss0
+    v5 = call fn2(v3, v4)
+    v6 = stack_load.i64 ss0
+    return_call_indirect sig3, v5(v6)
+}
+
+
+[main$__thunk_0]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+
+block0(v0: i64):
+    v1 = iconst.i64 0
+    v2 = ishl_imm v1, 1  ; v1 = 0
+    v3 = iadd_imm v0, -8
+    store v2, v3
+    return v3
+}
+
+
+[main$__thunk_1]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+
+block0(v0: i64):
+    v1 = iconst.i64 1
+    v2 = ishl_imm v1, 1  ; v1 = 1
+    v3 = iadd_imm v0, -8
+    store v2, v3
+    return v3
 }
 
 
@@ -144,7 +154,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:4 sig1
+    fn1 = colocated u0:3 sig1
 
 block0:
     v0 = call fn0()
@@ -157,4 +167,4 @@ block0:
 
 Result
 ========
-2
+0
