@@ -38,6 +38,7 @@ impl Signature {
         self.normalize_redex();
         self.specialize_calls();
         self.lift_thunks();
+        // TODO: add a pass that collapse immediate force thunk pairs
         // TODO: add a pass that converts redex to specialized function calls
     }
 

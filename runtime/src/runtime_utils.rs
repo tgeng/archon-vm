@@ -22,8 +22,6 @@ pub unsafe fn runtime_word_box() -> *mut usize {
 pub unsafe fn runtime_force_thunk(thunk: *const usize, tip_address_ptr: *mut *mut usize) -> *const usize {
     let thunk_ptr = thunk.to_normal_ptr();
     if UniformType::from_bits(thunk as usize) == UniformType::PPtr {
-        // Last 3 bits being 010 means it's a raw function pointer (rather than a pointer to a thunk
-        // on the heap.
         thunk_ptr
     } else {
         let next_thunk = thunk_ptr.read() as *const usize;

@@ -323,7 +323,7 @@ impl<M: Module> Compiler<M> {
         let return_value_or_param = translator.translate_c_term(&function_definition.body, true);
         match return_value_or_param {
             Some(_) => {
-                let value = translator.to_uniform(return_value_or_param);
+                let value = translator.convert_to_uniform(return_value_or_param);
                 let return_address_offset = ((function_definition.args.len() as i64 - 1) * 8);
                 let return_address = translator.function_builder.ins().iadd_imm(translator.base_address, return_address_offset);
                 translator.function_builder.ins().store(MemFlags::new(), value, return_address, 0);
@@ -359,7 +359,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             CTerm::Redex { box function, args } => {
                 let arg_values = args.iter().map(|arg| {
                     let v = self.translate_v_term(arg);
-                    self.to_uniform(v)
+                    self.convert_to_uniform(v)
                 }).collect::<Vec<_>>();
                 self.push_args(arg_values);
                 self.translate_c_term(function, is_tail)
@@ -370,7 +370,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 // We must change the thunk value to uniform representation because the built-in
                 // function expects a uniform representation in order to tell a thunk from a raw
                 // function pointer.
-                let thunk_value = self.to_uniform(thunk_value);
+                let thunk_value = self.convert_to_uniform(thunk_value);
 
                 self.function_builder.ins().stack_store(self.tip_address, self.tip_address_slot, 0);
                 let tip_address_ptr = self.function_builder.ins().stack_addr(I64, self.tip_address_slot, 0);
@@ -380,8 +380,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
 
                 let sig_ref = self.function_builder.import_signature(self.uniform_func_signature.clone());
                 if is_tail {
-                    let dest_value = self.copy_tail_call_args();
-                    self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[dest_value]);
+                    let base_address = self.copy_tail_call_args_and_get_new_base();
+                    self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[base_address]);
                     None
                 } else {
                     let inst = self.function_builder.ins().call_indirect(sig_ref, func_pointer, &[self.tip_address]);
@@ -396,8 +396,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             CTerm::Def { name } => {
                 let func_ref = self.get_local_function(name);
                 if is_tail {
-                    let dest_value = self.copy_tail_call_args();
-                    self.function_builder.ins().return_call(func_ref, &[dest_value]);
+                    let base_address = self.copy_tail_call_args_and_get_new_base();
+                    self.function_builder.ins().return_call(func_ref, &[base_address]);
                     None
                 } else {
                     let inst = self.function_builder.ins().call(func_ref, &[self.tip_address]);
@@ -406,7 +406,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             }
             CTerm::CaseInt { t, result_type, branches, default_branch } => {
                 let t_value = self.translate_v_term(t);
-                let t_value = self.to_special(t_value, Integer);
+                let t_value = self.convert_to_special(t_value, Integer);
 
                 // Create next block
                 let next_block = self.function_builder.create_block();
@@ -452,8 +452,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             CTerm::MemGet { base, offset } => {
                 let base_value = self.translate_v_term(base);
                 let offset_value = self.translate_v_term(offset);
-                let base_value = self.to_special(base_value, StructPtr);
-                let offset_value = self.to_special(offset_value, Integer);
+                let base_value = self.convert_to_special(base_value, StructPtr);
+                let offset_value = self.convert_to_special(offset_value, Integer);
                 let base_address = self.function_builder.ins().load(I64, MemFlags::new(), base_value, 0);
                 let load_address = self.function_builder.ins().iadd(base_address, offset_value);
                 let value = self.function_builder.ins().load(I64, MemFlags::new(), load_address, 0);
@@ -463,9 +463,9 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 let base_value = self.translate_v_term(base);
                 let offset_value = self.translate_v_term(offset);
                 let value_value = self.translate_v_term(value);
-                let base_value = self.to_special(base_value, StructPtr);
-                let offset_value = self.to_special(offset_value, Integer);
-                let value_value = self.to_uniform(value_value);
+                let base_value = self.convert_to_special(base_value, StructPtr);
+                let offset_value = self.convert_to_special(offset_value, Integer);
+                let value_value = self.convert_to_uniform(value_value);
                 let base_address = self.function_builder.ins().load(I64, MemFlags::new(), base_value, 0);
                 let store_address = self.function_builder.ins().iadd(base_address, offset_value);
                 self.function_builder.ins().store(MemFlags::new(), value_value, store_address, 0);
@@ -510,12 +510,14 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         Some((return_value, Uniform))
     }
 
-    fn copy_tail_call_args(&mut self) -> Value {
-        let dest_value = self.function_builder.ins().iadd_imm(self.tip_address, (self.num_args * 8) as i64);
-        let num_words_to_copy = self.function_builder.ins().isub(self.base_address, self.tip_address);
-        let num_bytes_to_copy = self.function_builder.ins().imul_imm(num_words_to_copy, 8);
-        self.function_builder.call_memmove(self.module.target_config(), dest_value, self.tip_address, num_bytes_to_copy);
-        dest_value
+    fn copy_tail_call_args_and_get_new_base(&mut self) -> Value {
+        if self.num_args == 0 {
+            return self.tip_address;
+        }
+        let new_base_value = self.function_builder.ins().iadd_imm(self.tip_address, (self.num_args * 8) as i64);
+        let num_bytes_to_copy = self.function_builder.ins().isub(self.base_address, self.tip_address);
+        self.function_builder.call_memmove(self.module.target_config(), new_base_value, self.tip_address, num_bytes_to_copy);
+        new_base_value
     }
 
     fn translate_v_term(&mut self, v_term: &VTerm) -> TypedReturnValue {
@@ -530,16 +532,16 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 };
                 let func_ref = self.get_local_function(name);
                 let func_pointer = self.function_builder.ins().func_addr(I64, func_ref);
+                let func_pointer = Some((func_pointer, Specialized(PrimitivePtr)));
                 if args.is_empty() {
-                    return Some((func_pointer, Specialized(PrimitivePtr)));
+                    return func_pointer;
                 }
                 // Plus 1 to indicate this pointer points to a bare function (rather than a closure).
-                let func_pointer_plus_one = self.function_builder.ins().iadd_imm(func_pointer, 1);
                 let arg_size = self.function_builder.ins().iconst(I64, args.len() as i64);
-                let mut thunk_components = vec![func_pointer_plus_one, arg_size];
+                let mut thunk_components = vec![self.convert_to_uniform(func_pointer), arg_size];
                 for arg in args {
                     let value_and_type = self.translate_v_term(arg);
-                    let uniform_value = self.to_uniform(value_and_type);
+                    let uniform_value = self.convert_to_uniform(value_and_type);
                     thunk_components.push(uniform_value);
                 }
                 Some((self.create_struct(thunk_components), Specialized(StructPtr)))
@@ -560,7 +562,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             VTerm::Struct { values } => {
                 let translated = values.iter().map(|v| {
                     let v = self.translate_v_term(v);
-                    self.to_uniform(v)
+                    self.convert_to_uniform(v)
                 }).collect::<Vec<_>>();
                 Some((self.create_struct(translated), Specialized(StructPtr)))
             }
@@ -599,7 +601,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         self.function_builder.ins().call(func_ref, args)
     }
 
-    fn to_uniform(&mut self, value_and_type: TypedReturnValue) -> Value {
+    fn convert_to_uniform(&mut self, value_and_type: TypedReturnValue) -> Value {
         let (value, value_type) = Self::extract_value_and_type(value_and_type);
         match value_type {
             Uniform => value,
@@ -632,7 +634,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         }
     }
 
-    fn to_special(&mut self, value_and_type: TypedReturnValue, specialized_type: SpecializedType) -> Value {
+    fn convert_to_special(&mut self, value_and_type: TypedReturnValue, specialized_type: SpecializedType) -> Value {
         let (value, value_type) = Self::extract_value_and_type(value_and_type);
         match value_type {
             Uniform => match specialized_type {
@@ -669,8 +671,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             return value;
         }
         match (value_type, target_type) {
-            (Uniform, Specialized(s)) => self.to_special(value_and_type, s.clone()),
-            (Specialized(_), Uniform) => self.to_uniform(value_and_type),
+            (Uniform, Specialized(s)) => self.convert_to_special(value_and_type, s.clone()),
+            (Specialized(_), Uniform) => self.convert_to_uniform(value_and_type),
             _ => unreachable!("type conversion between two specialized types is not supported and this must be a type error in the input program"),
         }
     }
