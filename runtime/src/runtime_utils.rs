@@ -1,3 +1,5 @@
+use std::io;
+use std::io::Write;
 use crate::types::{UniformPtr, UniformType};
 
 pub unsafe fn runtime_alloc(num_words: usize) -> *mut usize {
@@ -25,7 +27,7 @@ pub unsafe fn runtime_force_thunk(thunk: *const usize, tip_address_ptr: *mut *mu
         thunk_ptr
     } else {
         let next_thunk = thunk_ptr.read() as *const usize;
-        let num_args = next_thunk.add(1).read();
+        let num_args = thunk_ptr.add(1).read();
         let mut tip_address = tip_address_ptr.read();
         for i in (0..num_args).rev() {
             let arg = thunk_ptr.add(2 + i).read();
