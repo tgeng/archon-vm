@@ -608,26 +608,24 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             Specialized(s) => match s {
                 Integer => self.function_builder.ins().ishl_imm(value, 1),
                 StructPtr => self.function_builder.ins().iadd_imm(value, 1),
-                PrimitivePtr => self.function_builder.ins().iadd_imm(value, 0b011),
+                PrimitivePtr => self.function_builder.ins().iadd_imm(value, 0b11),
                 SpecializedType::Primitive(p) => match p {
                     PType::I64 | PType::F64 => {
                         let alloc_size = self.function_builder.ins().iconst(I64, 8);
                         let inst = self.call_builtin_func(BuiltinFunction::Alloc, &[alloc_size]);
                         let ptr = self.function_builder.inst_results(inst)[0];
                         self.function_builder.ins().store(MemFlags::new(), value, ptr, 0);
-                        // Add 0b011 to the end to signify this is a primitive pointer
-                        self.function_builder.ins().iadd_imm(ptr, 0b011)
+                        // Add 0b11 to the end to signify this is a primitive pointer
+                        self.function_builder.ins().iadd_imm(ptr, 0b11)
                     }
                     PType::I32 => {
                         let extended = self.function_builder.ins().sextend(I64, value);
-                        let shifted = self.function_builder.ins().ishl_imm(extended, 32);
-                        self.function_builder.ins().iadd_imm(shifted, 0b100)
+                        self.function_builder.ins().ishl_imm(extended, 32)
                     }
                     PType::F32 => {
                         let casted = self.function_builder.ins().bitcast(I32, MemFlags::new(), value);
                         let extended = self.function_builder.ins().sextend(I64, casted);
-                        let shifted = self.function_builder.ins().ishl_imm(extended, 32);
-                        self.function_builder.ins().iadd_imm(shifted, 0b100)
+                        self.function_builder.ins().ishl_imm(extended, 32)
                     }
                 }
             }
@@ -640,10 +638,10 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             Uniform => match specialized_type {
                 Integer => self.function_builder.ins().sshr_imm(value, 1),
                 StructPtr => self.function_builder.ins().iadd_imm(value, -1),
-                PrimitivePtr => self.function_builder.ins().iadd_imm(value, -0b011),
+                PrimitivePtr => self.function_builder.ins().iadd_imm(value, -0b11),
                 SpecializedType::Primitive(p) => match p {
                     PType::I64 | PType::F64 => {
-                        let ptr = self.function_builder.ins().iadd_imm(value, -0b011);
+                        let ptr = self.function_builder.ins().iadd_imm(value, -0b11);
                         self.function_builder.ins().load(p.get_type(), MemFlags::new(), ptr, 0)
                     }
                     PType::I32 => {

@@ -1,61 +1,342 @@
 UTerm
 ========
-Let {
-    name: "t0",
-    t: Thunk {
-        computation: Int {
-            value: 0,
+Defs {
+    defs: {
+        "f": Def {
+            args: [
+                (
+                    "x",
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                (
+                    "y",
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                (
+                    "z",
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            ],
+            body: Redex {
+                function: Identifier {
+                    name: "_int_add",
+                },
+                args: [
+                    Redex {
+                        function: Identifier {
+                            name: "_int_add",
+                        },
+                        args: [
+                            Identifier {
+                                name: "x",
+                            },
+                            Identifier {
+                                name: "y",
+                            },
+                        ],
+                    },
+                    Identifier {
+                        name: "z",
+                    },
+                ],
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
         },
     },
-    body: Let {
-        name: "t1",
-        t: Thunk {
-            computation: Int {
-                value: 1,
+    body: Some(
+        Let {
+            name: "a",
+            t: Int {
+                value: 0,
+            },
+            body: Let {
+                name: "b",
+                t: Int {
+                    value: 1,
+                },
+                body: Let {
+                    name: "c",
+                    t: Int {
+                        value: 2,
+                    },
+                    body: Let {
+                        name: "d",
+                        t: Int {
+                            value: 3,
+                        },
+                        body: Let {
+                            name: "t",
+                            t: Thunk {
+                                computation: Lambda {
+                                    arg_names: [],
+                                    body: Redex {
+                                        function: Identifier {
+                                            name: "f",
+                                        },
+                                        args: [
+                                            Identifier {
+                                                name: "d",
+                                            },
+                                            Identifier {
+                                                name: "a",
+                                            },
+                                            Identifier {
+                                                name: "b",
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                            body: Let {
+                                name: "t2",
+                                t: Thunk {
+                                    computation: Let {
+                                        name: "e",
+                                        t: Int {
+                                            value: 4,
+                                        },
+                                        body: Redex {
+                                            function: Identifier {
+                                                name: "_int_add",
+                                            },
+                                            args: [
+                                                Identifier {
+                                                    name: "e",
+                                                },
+                                                Int {
+                                                    value: 5,
+                                                },
+                                            ],
+                                        },
+                                    },
+                                },
+                                body: Redex {
+                                    function: Identifier {
+                                        name: "_int_add",
+                                    },
+                                    args: [
+                                        Force {
+                                            thunk: Identifier {
+                                                name: "t",
+                                            },
+                                        },
+                                        Force {
+                                            thunk: Identifier {
+                                                name: "t2",
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                },
             },
         },
-        body: Force {
-            thunk: Identifier {
-                name: "t0",
-            },
-        },
-    },
+    ),
 }
 
 Defs
 ========
 [
     (
+        "__lambda_0",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+                (
+                    2,
+                    Uniform,
+                ),
+            ],
+            body: Redex {
+                function: Def {
+                    name: "f",
+                },
+                args: [
+                    Var {
+                        index: 2,
+                    },
+                    Var {
+                        index: 0,
+                    },
+                    Var {
+                        index: 1,
+                    },
+                ],
+            },
+            c_type: Default,
+            var_bound: 3,
+        },
+    ),
+    (
+        "f",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                (
+                    1,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                (
+                    2,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            ],
+            body: Let {
+                t: PrimitiveCall {
+                    name: "_int_add",
+                    args: [
+                        Var {
+                            index: 0,
+                        },
+                        Var {
+                            index: 1,
+                        },
+                    ],
+                },
+                bound_index: 3,
+                body: PrimitiveCall {
+                    name: "_int_add",
+                    args: [
+                        Var {
+                            index: 3,
+                        },
+                        Var {
+                            index: 2,
+                        },
+                    ],
+                },
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 4,
+        },
+    ),
+    (
         "main",
         FunctionDefinition {
             args: [],
             body: Let {
                 t: Return {
-                    value: Thunk {
-                        t: Redex {
-                            function: Def {
-                                name: "main$__thunk_0",
-                            },
-                            args: [],
-                        },
+                    value: Int {
+                        value: 0,
                     },
                 },
                 bound_index: 0,
                 body: Let {
                     t: Return {
-                        value: Thunk {
-                            t: Redex {
-                                function: Def {
-                                    name: "main$__thunk_1",
-                                },
-                                args: [],
-                            },
+                        value: Int {
+                            value: 1,
                         },
                     },
                     bound_index: 1,
-                    body: Force {
-                        thunk: Var {
-                            index: 0,
+                    body: Let {
+                        t: Return {
+                            value: Int {
+                                value: 2,
+                            },
+                        },
+                        bound_index: 2,
+                        body: Let {
+                            t: Return {
+                                value: Int {
+                                    value: 3,
+                                },
+                            },
+                            bound_index: 3,
+                            body: Let {
+                                t: Return {
+                                    value: Thunk {
+                                        t: Redex {
+                                            function: Def {
+                                                name: "__lambda_0",
+                                            },
+                                            args: [
+                                                Var {
+                                                    index: 0,
+                                                },
+                                                Var {
+                                                    index: 1,
+                                                },
+                                                Var {
+                                                    index: 3,
+                                                },
+                                            ],
+                                        },
+                                    },
+                                },
+                                bound_index: 4,
+                                body: Let {
+                                    t: Return {
+                                        value: Thunk {
+                                            t: Redex {
+                                                function: Def {
+                                                    name: "main$__thunk_0",
+                                                },
+                                                args: [],
+                                            },
+                                        },
+                                    },
+                                    bound_index: 6,
+                                    body: Let {
+                                        t: Force {
+                                            thunk: Var {
+                                                index: 4,
+                                            },
+                                        },
+                                        bound_index: 7,
+                                        body: Let {
+                                            t: Force {
+                                                thunk: Var {
+                                                    index: 6,
+                                                },
+                                            },
+                                            bound_index: 8,
+                                            body: PrimitiveCall {
+                                                name: "_int_add",
+                                                args: [
+                                                    Var {
+                                                        index: 7,
+                                                    },
+                                                    Var {
+                                                        index: 8,
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                },
+                            },
                         },
                     },
                 },
@@ -67,59 +348,143 @@ Defs
                     ),
                 ),
             ),
-            var_bound: 2,
+            var_bound: 9,
         },
     ),
     (
         "main$__thunk_0",
         FunctionDefinition {
             args: [],
-            body: Return {
-                value: Int {
-                    value: 0,
+            body: Let {
+                t: Return {
+                    value: Int {
+                        value: 4,
+                    },
+                },
+                bound_index: 0,
+                body: PrimitiveCall {
+                    name: "_int_add",
+                    args: [
+                        Var {
+                            index: 0,
+                        },
+                        Int {
+                            value: 5,
+                        },
+                    ],
                 },
             },
             c_type: Default,
-            var_bound: 0,
-        },
-    ),
-    (
-        "main$__thunk_1",
-        FunctionDefinition {
-            args: [],
-            body: Return {
-                value: Int {
-                    value: 1,
-                },
-            },
-            c_type: Default,
-            var_bound: 0,
+            var_bound: 1,
         },
     ),
 ]
 
 CLIR
 ========
+[__lambda_0]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 tail
+    sig1 = (i64, i64, i64) -> i64 apple_aarch64
+    fn0 = colocated u0:4 sig0
+    fn1 = %Memmove sig1
+
+block0(v0: i64):
+    v1 = load.i64 v0
+    v2 = load.i64 v0+8
+    v3 = load.i64 v0+16
+    v4 = iadd_imm v0, -8
+    store aligned v2, v4
+    v5 = iadd_imm v4, -8
+    store aligned v1, v5
+    v6 = iadd_imm v5, -8
+    store aligned v3, v6
+    v7 = iadd_imm v6, 24
+    v8 = isub v0, v6
+    v9 = call fn1(v7, v6, v8)
+    return_call fn0(v7)
+}
+
+
+[f]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+
+block0(v0: i64):
+    v1 = load.i64 v0
+    v2 = load.i64 v0+8
+    v3 = load.i64 v0+16
+    v4 = sshr_imm v1, 1
+    v5 = sshr_imm v2, 1
+    v6 = iadd v4, v5
+    v7 = sshr_imm v3, 1
+    v8 = iadd v6, v7
+    v9 = ishl_imm v8, 1
+    v10 = iadd_imm v0, 16
+    store v9, v10
+    return v10
+}
+
+
 [main]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 tail
-    sig1 = (i64) -> i64 tail
-    sig2 = (i64, i64) -> i64 apple_aarch64
-    sig3 = (i64) -> i64 tail
-    fn0 = colocated u0:4 sig0
-    fn1 = colocated u0:5 sig1
-    fn2 = u0:1 sig2
+    sig1 = (i64) -> i64 apple_aarch64
+    sig2 = (i64) -> i64 tail
+    sig3 = (i64, i64) -> i64 apple_aarch64
+    sig4 = (i64) -> i64 tail
+    sig5 = (i64, i64) -> i64 apple_aarch64
+    sig6 = (i64) -> i64 tail
+    fn0 = colocated u0:3 sig0
+    fn1 = u0:0 sig1
+    fn2 = colocated u0:6 sig2
+    fn3 = u0:1 sig3
+    fn4 = u0:1 sig5
 
 block0(v0: i64):
-    v1 = func_addr.i64 fn0
-    v2 = func_addr.i64 fn1
-    v3 = iadd_imm v1, 3
+    v1 = iconst.i64 0
+    v2 = iconst.i64 1
+    v3 = iconst.i64 2
+    v4 = iconst.i64 3
+    v5 = func_addr.i64 fn0
+    v6 = iconst.i64 3
+    v7 = iadd_imm v5, 3
+    v8 = ishl_imm v1, 1  ; v1 = 0
+    v9 = ishl_imm v2, 1  ; v2 = 1
+    v10 = ishl_imm v4, 1  ; v4 = 3
+    v11 = iconst.i64 40
+    v12 = call fn1(v11)  ; v11 = 40
+    store aligned v7, v12
+    store aligned v6, v12+8  ; v6 = 3
+    store aligned v8, v12+16
+    store aligned v9, v12+24
+    store aligned v10, v12+32
+    v13 = func_addr.i64 fn2
+    v14 = iadd_imm v12, 1
     stack_store v0, ss0
-    v4 = stack_addr.i64 ss0
-    v5 = call fn2(v3, v4)
-    v6 = stack_load.i64 ss0
-    return_call_indirect sig3, v5(v6)
+    v15 = stack_addr.i64 ss0
+    v16 = call fn3(v14, v15)
+    v17 = stack_load.i64 ss0
+    v18 = call_indirect sig4, v16(v17)
+    v19 = load.i64 v18
+    v20 = iadd_imm v17, 8
+    v21 = iadd_imm v13, 3
+    stack_store v20, ss0
+    v22 = stack_addr.i64 ss0
+    v23 = call fn4(v21, v22)
+    v24 = stack_load.i64 ss0
+    v25 = call_indirect sig6, v23(v24)
+    v26 = load.i64 v25
+    v27 = iadd_imm v24, 8
+    v28 = sshr_imm v19, 1
+    v29 = sshr_imm v26, 1
+    v30 = iadd v28, v29
+    v31 = ishl_imm v30, 1
+    v32 = iadd_imm v0, -8
+    store v31, v32
+    return v32
 }
 
 
@@ -128,24 +493,13 @@ function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
 
 block0(v0: i64):
-    v1 = iconst.i64 0
-    v2 = ishl_imm v1, 1  ; v1 = 0
-    v3 = iadd_imm v0, -8
-    store v2, v3
-    return v3
-}
-
-
-[main$__thunk_1]
-function u0:0(i64) -> i64 tail {
-    ss0 = explicit_slot 8
-
-block0(v0: i64):
-    v1 = iconst.i64 1
-    v2 = ishl_imm v1, 1  ; v1 = 1
-    v3 = iadd_imm v0, -8
-    store v2, v3
-    return v3
+    v1 = iconst.i64 4
+    v2 = iconst.i64 5
+    v3 = iadd v1, v2  ; v1 = 4, v2 = 5
+    v4 = ishl_imm v3, 1
+    v5 = iadd_imm v0, -8
+    store v4, v5
+    return v5
 }
 
 
@@ -154,7 +508,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:3 sig1
+    fn1 = colocated u0:5 sig1
 
 block0:
     v0 = call fn0()
@@ -167,4 +521,4 @@ block0:
 
 Result
 ========
-0
+13

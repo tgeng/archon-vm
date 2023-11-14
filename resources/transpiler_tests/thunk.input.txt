@@ -1,3 +1,10 @@
-let t0 = thunk 0
-let t1 = thunk 1
-force t0
+def f x:int y:int z:int -> int => x + y + z
+let a = 0
+let b = 1
+let c = 2
+let d = 3
+let t = thunk \=> f d a b
+let t2 = thunk
+           let e = 4
+           e + 5
+force t + force t2
