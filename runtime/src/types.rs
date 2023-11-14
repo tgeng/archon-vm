@@ -1,3 +1,5 @@
+// TODO: I need to figure out a way to force function pointers to be 4-byte aligned. This is true
+//  on 64-bit ARM as far as I know but may not be true on x86.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UniformType {
     /// 63-bit integer or embedding of primitives that are smaller than a machine word (8 bytes

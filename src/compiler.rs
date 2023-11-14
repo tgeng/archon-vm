@@ -454,8 +454,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 let offset_value = self.translate_v_term(offset);
                 let base_value = self.convert_to_special(base_value, StructPtr);
                 let offset_value = self.convert_to_special(offset_value, Integer);
-                let base_address = self.function_builder.ins().load(I64, MemFlags::new(), base_value, 0);
-                let load_address = self.function_builder.ins().iadd(base_address, offset_value);
+                let offset_value = self.function_builder.ins().ishl_imm(offset_value, 3);
+                let load_address = self.function_builder.ins().iadd(base_value, offset_value);
                 let value = self.function_builder.ins().load(I64, MemFlags::new(), load_address, 0);
                 Some((value, Uniform))
             }
@@ -465,9 +465,9 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 let value_value = self.translate_v_term(value);
                 let base_value = self.convert_to_special(base_value, StructPtr);
                 let offset_value = self.convert_to_special(offset_value, Integer);
+                let offset_value = self.function_builder.ins().ishl_imm(offset_value, 3);
                 let value_value = self.convert_to_uniform(value_value);
-                let base_address = self.function_builder.ins().load(I64, MemFlags::new(), base_value, 0);
-                let store_address = self.function_builder.ins().iadd(base_address, offset_value);
+                let store_address = self.function_builder.ins().iadd(base_value, offset_value);
                 self.function_builder.ins().store(MemFlags::new(), value_value, store_address, 0);
                 // Return the base address so that the caller can continue to use it.
                 Some((base_value, Specialized(StructPtr)))
