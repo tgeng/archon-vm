@@ -6,14 +6,20 @@ Defs {
             args: [
                 (
                     "n",
-                    Uniform,
+                    Specialized(
+                        Integer,
+                    ),
                 ),
             ],
             body: CaseInt {
                 t: Identifier {
                     name: "n",
                 },
-                result_type: Default,
+                result_type: SpecializedF(
+                    Specialized(
+                        Integer,
+                    ),
+                ),
                 branches: {
                     0: Int {
                         value: 1,
@@ -52,7 +58,11 @@ Defs {
                     },
                 ),
             },
-            c_type: Default,
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
         },
     },
     body: Some(
@@ -78,14 +88,20 @@ Defs
             args: [
                 (
                     0,
-                    Uniform,
+                    Specialized(
+                        Integer,
+                    ),
                 ),
             ],
             body: CaseInt {
                 t: Var {
                     index: 0,
                 },
-                result_type: Default,
+                result_type: SpecializedF(
+                    Specialized(
+                        Integer,
+                    ),
+                ),
                 branches: {
                     0: Return {
                         value: Int {
@@ -108,10 +124,8 @@ Defs
                                 ],
                             },
                             bound_index: 1,
-                            body: Redex {
-                                function: Def {
-                                    name: "factorial",
-                                },
+                            body: SpecializedFunctionCall {
+                                name: "factorial",
                                 args: [
                                     Var {
                                         index: 1,
@@ -134,7 +148,11 @@ Defs
                     },
                 ),
             },
-            c_type: Default,
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
             var_bound: 3,
         },
     ),
@@ -142,10 +160,8 @@ Defs
         "main",
         FunctionDefinition {
             args: [],
-            body: Redex {
-                function: Def {
-                    name: "factorial",
-                },
+            body: SpecializedFunctionCall {
+                name: "factorial",
                 args: [
                     Int {
                         value: 5,
@@ -154,9 +170,7 @@ Defs
             },
             c_type: SpecializedF(
                 Specialized(
-                    Primitive(
-                        I64,
-                    ),
+                    Integer,
                 ),
             ),
             var_bound: 0,
@@ -169,8 +183,8 @@ CLIR
 [factorial]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
-    sig0 = (i64) -> i64 tail
-    fn0 = colocated u0:3 sig0
+    sig0 = (i64, i64) -> i64 tail
+    fn0 = colocated u0:4 sig0
 
 block0(v0: i64):
     v1 = load.i64 v0
@@ -179,44 +193,75 @@ block0(v0: i64):
 
 block2:
     v4 = iconst.i64 1
-    v5 = ishl_imm v4, 1  ; v4 = 1
-    jump block1(v5)
+    jump block1(v4)  ; v4 = 1
 
 block3:
-    v6 = iconst.i64 1
-    v7 = sshr_imm.i64 v1, 1
-    v8 = isub v7, v6  ; v6 = 1
-    v9 = ishl_imm v8, 1
-    v10 = iadd_imm.i64 v0, -8
-    store aligned v9, v10
-    v11 = call fn0(v10)
-    v12 = load.i64 v11
-    v13 = iadd_imm v10, 8
-    v14 = sshr_imm.i64 v1, 1
-    v15 = sshr_imm v12, 1
-    v16 = imul v14, v15
-    v17 = ishl_imm v16, 1
-    jump block1(v17)
+    v5 = iconst.i64 1
+    v6 = sshr_imm.i64 v1, 1
+    v7 = isub v6, v5  ; v5 = 1
+    v8 = call fn0(v0, v7)
+    v9 = sshr_imm.i64 v1, 1
+    v10 = imul v9, v8
+    jump block1(v10)
 
 block1(v3: i64):
-    v18 = iadd_imm.i64 v0, 0
-    store v3, v18
-    return v18
+    v11 = ishl_imm v3, 1
+    v12 = iadd_imm.i64 v0, 0
+    store v11, v12
+    return v12
+}
+
+
+[factorial__specialized]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64) -> i64 tail
+    fn0 = colocated u0:4 sig0
+
+block0(v0: i64, v1: i64):
+    brif v1, block3, block2
+
+block2:
+    v3 = iconst.i64 1
+    jump block1(v3)  ; v3 = 1
+
+block3:
+    v4 = iconst.i64 1
+    v5 = isub.i64 v1, v4  ; v4 = 1
+    v6 = call fn0(v0, v5)
+    v7 = imul.i64 v1, v6
+    jump block1(v7)
+
+block1(v2: i64):
+    return v2
 }
 
 
 [main]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
-    sig0 = (i64) -> i64 tail
-    fn0 = colocated u0:3 sig0
+    sig0 = (i64, i64) -> i64 tail
+    fn0 = colocated u0:4 sig0
 
 block0(v0: i64):
     v1 = iconst.i64 5
-    v2 = ishl_imm v1, 1  ; v1 = 5
-    v3 = iadd_imm v0, -8
-    store aligned v2, v3
-    return_call fn0(v3)
+    v2 = call fn0(v0, v1)  ; v1 = 5
+    v3 = ishl_imm v2, 1
+    v4 = iadd_imm v0, -8
+    store v3, v4
+    return v4
+}
+
+
+[main__specialized]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64) -> i64 tail
+    fn0 = colocated u0:4 sig0
+
+block0(v0: i64):
+    v1 = iconst.i64 5
+    return_call fn0(v0, v1)  ; v1 = 5
 }
 
 
@@ -225,7 +270,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:4 sig1
+    fn1 = colocated u0:5 sig1
 
 block0:
     v0 = call fn0()

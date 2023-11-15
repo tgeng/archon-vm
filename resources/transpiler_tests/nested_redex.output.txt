@@ -103,9 +103,7 @@ Defs
             },
             c_type: SpecializedF(
                 Specialized(
-                    Primitive(
-                        I64,
-                    ),
+                    Integer,
                 ),
             ),
             var_bound: 1,
@@ -148,6 +146,29 @@ block0(v0: i64):
     v6 = iadd_imm v5, -8
     store aligned v2, v6
     return_call fn0(v6)
+}
+
+
+[main__specialized]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 tail
+    fn0 = colocated u0:3 sig0
+
+block0(v0: i64):
+    v1 = iconst.i64 1
+    v2 = ishl_imm v1, 1  ; v1 = 1
+    v3 = iconst.i64 2
+    v4 = ishl_imm v3, 1  ; v3 = 2
+    v5 = iadd_imm v0, -8
+    store aligned v4, v5
+    v6 = iadd_imm v5, -8
+    store aligned v2, v6
+    v7 = call fn0(v6)
+    v8 = load.i64 v7
+    v9 = iadd_imm v6, 8
+    v10 = sshr_imm v8, 1
+    return v10
 }
 
 

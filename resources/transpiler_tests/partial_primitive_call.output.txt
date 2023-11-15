@@ -40,7 +40,7 @@ Defs
             args: [],
             body: Redex {
                 function: Def {
-                    name: "f$__specialized_0",
+                    name: "f$__primitive_wrapper_0",
                 },
                 args: [
                     Int {
@@ -53,7 +53,7 @@ Defs
         },
     ),
     (
-        "f$__specialized_0",
+        "f$__primitive_wrapper_0",
         FunctionDefinition {
             args: [
                 (
@@ -104,9 +104,7 @@ Defs
             },
             c_type: SpecializedF(
                 Specialized(
-                    Primitive(
-                        I64,
-                    ),
+                    Integer,
                 ),
             ),
             var_bound: 0,
@@ -131,7 +129,7 @@ block0(v0: i64):
 }
 
 
-[f$__specialized_0]
+[f$__primitive_wrapper_0]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
 
@@ -145,6 +143,16 @@ block0(v0: i64):
     v7 = iadd_imm v0, 8
     store v6, v7
     return v7
+}
+
+
+[f$__primitive_wrapper_0__specialized]
+function u0:0(i64, i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+
+block0(v0: i64, v1: i64, v2: i64):
+    v3 = iadd v1, v2
+    return v3
 }
 
 
@@ -163,12 +171,31 @@ block0(v0: i64):
 }
 
 
+[main__specialized]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 tail
+    fn0 = colocated u0:3 sig0
+
+block0(v0: i64):
+    v1 = iconst.i64 2
+    v2 = ishl_imm v1, 1  ; v1 = 2
+    v3 = iadd_imm v0, -8
+    store aligned v2, v3
+    v4 = call fn0(v3)
+    v5 = load.i64 v4
+    v6 = iadd_imm v3, 8
+    v7 = sshr_imm v5, 1
+    return v7
+}
+
+
 [__main__]
 function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:5 sig1
+    fn1 = colocated u0:6 sig1
 
 block0:
     v0 = call fn0()

@@ -30,7 +30,7 @@ impl Transpiler {
         self.signature.insert("main".to_string(), FunctionDefinition {
             args: vec![],
             body: main,
-            c_type: CType::SpecializedF(VType::Specialized(SpecializedType::Primitive(PType::I64))),
+            c_type: CType::SpecializedF(VType::Specialized(SpecializedType::Integer)),
             var_bound: 0,
         });
     }
@@ -317,6 +317,7 @@ mod tests {
     use crate::transpiler::Transpiler;
 
     fn check(test_input_path: &str, test_output_path: &str) -> Result<(), String> {
+        println!("checking {}", test_input_path);
         let u_term = parse_u_term(&fs::read_to_string(test_input_path).unwrap())?;
         let mut transpiler = Transpiler {
             signature: Signature::new(),

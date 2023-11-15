@@ -62,9 +62,7 @@ Defs
             },
             c_type: SpecializedF(
                 Specialized(
-                    Primitive(
-                        I64,
-                    ),
+                    Integer,
                 ),
             ),
             var_bound: 2,
@@ -86,6 +84,18 @@ block0(v0: i64):
     v5 = iadd_imm v0, -8
     store v4, v5
     return v5
+}
+
+
+[main__specialized]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+
+block0(v0: i64):
+    v1 = iconst.i64 1
+    v2 = iconst.i64 2
+    v3 = iadd v1, v2  ; v1 = 1, v2 = 2
+    return v3
 }
 
 

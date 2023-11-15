@@ -15,6 +15,12 @@ pub struct FunctionDefinition {
     pub var_bound: usize,
 }
 
+impl FunctionDefinition {
+    pub fn is_specializable(&self) -> bool {
+        matches!(self.c_type, CType::SpecializedF(_))
+    }
+}
+
 pub struct Signature {
     pub defs: HashMap<String, FunctionDefinition>,
 }
@@ -39,7 +45,6 @@ impl Signature {
         self.specialize_calls();
         self.lift_thunks();
         // TODO: add a pass that collapse immediate force thunk pairs
-        // TODO: add a pass that converts redex to specialized function calls
     }
 
     fn normalize_redex(&mut self) {
@@ -52,8 +57,16 @@ impl Signature {
 
     fn specialize_calls(&mut self) {
         let mut new_defs: Vec<(String, FunctionDefinition)> = Vec::new();
-        self.defs.iter_mut().for_each(|(name, FunctionDefinition { args, body, var_bound, .. })| {
-            let mut specializer = CallSpecializer { def_name: name, new_defs: &mut new_defs, specializer_counter: 0 };
+        let specializable_functions: HashMap<_, _> = self.defs.iter().filter_map(|(name, FunctionDefinition { args, body, c_type, var_bound })| {
+            if let CType::SpecializedF(_) = c_type {
+                Some((name.clone(), args.len()))
+            } else {
+                None
+            }
+        }).collect();
+
+        self.defs.iter_mut().for_each(|(name, FunctionDefinition { args, body, .. })| {
+            let mut specializer = CallSpecializer { def_name: name, new_defs: &mut new_defs, primitive_wrapper_counter: 0, specializable_functions: &specializable_functions };
             specializer.transform_c_term(body);
         });
         self.insert_new_defs(new_defs);
@@ -171,7 +184,8 @@ impl Transformer for RedexNormalizer {
 struct CallSpecializer<'a> {
     def_name: &'a str,
     new_defs: &'a mut Vec<(String, FunctionDefinition)>,
-    specializer_counter: usize,
+    primitive_wrapper_counter: usize,
+    specializable_functions: &'a HashMap<String, usize>,
 }
 
 impl<'a> Transformer for CallSpecializer<'a> {
@@ -181,9 +195,9 @@ impl<'a> Transformer for CallSpecializer<'a> {
         if let Some((name, PrimitiveFunction { arg_types, return_type, .. })) = PRIMITIVE_FUNCTIONS.get_entry(name) {
             match arg_types.len().cmp(&args.len()) {
                 Ordering::Greater => {
-                    let specialized_function_name = format!("{}$__specialized_{}", self.def_name, self.specializer_counter);
-                    *function = CTerm::Def { name: specialized_function_name.clone() };
-                    self.new_defs.push((specialized_function_name, FunctionDefinition {
+                    let primitive_wrapper_name = format!("{}$__primitive_wrapper_{}", self.def_name, self.primitive_wrapper_counter);
+                    *function = CTerm::Def { name: primitive_wrapper_name.clone() };
+                    self.new_defs.push((primitive_wrapper_name, FunctionDefinition {
                         args: arg_types.iter().enumerate().map(|(i, t)| (i, *t)).collect(),
                         body: CTerm::PrimitiveCall {
                             name,
@@ -205,8 +219,15 @@ impl<'a> Transformer for CallSpecializer<'a> {
                     unreachable!()
                 }
             }
+        } else if let Some(arity) = self.specializable_functions.get(name) && args.len() == *arity {
+            let name = name.to_owned();
+            let CTerm::Redex { args, .. } = std::mem::replace(
+                c_term,
+                CTerm::SpecializedFunctionCall { name, args: vec![] },
+            ) else { unreachable!() };
+            let CTerm::SpecializedFunctionCall { args: new_args, .. } = c_term else { unreachable!() };
+            *new_args = args;
         }
-        // TODO: specialize function calls
     }
 }
 

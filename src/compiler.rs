@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::iter;
 use cranelift::codegen::ir::{FuncRef, Inst, StackSlot};
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
@@ -193,15 +194,43 @@ impl<M: Module> Compiler<M> {
     }
 
     pub fn compile(&mut self, defs: &[(String, FunctionDefinition)], clir: &mut Option<&mut Vec<(String, String)>>) {
-        for (name, _) in defs.iter() {
+        let mut specialzied_function_signatures = HashMap::new();
+        let mut local_function_arg_types = HashMap::new();
+        for (name, function_definition) in defs.iter() {
+            local_function_arg_types.insert(
+                name.clone(),
+                (function_definition.args.iter().map(|(_, v_type)| *v_type).collect::<Vec<_>>(), function_definition.c_type),
+            );
             self.local_functions.insert(name.clone(), self.module.declare_function(name, Linkage::Local, &self.uniform_func_signature).unwrap());
+            if let CType::SpecializedF(v_type) = function_definition.c_type {
+                let mut sig = self.module.make_signature();
+                sig.call_conv = CallConv::Tail;
+                // The first argument is the base address of the parameter stack, which is useful
+                // for calling non-specialized functions.
+                sig.params.push(AbiParam::new(I64));
+                for (_, v_type) in function_definition.args.iter() {
+                    sig.params.push(AbiParam::new(v_type.get_type()));
+                }
+                sig.returns.push(AbiParam::new(v_type.get_type()));
+                let specialized_name = format!("{}__specialized", name);
+                self.local_functions.insert(specialized_name.clone(), self.module.declare_function(&specialized_name, Linkage::Local, &sig).unwrap());
+                specialzied_function_signatures.insert(name, sig);
+            }
         }
 
         for (name, function_definition) in defs.iter() {
-            self.compile_function(function_definition);
+            self.compile_function(function_definition, &local_function_arg_types);
             let func_id = self.local_functions.get(name).unwrap();
             self.define_function(name, *func_id, clir);
             self.module.clear_context(&mut self.ctx);
+            if function_definition.is_specializable() {
+                let sig = specialzied_function_signatures.get(name).unwrap();
+                let specialized_name = format!("{}__specialized", name);
+                self.compile_specialized_function(sig, function_definition, &local_function_arg_types);
+                let func_id = self.local_functions.get(&specialized_name).unwrap();
+                self.define_function(&specialized_name, *func_id, clir);
+                self.module.clear_context(&mut self.ctx);
+            }
         }
     }
 
@@ -247,7 +276,7 @@ impl<M: Module> Compiler<M> {
         self.module.define_function(func_id, &mut self.ctx).unwrap();
     }
 
-    fn compile_function(&mut self, function_definition: &FunctionDefinition) {
+    fn compile_function(&mut self, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
         // All functions have the same signature `i64 -> i64`, where the single argument is the
         // base address of the parameter stack and the single return value is the address of the
         // return address. Actual parameters can be obtained by offsetting this base address.
@@ -306,6 +335,8 @@ impl<M: Module> Compiler<M> {
             num_args: function_definition.args.len(),
             uniform_func_signature: &self.uniform_func_signature,
             tip_address_slot,
+            local_function_arg_types,
+            is_specialized: false,
         };
         // Here we transform the function body to non-specialized version, hence the argument types
         // are ignored.
@@ -315,7 +346,6 @@ impl<M: Module> Compiler<M> {
             // reverse order and hence the offset is the index of the parameter in the parameter
             // list.
             let value = translator.function_builder.ins().load(I64, MemFlags::new(), translator.base_address, (i * 8) as i32);
-            // TODO: add logic that compiles to a specialized version of this function.
             translator.local_vars[*v] = Some((value, Uniform));
         }
         // The return value will be returned so its type does not matter. Treating it as an integer
@@ -328,6 +358,66 @@ impl<M: Module> Compiler<M> {
                 let return_address = translator.function_builder.ins().iadd_imm(translator.base_address, return_address_offset);
                 translator.function_builder.ins().store(MemFlags::new(), value, return_address, 0);
                 translator.function_builder.ins().return_(&[return_address]);
+            }
+            None => {
+                // Nothing to do since tail call is already a terminating instruction.
+            }
+        }
+        translator.function_builder.seal_all_blocks();
+        translator.function_builder.finalize();
+    }
+
+    fn compile_specialized_function(&mut self, sig: &Signature, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
+        // Parameters of specialized functions are just passed normally.
+
+        self.ctx.clear();
+        self.ctx.func.signature = sig.clone();
+
+        let mut function_builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.builder_context);
+        let entry_block = function_builder.create_block();
+
+        // Allocate slot for storing the tip address so that a pointer to the tip address can be
+        // passed to built-in force call helper function in order to have the tip address updated.
+        let tip_address_slot = function_builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8));
+        function_builder.append_block_params_for_function_params(entry_block);
+        function_builder.switch_to_block(entry_block);
+        function_builder.seal_block(entry_block);
+
+        let base_address = function_builder.block_params(entry_block)[0];
+        let mut translator = FunctionTranslator {
+            module: &mut self.module,
+            function_builder,
+            data_description: &mut DataDescription::new(),
+            builtin_functions: &self.builtin_functions,
+            static_strings: &mut self.static_strings,
+            local_functions: &self.local_functions,
+            local_vars: &mut vec![None; function_definition.var_bound],
+            base_address,
+            tip_address: base_address,
+            num_args: function_definition.args.len(),
+            uniform_func_signature: &self.uniform_func_signature,
+            tip_address_slot,
+            local_function_arg_types,
+            is_specialized: true,
+        };
+        // Here we transform the function body to non-specialized version, hence the argument types
+        // are ignored.
+        for (i, (v, v_type)) in function_definition.args.iter().enumerate() {
+            // v is the variable index and i is the offset in the parameter list. The parameter
+            // stack grows from higher address to lower address, so parameter list grows in the
+            // reverse order and hence the offset is the index of the parameter in the parameter
+            // list.
+            // In addition, i + 1 is the parameter index in the entry block
+            translator.local_vars[*v] = Some((translator.function_builder.block_params(entry_block)[i + 1], *v_type));
+        }
+        // The return value will be returned so its type does not matter. Treating it as an integer
+        // is sufficient.
+        let return_value_or_param = translator.translate_c_term(&function_definition.body, true);
+        match return_value_or_param {
+            Some(_) => {
+                let CType::SpecializedF(v_type) = function_definition.c_type else { unreachable!() };
+                let value = translator.adapt_type(return_value_or_param, &v_type);
+                translator.function_builder.ins().return_(&[value]);
             }
             None => {
                 // Nothing to do since tail call is already a terminating instruction.
@@ -351,6 +441,8 @@ struct FunctionTranslator<'a, M: Module> {
     num_args: usize,
     uniform_func_signature: &'a Signature,
     tip_address_slot: StackSlot,
+    local_function_arg_types: &'a HashMap<String, (Vec<VType>, CType)>,
+    is_specialized: bool,
 }
 
 impl<'a, M: Module> FunctionTranslator<'a, M> {
@@ -379,7 +471,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 self.tip_address = self.function_builder.ins().stack_load(I64, self.tip_address_slot, 0);
 
                 let sig_ref = self.function_builder.import_signature(self.uniform_func_signature.clone());
-                if is_tail {
+                if is_tail && !self.is_specialized {
                     let base_address = self.copy_tail_call_args_and_get_new_base();
                     self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[base_address]);
                     None
@@ -395,7 +487,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             }
             CTerm::Def { name } => {
                 let func_ref = self.get_local_function(name);
-                if is_tail {
+                if is_tail && !self.is_specialized {
                     let base_address = self.copy_tail_call_args_and_get_new_base();
                     self.function_builder.ins().return_call(func_ref, &[base_address]);
                     None
@@ -479,7 +571,28 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 let return_value = (primitive_function.code_gen)(&mut self.function_builder, &arg_values);
                 Some((return_value, primitive_function.return_type))
             }
-            CTerm::SpecializedFunctionCall { name, args } => todo!(),
+            CTerm::SpecializedFunctionCall { name, args } => {
+                let (arg_types, CType::SpecializedF(return_type)) = self.local_function_arg_types.get(name).unwrap() else { unreachable!("{} is not specialized", name) };
+                let tip_address = self.tip_address;
+                let all_args = iter::once(tip_address)
+                    .chain(args.iter()
+                        .zip(arg_types)
+                        .map(|(arg, v_type)| {
+                            let arg = self.translate_v_term(arg);
+                            self.adapt_type(arg, v_type)
+                        }
+                        ))
+                    .collect::<Vec<_>>();
+                let name = format!("{}__specialized", name);
+                let func_ref = self.get_local_function(&name);
+                if is_tail && self.is_specialized {
+                    self.function_builder.ins().return_call(func_ref, &all_args);
+                    None
+                } else {
+                    let inst = self.function_builder.ins().call(func_ref, &all_args);
+                    Some((self.function_builder.inst_results(inst)[0], *return_type))
+                }
+            }
         }
     }
 
@@ -671,7 +784,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         match (value_type, target_type) {
             (Uniform, Specialized(s)) => self.convert_to_special(value_and_type, s.clone()),
             (Specialized(_), Uniform) => self.convert_to_uniform(value_and_type),
-            _ => unreachable!("type conversion between two specialized types is not supported and this must be a type error in the input program"),
+            (Specialized(a), Specialized(b)) => unreachable!("type conversion from {:?} to {:?} is not supported and this must be a type error in the input program", a, b),
+            _ => unreachable!()
         }
     }
 
