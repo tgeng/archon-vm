@@ -254,13 +254,10 @@ impl<M: Module> Compiler<M> {
         let inst = function_builder.ins().call(alloc_stack_func_ref, &[]);
         let stack_base = function_builder.inst_results(inst)[0];
 
-        let main_id = self.local_functions.get("main").unwrap();
+        let main_id = self.local_functions.get("main__specialized").unwrap();
         let main_func_ref = self.module.declare_func_in_func(*main_id, function_builder.func);
         let inst = function_builder.ins().call(main_func_ref, &[stack_base]);
-        let return_address = function_builder.inst_results(inst)[0];
-        let return_value = function_builder.ins().load(I64, MemFlags::new(), return_address, 0);
-        // Main function returns an integer in uniform representation, so we need to shift it
-        let return_value = function_builder.ins().sshr_imm(return_value, 1);
+        let return_value = function_builder.inst_results(inst)[0];
         function_builder.ins().return_(&[return_value]);
 
         function_builder.finalize();
