@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use nom::branch::alt;
 use nom::{InputLength, IResult};
 use nom::character::complete::{space0, char, satisfy as char_satisfy, alphanumeric1, one_of};
@@ -45,19 +44,19 @@ static KEYWORDS: &[&str] = &[
 
 #[derive(Debug, Clone, PartialEq)]
 enum Token {
-    Normal(String, usize),
-    Int(i64, usize),
-    Str(String, usize),
-    Indent(usize),
+    Normal(String, u32, usize),
+    Int(i64, u32, usize),
+    Str(String, u32, usize),
+    Indent(u32, usize),
 }
 
 impl Token {
     fn column(&self) -> usize {
         match self {
-            Token::Normal(_, column) => *column,
-            Token::Int(_, column) => *column,
-            Token::Str(_, column) => *column,
-            Token::Indent(column) => *column,
+            Token::Normal(_, _, column) => *column,
+            Token::Int(_, _, column) => *column,
+            Token::Str(_, _, column) => *column,
+            Token::Indent(_, column) => *column,
         }
     }
 }
@@ -74,18 +73,18 @@ fn identifier_token(input: Span) -> IResult<Span, Token> {
                             Some(tail) => format!("{}{}", head, tail),
                             None => head.to_string(),
                         };
-                        Token::Normal(id_string, input.naive_get_utf8_column() - 1)
+                        Token::Normal(id_string, input.location_line() - 1, input.naive_get_utf8_column() - 1)
                     }),
                 // specially handle some punctuations that should never be combined with others
-                one_of("(),\\{}").map(|c| Token::Normal(c.to_string(), input.naive_get_utf8_column() - 1)),
+                one_of("(),\\{}").map(|c| Token::Normal(c.to_string(), input.location_line() - 1, input.naive_get_utf8_column() - 1)),
                 // punctuation identifier
                 take_while1(|c: char| c.is_ascii_punctuation() &&
                     c != '`' && c != '"' && c != '(' && c != ')' && c != ',' && c != '\\')
-                    .map(|s: Span| Token::Normal(s.to_string(), input.naive_get_utf8_column() - 1)),
+                    .map(|s: Span| Token::Normal(s.to_string(), input.location_line() - 1, input.naive_get_utf8_column() - 1)),
                 // backtick-quoted identifier
                 delimited(
                     char('`'),
-                    take_while1(|c| c != '`'), char('`')).map(|s: Span| Token::Normal(s.to_string(), input.naive_get_utf8_column() - 1)),
+                    take_while1(|c| c != '`'), char('`')).map(|s: Span| Token::Normal(s.to_string(), input.location_line() - 1, input.naive_get_utf8_column() - 1)),
             ),
         ))(input)
 }
@@ -95,7 +94,7 @@ fn int_token(input: Span) -> IResult<Span, Token> {
         "int_token",
         map(
             take_while1(|c: char| c.is_ascii_digit()),
-            |s: Span| Token::Int(s.to_string().parse::<i64>().unwrap(), s.naive_get_utf8_column() - 1),
+            |s: Span| Token::Int(s.to_string().parse::<i64>().unwrap(), input.location_line() - 1, s.naive_get_utf8_column() - 1),
         ))(input)
 }
 
@@ -115,7 +114,7 @@ fn str_token(input: Span) -> IResult<Span, Token> {
                                 one_of("\"\\")),
                             char('\"')))),
             ),
-            |s: Span| Token::Str(s.to_string(), s.naive_get_utf8_column() - 2), // offset quote
+            |s: Span| Token::Str(s.to_string(), input.location_line() - 1, s.naive_get_utf8_column() - 2), // offset quote
         ))(input)
 }
 
@@ -140,7 +139,7 @@ fn indent_token(input: Span) -> IResult<Span, Token> {
                     }
                 }
                 if has_newline {
-                    Ok(Token::Indent(indent))
+                    Ok(Token::Indent(input.location_line(), indent))
                 } else {
                     Err(nom::Err::Error(nom::error::Error { input, code: ErrorKind::Space }))
                 }
@@ -258,7 +257,7 @@ fn newline(input: Input) -> IResult<Input, ()> {
     let current_indent = input.current_indent;
     // This local variable is needed to make rust's borrow checker happy. Otherwise it complains
     // `current_indent` does not live long enough.
-    let mut p = satisfy(|token| matches!(token,Token::Indent(column) if *column >= current_indent ));
+    let mut p = satisfy(|token| matches!(token,Token::Indent(_, column) if *column >= current_indent ));
     p(input)
 }
 
@@ -270,14 +269,14 @@ fn token(s: &'static str) -> impl FnMut(Input) -> IResult<Input, ()> {
     move |input| {
         context(
             s,
-            satisfy(move |token| matches!(token, Token::Normal(name, _) if { name == s })),
+            satisfy(move |token| matches!(token, Token::Normal(name, _, _) if { name == s })),
         )(input)
     }
 }
 
 fn id(input: Input) -> IResult<Input, String> {
     map_token(|token| match token {
-        Token::Normal(name, _)
+        Token::Normal(name, _, _)
         if KEYWORDS.iter().all(|k| k != name) &&
             PRECEDENCE.iter().all(|(names, ..)| names.iter().all(|(n, _)| n != name))
         => Some(name.clone()),
@@ -291,7 +290,7 @@ fn id_term(input: Input) -> IResult<Input, UTerm> {
 
 fn int(input: Input) -> IResult<Input, i64> {
     map_token(|token| match token {
-        Token::Int(value, _) => Some(*value),
+        Token::Int(value, _, _) => Some(*value),
         _ => None,
     })(input)
 }
@@ -302,7 +301,7 @@ fn int_term(input: Input) -> IResult<Input, UTerm> {
 
 fn str(input: Input) -> IResult<Input, String> {
     map_token(|token| match token {
-        Token::Str(value, _) => Some(value.clone()),
+        Token::Str(value, _, _) => Some(value.clone()),
         _ => None,
     })(input)
 }
@@ -315,9 +314,9 @@ fn struct_(input: Input) -> IResult<Input, UTerm> {
     context("struct", map(
         delimited(
             token("{"),
-            separated_list0(
+            cut(separated_list0(
                 delimited(newline_opt, token(","), newline_opt),
-                expr),
+                expr)),
             token("}"),
         ),
         |values: Vec<UTerm>| UTerm::Struct { values },
@@ -332,24 +331,25 @@ fn atom(input: Input) -> IResult<Input, UTerm> {
         struct_,
         delimited(
             pair(token("("), newline_opt),
-            u_term,
+            cut(u_term),
             pair(newline_opt, token(")"))),
     )))(input)
 }
 
 fn force(input: Input) -> IResult<Input, UTerm> {
-    context("force", map(preceded(token("force"), atom), |t| UTerm::Force { thunk: Box::new(t) }))(input)
+    context("force", map(preceded(token("force"), cut(atom)), |t| UTerm::Force { thunk: Box::new(t) }))(input)
 }
 
 fn mem_access_or_atom(input: Input) -> IResult<Input, UTerm> {
     context("mem_access_or_atom", map(
-        pair(atom, opt(pair(preceded(token("@"), atom), opt(preceded(token("="), u_term))))),
-        |(t, index_and_value)| {
-            match index_and_value {
-                Some((index, None)) => UTerm::MemGet { base: Box::new(t), offset: Box::new(index) },
-                Some((index, Some(value))) => UTerm::MemSet { base: Box::new(t), offset: Box::new(index), value: Box::new(value) },
-                None => t,
-            }
+        pair(atom, many0(pair(preceded(token("@"), cut(atom)), opt(preceded(token("="), cut(u_term)))))),
+        |(t, index_and_values)| {
+            index_and_values.into_iter().fold(t, |t, (index, assignment)| {
+                match assignment {
+                    None => UTerm::MemGet { base: Box::new(t), offset: Box::new(index) },
+                    Some(value) => UTerm::MemSet { base: Box::new(t), offset: Box::new(index), value: Box::new(value) },
+                }
+            })
         },
     ))(input)
 }
@@ -357,12 +357,13 @@ fn mem_access_or_atom(input: Input) -> IResult<Input, UTerm> {
 fn scoped_app(input: Input) -> IResult<Input, UTerm> {
     context("scoped_app", scoped(
         map(
-            tuple((alt((mem_access_or_atom, force)), many0(atom), many0(preceded(newline, u_term)))),
-            |(f, args, more_args)| {
-                if args.is_empty() && more_args.is_empty() {
-                    f
+            pair(many1(alt((mem_access_or_atom, force))), many0(preceded(newline, u_term))),
+            |(f_and_args, more_args)| {
+                if f_and_args.len() == 1 && more_args.is_empty() {
+                    f_and_args.into_iter().next().unwrap()
                 } else {
-                    let all_args = args.into_iter().chain(more_args).collect();
+                    let f = f_and_args.first().unwrap().clone();
+                    let all_args = f_and_args.into_iter().skip(1).chain(more_args).collect();
                     UTerm::Redex { function: Box::new(f), args: all_args }
                 }
             },
@@ -377,7 +378,7 @@ fn scoped_app_boxed() -> BoxedUTermParser {
 
 fn operator_id(operators: &'static [OperatorAndName]) -> impl FnMut(Input) -> IResult<Input, UTerm> {
     map_token(|token| match token {
-        Token::Normal(name, _) => {
+        Token::Normal(name, _, _) => {
             operators.iter()
                 .filter_map(|(op, fun_name)|
                     if op == name {
@@ -639,7 +640,7 @@ fn lambda(input: Input) -> IResult<Input, UTerm> {
                     token("\\"),
                     separated_list0(newline_opt, pair(id, v_type_decl)),
                     token("=>")),
-                expr),
+                cut(expr)),
             |(arg_names, body)| UTerm::Lambda { arg_names, body: Box::new(body) },
         )))(input)
 }
@@ -651,10 +652,9 @@ fn case(input: Input) -> IResult<Input, UTerm> {
                 preceded(token("case"), map(expr, Box::new)),
                 c_type_decl,
                 many0(map(preceded(newline, scoped(tuple((int, preceded(token("=>"), u_term))))), |(i, branch)| (i, branch))),
-                preceded(newline, scoped(preceded(pair(token("_"), token("=>")), opt(map(u_term, Box::new))))),
+                opt(preceded(newline, scoped(preceded(pair(token("_"), token("=>")), map(u_term, Box::new))))),
             )),
-            |(t, result_type, branch_entries, default_branch)| {
-                let branches = HashMap::from_iter(branch_entries);
+            |(t, result_type, branches, default_branch)| {
                 UTerm::CaseInt { t, result_type, branches, default_branch }
             })
     ))(input)
@@ -664,7 +664,7 @@ fn let_term(input: Input) -> IResult<Input, UTerm> {
     context("let_term", map(
         tuple((
             alt((
-                scoped(pair(delimited(token("let"), id, token("=")), preceded(newline_opt, u_term))),
+                scoped(pair(delimited(token("let"), id, token("=")), preceded(newline_opt, cut(u_term)))),
                 map(expr, |t| (String::from("_"), t)),
             )),
             preceded(newline, u_term),
@@ -681,18 +681,18 @@ fn defs_term(input: Input) -> IResult<Input, UTerm> {
                 map(
                     scoped(
                         tuple((
-                            preceded(token("def"), id),
+                            preceded(token("def"), cut(id)),
                             many0(pair(id, v_type_decl)),
                             c_type_decl,
-                            preceded(preceded(token("=>"), newline_opt), map(u_term, Box::new))))),
+                            preceded(preceded(token("=>"), newline_opt), map(cut(u_term), Box::new))))),
                     |(name, args, c_type, body)| (name, Def { args, c_type, body }),
                 )
             ), opt(preceded(newline, map(u_term, Box::new)))),
-        |(defs, body)| UTerm::Defs { defs: HashMap::from_iter(defs), body },
+        |(defs, body)| UTerm::Defs { defs, body },
     ))(input)
 }
 
-fn computaiton(input: Input) -> IResult<Input, UTerm> {
+fn computation(input: Input) -> IResult<Input, UTerm> {
     alt((let_term, defs_term, expr, lambda, case))(input)
 }
 
@@ -701,13 +701,13 @@ fn thunk(input: Input) -> IResult<Input, UTerm> {
         "thunk",
         scoped(
             map(
-                preceded(preceded(token("thunk"), newline_opt), computaiton),
+                preceded(preceded(token("thunk"), newline_opt), cut(computation)),
                 |t| UTerm::Thunk { computation: Box::new(t) })
         ))(input)
 }
 
 fn u_term(input: Input) -> IResult<Input, UTerm> {
-    context("u_term", alt((thunk, computaiton)))(input)
+    context("u_term", alt((thunk, computation)))(input)
 }
 
 fn tokenize(input: &str) -> Result<Vec<Token>, String> {
@@ -723,7 +723,7 @@ pub fn parse_u_term(input: &str) -> Result<UTerm, String> {
     let tokens = tokenize(input)?;
     let input = Input { tokens: &tokens, current_indent: 0 };
     let (input, term) = u_term(input).map_err(|e| format!("parse error: {:?}", e))?;
-    if input.tokens.iter().any(|token| !matches!(token, Token::Indent(_))) {
+    if input.tokens.iter().any(|token| !matches!(token, Token::Indent(_, _))) {
         return Err(format!("parse error: unexpected token at {:?}", input.tokens.first()));
     }
     Ok(term)
@@ -731,7 +731,7 @@ pub fn parse_u_term(input: &str) -> Result<UTerm, String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::{parse_u_term, Token, tokenize};
+    use crate::parser::{parse_u_term, tokenize};
     use crate::test_utils::debug_print;
 
     #[test]
@@ -741,25 +741,90 @@ mod tests {
     y
 
   z"#)?;
-        assert_eq!(result, vec![
-            Token::Normal("a".to_string(), 0),
-            Token::Normal("b".to_string(), 2),
-            Token::Str("c".to_string(), 4),
-            Token::Normal("++-".to_string(), 8),
-            Token::Normal("(".to_string(), 12),
-            Token::Normal("+".to_string(), 13),
-            Token::Normal(")".to_string(), 14),
-            Token::Normal("(".to_string(), 16),
-            Token::Normal(")".to_string(), 17),
-            Token::Normal(",".to_string(), 19),
-            Token::Normal(".~".to_string(), 20),
-            Token::Indent(2),
-            Token::Normal("x".to_string(), 2),
-            Token::Indent(4),
-            Token::Normal("y".to_string(), 4),
-            Token::Indent(2),
-            Token::Normal("z".to_string(), 2),
-        ]);
+        assert_eq!(format!("{:#?}", result), r#"[
+    Normal(
+        "a",
+        0,
+        0,
+    ),
+    Normal(
+        "b",
+        0,
+        2,
+    ),
+    Str(
+        "c",
+        0,
+        4,
+    ),
+    Normal(
+        "++-",
+        0,
+        8,
+    ),
+    Normal(
+        "(",
+        0,
+        12,
+    ),
+    Normal(
+        "+",
+        0,
+        13,
+    ),
+    Normal(
+        ")",
+        0,
+        14,
+    ),
+    Normal(
+        "(",
+        0,
+        16,
+    ),
+    Normal(
+        ")",
+        0,
+        17,
+    ),
+    Normal(
+        ",",
+        0,
+        19,
+    ),
+    Normal(
+        ".~",
+        0,
+        20,
+    ),
+    Indent(
+        1,
+        2,
+    ),
+    Normal(
+        "x",
+        1,
+        2,
+    ),
+    Indent(
+        2,
+        4,
+    ),
+    Normal(
+        "y",
+        2,
+        4,
+    ),
+    Indent(
+        3,
+        2,
+    ),
+    Normal(
+        "z",
+        4,
+        2,
+    ),
+]"#);
         Ok(())
     }
 
@@ -962,7 +1027,7 @@ mod tests {
     #[test]
     fn check_scoped_app() -> Result<(), String> {
         assert_eq!(debug_print(parse_u_term("\
-f a b
+f a b (c d)
   g 1 2
   h 3")?), r#"Redex {
     function: Identifier {
@@ -974,6 +1039,16 @@ f a b
         },
         Identifier {
             name: "b",
+        },
+        Redex {
+            function: Identifier {
+                name: "c",
+            },
+            args: [
+                Identifier {
+                    name: "d",
+                },
+            ],
         },
         Let {
             name: "_",
@@ -1079,11 +1154,14 @@ x")?), r#"Let {
             Integer,
         ),
     ),
-    branches: {
-        1: Int {
-            value: 2,
-        },
-    },
+    branches: [
+        (
+            1,
+            Int {
+                value: 2,
+            },
+        ),
+    ],
     default_branch: Some(
         Int {
             value: 3,
@@ -1154,56 +1232,97 @@ a @ 0 + a @ 1")?), r#"Let {
     }
 
     #[test]
+    fn check_nested_mem_access() -> Result<(), String> {
+        assert_eq!(debug_print(parse_u_term("{1, {2}, 3} @ 1 @ 0 = 4")?), r#"MemSet {
+    base: MemGet {
+        base: Struct {
+            values: [
+                Int {
+                    value: 1,
+                },
+                Struct {
+                    values: [
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+                Int {
+                    value: 3,
+                },
+            ],
+        },
+        offset: Int {
+            value: 1,
+        },
+    },
+    offset: Int {
+        value: 0,
+    },
+    value: Int {
+        value: 4,
+    },
+}"#);
+        Ok(())
+    }
+
+    #[test]
     fn check_def() -> Result<(), String> {
         assert_eq!(debug_print(parse_u_term(r#"
 def f x => x
 def g x y => x + y
 g (f 1) 2
 "#)?), r#"Defs {
-    defs: {
-        "f": Def {
-            args: [
-                (
-                    "x",
-                    Uniform,
-                ),
-            ],
-            body: Identifier {
-                name: "x",
+    defs: [
+        (
+            "f",
+            Def {
+                args: [
+                    (
+                        "x",
+                        Uniform,
+                    ),
+                ],
+                body: Identifier {
+                    name: "x",
+                },
+                c_type: Default,
             },
-            c_type: Default,
-        },
-    },
+        ),
+    ],
     body: Some(
         Defs {
-            defs: {
-                "g": Def {
-                    args: [
-                        (
-                            "x",
-                            Uniform,
-                        ),
-                        (
-                            "y",
-                            Uniform,
-                        ),
-                    ],
-                    body: Redex {
-                        function: Identifier {
-                            name: "_int_add",
-                        },
+            defs: [
+                (
+                    "g",
+                    Def {
                         args: [
-                            Identifier {
-                                name: "x",
-                            },
-                            Identifier {
-                                name: "y",
-                            },
+                            (
+                                "x",
+                                Uniform,
+                            ),
+                            (
+                                "y",
+                                Uniform,
+                            ),
                         ],
+                        body: Redex {
+                            function: Identifier {
+                                name: "_int_add",
+                            },
+                            args: [
+                                Identifier {
+                                    name: "x",
+                                },
+                                Identifier {
+                                    name: "y",
+                                },
+                            ],
+                        },
+                        c_type: Default,
                     },
-                    c_type: Default,
-                },
-            },
+                ),
+            ],
             body: Some(
                 Redex {
                     function: Identifier {

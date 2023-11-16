@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PType {
     I64,
@@ -83,7 +81,7 @@ pub enum CTerm {
     /// for record instance or function with large elimination, one branch may return a value while
     /// another consumes more arguments (aka tail call). In this case the result type is
     /// [CType::Default].
-    CaseInt { t: VTerm, result_type: CType, branches: HashMap<i64, CTerm>, default_branch: Option<Box<CTerm>> },
+    CaseInt { t: VTerm, result_type: CType, branches: Vec<(i64, CTerm)>, default_branch: Option<Box<CTerm>> },
     MemGet { base: VTerm, offset: VTerm },
     MemSet { base: VTerm, offset: VTerm, value: VTerm },
     // TODO: implement the following for setting and getting primitive values

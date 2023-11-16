@@ -1,70 +1,76 @@
 UTerm
 ========
 Defs {
-    defs: {
-        "factorial": Def {
-            args: [
-                (
-                    "n",
-                    Specialized(
-                        Integer,
+    defs: [
+        (
+            "factorial",
+            Def {
+                args: [
+                    (
+                        "n",
+                        Specialized(
+                            Integer,
+                        ),
                     ),
-                ),
-            ],
-            body: CaseInt {
-                t: Identifier {
-                    name: "n",
-                },
-                result_type: SpecializedF(
-                    Specialized(
-                        Integer,
-                    ),
-                ),
-                branches: {
-                    0: Int {
-                        value: 1,
+                ],
+                body: CaseInt {
+                    t: Identifier {
+                        name: "n",
                     },
-                },
-                default_branch: Some(
-                    Redex {
-                        function: Identifier {
-                            name: "_int_mul",
-                        },
-                        args: [
-                            Identifier {
-                                name: "n",
+                    result_type: SpecializedF(
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                    branches: [
+                        (
+                            0,
+                            Int {
+                                value: 1,
                             },
-                            Redex {
-                                function: Identifier {
-                                    name: "factorial",
+                        ),
+                    ],
+                    default_branch: Some(
+                        Redex {
+                            function: Identifier {
+                                name: "_int_mul",
+                            },
+                            args: [
+                                Identifier {
+                                    name: "n",
                                 },
-                                args: [
-                                    Redex {
-                                        function: Identifier {
-                                            name: "_int_sub",
-                                        },
-                                        args: [
-                                            Identifier {
-                                                name: "n",
-                                            },
-                                            Int {
-                                                value: 1,
-                                            },
-                                        ],
+                                Redex {
+                                    function: Identifier {
+                                        name: "factorial",
                                     },
-                                ],
-                            },
-                        ],
-                    },
+                                    args: [
+                                        Redex {
+                                            function: Identifier {
+                                                name: "_int_sub",
+                                            },
+                                            args: [
+                                                Identifier {
+                                                    name: "n",
+                                                },
+                                                Int {
+                                                    value: 1,
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ),
+                },
+                c_type: SpecializedF(
+                    Specialized(
+                        Integer,
+                    ),
                 ),
             },
-            c_type: SpecializedF(
-                Specialized(
-                    Integer,
-                ),
-            ),
-        },
-    },
+        ),
+    ],
     body: Some(
         Redex {
             function: Identifier {
@@ -102,13 +108,16 @@ Defs
                         Integer,
                     ),
                 ),
-                branches: {
-                    0: Return {
-                        value: Int {
-                            value: 1,
+                branches: [
+                    (
+                        0,
+                        Return {
+                            value: Int {
+                                value: 1,
+                            },
                         },
-                    },
-                },
+                    ),
+                ],
                 default_branch: Some(
                     Let {
                         t: Let {

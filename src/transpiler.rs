@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use either::{Either, Left, Right};
 use crate::signature::{FunctionDefinition, Signature};
-use crate::term::{CTerm, CType, PType, SpecializedType, VTerm, VType};
+use crate::term::{CTerm, CType, SpecializedType, VTerm, VType};
 use crate::u_term::{Def, UTerm};
 use crate::primitive_functions::PRIMITIVE_FUNCTIONS;
 
@@ -50,11 +50,11 @@ impl Transpiler {
             UTerm::Lambda { arg_names, body } => {
                 let lambda_name = self.new_lambda_name(context.enclosing_def_name);
                 self.transpile_impl(UTerm::Defs {
-                    defs: HashMap::from([(lambda_name.to_string(), Def {
+                    defs: vec![(lambda_name.to_string(), Def {
                         args: arg_names.clone(),
                         body: body.clone(),
                         c_type: CType::Default,
-                    })]),
+                    })],
                     body: Some(Box::new(UTerm::Identifier { name: lambda_name })),
                 }, context)
             }
@@ -66,9 +66,9 @@ impl Transpiler {
             UTerm::Force { thunk } => self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t }),
             UTerm::Thunk { computation } => CTerm::Return { value: VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)) } },
             UTerm::CaseInt { t, result_type, branches, default_branch } => {
-                let mut transpiled_branches = HashMap::new();
+                let mut transpiled_branches = Vec::new();
                 for (value, branch) in branches {
-                    transpiled_branches.insert(value, self.transpile_impl(branch, context));
+                    transpiled_branches.push((value, self.transpile_impl(branch, context)));
                 }
                 let transpiled_default_branch = default_branch.map(|b| Box::new(self.transpile_impl(*b, context)));
                 self.transpile_value_and_map(*t, context, |(_, t)| {
@@ -104,7 +104,7 @@ impl Transpiler {
                 CTerm::Let { t: Box::new(transpiled_t), bound_index, body: Box::new(transpiled_body) }
             }
             UTerm::Defs { defs, body } => {
-                let def_names: Vec<String> = defs.keys().map(|s| s.to_string()).collect();
+                let def_names: Vec<String> = defs.iter().map(|(s, _)| s.to_string()).collect();
                 let mut def_map = context.def_map.clone();
                 let def_with_names: Vec<(Def, String, Vec<String>)> = defs.into_iter().map(|(name, def)| {
                     let mut free_vars = HashSet::new();
@@ -270,7 +270,7 @@ impl Transpiler {
             UTerm::Thunk { computation } => Self::get_free_vars(computation, bound_names, free_vars),
             UTerm::CaseInt { t, branches, default_branch, .. } => {
                 Self::get_free_vars(t, bound_names, free_vars);
-                branches.values().for_each(|v| Self::get_free_vars(v, bound_names, free_vars));
+                branches.iter().for_each(|(_, v)| Self::get_free_vars(v, bound_names, free_vars));
                 if let Some(default_branch) = default_branch {
                     Self::get_free_vars(default_branch, bound_names, free_vars);
                 }
@@ -292,8 +292,8 @@ impl Transpiler {
             }
             UTerm::Defs { defs, body } => {
                 let mut new_bound_names = bound_names.clone();
-                new_bound_names.extend(defs.keys().map(|s| s.as_str()));
-                defs.values().for_each(|def| {
+                new_bound_names.extend(defs.iter().map(|(s, _)| s.as_str()));
+                defs.iter().for_each(|(_, def)| {
                     let mut def_bound_names = new_bound_names.clone();
                     def_bound_names.extend(def.args.iter().map(|(s, _)| s.as_str()));
                     Self::get_free_vars(&def.body, &def_bound_names, free_vars)
@@ -372,12 +372,13 @@ mod tests {
         test_input_paths.sort();
         let all_results = test_input_paths.into_iter().map(|test_input_path| {
             let test_output_path = test_input_path.with_extension("").with_extension("output.txt");
-            check(test_input_path.to_str().unwrap(), test_output_path.to_str().unwrap())
-        }).filter(|r| r.is_err()).collect::<Vec<_>>();
+            let result = check(test_input_path.to_str().unwrap(), test_output_path.to_str().unwrap());
+            (test_input_path, result)
+        }).filter(|(_, r)| r.is_err()).collect::<Vec<_>>();
         if all_results.is_empty() {
             Ok(())
         } else {
-            Err(all_results.into_iter().map(|r| r.unwrap_err()).collect::<Vec<_>>().join("\n"))
+            Err(all_results.into_iter().map(|(test_input_path, r)| format!("[{}] {}", test_input_path.file_name().unwrap().to_str().unwrap(), r.unwrap_err())).collect::<Vec<_>>().join("\n"))
         }
     }
 }

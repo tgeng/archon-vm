@@ -61,5 +61,80 @@ pub static PRIMITIVE_FUNCTIONS: phf::Map<&'static str, &'static PrimitiveFunctio
             function_builder.ins().srem(args[0], args[1])
         }
     },
+    "_int_gt" => &PrimitiveFunction {
+        arg_types: &[Specialized(Integer), Specialized(Integer)],
+        return_type: Specialized(Integer),
+        code_gen: |function_builder, args| {
+            assert_eq!(args.len(), 2);
+            function_builder.ins().icmp(cranelift::prelude::IntCC::SignedGreaterThan, args[0], args[1])
+        }
+    },
+    "_int_lt" => &PrimitiveFunction {
+        arg_types: &[Specialized(Integer), Specialized(Integer)],
+        return_type: Specialized(Integer),
+        code_gen: |function_builder, args| {
+            assert_eq!(args.len(), 2);
+            function_builder.ins().icmp(cranelift::prelude::IntCC::SignedLessThan, args[0], args[1])
+        }
+    },
+    "_int_gte" => &PrimitiveFunction {
+        arg_types: &[Specialized(Integer), Specialized(Integer)],
+        return_type: Specialized(Integer),
+        code_gen: |function_builder, args| {
+            assert_eq!(args.len(), 2);
+            function_builder.ins().icmp(cranelift::prelude::IntCC::SignedGreaterThanOrEqual, args[0], args[1])
+        }
+    },
+    "_int_lte" => &PrimitiveFunction {
+        arg_types: &[Specialized(Integer), Specialized(Integer)],
+        return_type: Specialized(Integer),
+        code_gen: |function_builder, args| {
+            assert_eq!(args.len(), 2);
+            function_builder.ins().icmp(cranelift::prelude::IntCC::SignedLessThanOrEqual, args[0], args[1])
+        }
+    },
+    "_int_eq" => &PrimitiveFunction {
+        arg_types: &[Specialized(Integer), Specialized(Integer)],
+        return_type: Specialized(Integer),
+        code_gen: |function_builder, args| {
+            assert_eq!(args.len(), 2);
+            function_builder.ins().icmp(cranelift::prelude::IntCC::Equal, args[0], args[1])
+        }
+    },
+    "_int_ne" => &PrimitiveFunction {
+        arg_types: &[Specialized(Integer), Specialized(Integer)],
+        return_type: Specialized(Integer),
+        code_gen: |function_builder, args| {
+            assert_eq!(args.len(), 2);
+            function_builder.ins().icmp(cranelift::prelude::IntCC::NotEqual, args[0], args[1])
+        }
+    },
+    "_bool_not" => &PrimitiveFunction {
+        arg_types: &[Specialized(Integer)],
+        return_type: Specialized(Integer),
+        code_gen: |function_builder, args| {
+            assert_eq!(args.len(), 1);
+            let v = function_builder.ins().bnot(args[0]);
+            function_builder.ins().band_imm(v, 1)
+        }
+    },
+    "_bool_and" => &PrimitiveFunction {
+        arg_types: &[Specialized(Integer), Specialized(Integer)],
+        return_type: Specialized(Integer),
+        code_gen: |function_builder, args| {
+            assert_eq!(args.len(), 2);
+            let v = function_builder.ins().band(args[0], args[1]);
+            function_builder.ins().band_imm(v, 1)
+        }
+    },
+    "_bool_or" => &PrimitiveFunction {
+        arg_types: &[Specialized(Integer), Specialized(Integer)],
+        return_type: Specialized(Integer),
+        code_gen: |function_builder, args| {
+            assert_eq!(args.len(), 2);
+            let v = function_builder.ins().bor(args[0], args[1]);
+            function_builder.ins().band_imm(v, 1)
+        }
+    },
 };
 

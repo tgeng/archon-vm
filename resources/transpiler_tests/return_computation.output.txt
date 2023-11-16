@@ -5,31 +5,74 @@ Defs {
         (
             "f",
             Def {
-                args: [],
+                args: [
+                    (
+                        "x",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                    (
+                        "y",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                ],
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
                     },
                     args: [
-                        Int {
-                            value: 1,
+                        Identifier {
+                            name: "x",
+                        },
+                        Identifier {
+                            name: "y",
                         },
                     ],
                 },
-                c_type: Default,
+                c_type: SpecializedF(
+                    Specialized(
+                        Integer,
+                    ),
+                ),
             },
         ),
     ],
     body: Some(
-        Redex {
-            function: Identifier {
-                name: "f",
-            },
-            args: [
-                Int {
-                    value: 2,
-                },
+        Defs {
+            defs: [
+                (
+                    "g",
+                    Def {
+                        args: [],
+                        body: Redex {
+                            function: Identifier {
+                                name: "f",
+                            },
+                            args: [
+                                Int {
+                                    value: 1,
+                                },
+                            ],
+                        },
+                        c_type: Default,
+                    },
+                ),
             ],
+            body: Some(
+                Redex {
+                    function: Identifier {
+                        name: "g",
+                    },
+                    args: [
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+            ),
         },
     ),
 }
@@ -39,24 +82,6 @@ Defs
 [
     (
         "f",
-        FunctionDefinition {
-            args: [],
-            body: Redex {
-                function: Def {
-                    name: "f$__primitive_wrapper_0",
-                },
-                args: [
-                    Int {
-                        value: 1,
-                    },
-                ],
-            },
-            c_type: Default,
-            var_bound: 0,
-        },
-    ),
-    (
-        "f$__primitive_wrapper_0",
         FunctionDefinition {
             args: [
                 (
@@ -92,12 +117,30 @@ Defs
         },
     ),
     (
-        "main",
+        "g",
         FunctionDefinition {
             args: [],
             body: Redex {
                 function: Def {
                     name: "f",
+                },
+                args: [
+                    Int {
+                        value: 1,
+                    },
+                ],
+            },
+            c_type: Default,
+            var_bound: 0,
+        },
+    ),
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Redex {
+                function: Def {
+                    name: "g",
                 },
                 args: [
                     Int {
@@ -120,21 +163,6 @@ CLIR
 [f]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
-    sig0 = (i64) -> i64 tail
-    fn0 = colocated u0:4 sig0
-
-block0(v0: i64):
-    v1 = iconst.i64 1
-    v2 = ishl_imm v1, 1  ; v1 = 1
-    v3 = iadd_imm v0, -8
-    store aligned v2, v3
-    return_call fn0(v3)
-}
-
-
-[f$__primitive_wrapper_0]
-function u0:0(i64) -> i64 tail {
-    ss0 = explicit_slot 8
 
 block0(v0: i64):
     v1 = load.i64 v0
@@ -149,7 +177,7 @@ block0(v0: i64):
 }
 
 
-[f$__primitive_wrapper_0__specialized]
+[f__specialized]
 function u0:0(i64, i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
 
@@ -159,11 +187,26 @@ block0(v0: i64, v1: i64, v2: i64):
 }
 
 
-[main]
+[g]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 tail
     fn0 = colocated u0:3 sig0
+
+block0(v0: i64):
+    v1 = iconst.i64 1
+    v2 = ishl_imm v1, 1  ; v1 = 1
+    v3 = iadd_imm v0, -8
+    store aligned v2, v3
+    return_call fn0(v3)
+}
+
+
+[main]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 tail
+    fn0 = colocated u0:5 sig0
 
 block0(v0: i64):
     v1 = iconst.i64 2
@@ -178,7 +221,7 @@ block0(v0: i64):
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 tail
-    fn0 = colocated u0:3 sig0
+    fn0 = colocated u0:5 sig0
 
 block0(v0: i64):
     v1 = iconst.i64 2

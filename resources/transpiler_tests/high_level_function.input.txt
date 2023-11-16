@@ -1,0 +1,6 @@
+def add x:int y:int -> int => x + y
+def fold size:int array acc:int f i:int -> int =>
+  case i < size -> int
+    1 => fold size array (force f acc array@i) f (i + 1)
+    0 => acc
+fold 3 {1, 2, 3} 10 (thunk add) 0

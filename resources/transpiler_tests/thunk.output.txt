@@ -1,58 +1,61 @@
 UTerm
 ========
 Defs {
-    defs: {
-        "f": Def {
-            args: [
-                (
-                    "x",
-                    Specialized(
-                        Integer,
-                    ),
-                ),
-                (
-                    "y",
-                    Specialized(
-                        Integer,
-                    ),
-                ),
-                (
-                    "z",
-                    Specialized(
-                        Integer,
-                    ),
-                ),
-            ],
-            body: Redex {
-                function: Identifier {
-                    name: "_int_add",
-                },
+    defs: [
+        (
+            "f",
+            Def {
                 args: [
-                    Redex {
-                        function: Identifier {
-                            name: "_int_add",
-                        },
-                        args: [
-                            Identifier {
-                                name: "x",
-                            },
-                            Identifier {
-                                name: "y",
-                            },
-                        ],
-                    },
-                    Identifier {
-                        name: "z",
-                    },
+                    (
+                        "x",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                    (
+                        "y",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                    (
+                        "z",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
                 ],
-            },
-            c_type: SpecializedF(
-                Specialized(
-                    Integer,
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                    },
+                    args: [
+                        Redex {
+                            function: Identifier {
+                                name: "_int_add",
+                            },
+                            args: [
+                                Identifier {
+                                    name: "x",
+                                },
+                                Identifier {
+                                    name: "y",
+                                },
+                            ],
+                        },
+                        Identifier {
+                            name: "z",
+                        },
+                    ],
+                },
+                c_type: SpecializedF(
+                    Specialized(
+                        Integer,
+                    ),
                 ),
-            ),
-        },
-    },
+            },
+        ),
+    ],
     body: Some(
         Let {
             name: "a",

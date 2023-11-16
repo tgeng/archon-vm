@@ -1,20 +1,36 @@
 UTerm
 ========
 Defs {
-    defs: {
-        "f": Def {
-            args: [
-                (
-                    "x",
-                    Uniform,
-                ),
-            ],
-            body: Let {
-                name: "y",
-                t: Let {
-                    name: "x",
-                    t: Int {
-                        value: 1,
+    defs: [
+        (
+            "f",
+            Def {
+                args: [
+                    (
+                        "x",
+                        Uniform,
+                    ),
+                ],
+                body: Let {
+                    name: "y",
+                    t: Let {
+                        name: "x",
+                        t: Int {
+                            value: 1,
+                        },
+                        body: Redex {
+                            function: Identifier {
+                                name: "_int_add",
+                            },
+                            args: [
+                                Identifier {
+                                    name: "x",
+                                },
+                                Int {
+                                    value: 1,
+                                },
+                            ],
+                        },
                     },
                     body: Redex {
                         function: Identifier {
@@ -25,28 +41,15 @@ Defs {
                                 name: "x",
                             },
                             Int {
-                                value: 1,
+                                value: 2,
                             },
                         ],
                     },
                 },
-                body: Redex {
-                    function: Identifier {
-                        name: "_int_add",
-                    },
-                    args: [
-                        Identifier {
-                            name: "x",
-                        },
-                        Int {
-                            value: 2,
-                        },
-                    ],
-                },
+                c_type: Default,
             },
-            c_type: Default,
-        },
-    },
+        ),
+    ],
     body: Some(
         Redex {
             function: Identifier {

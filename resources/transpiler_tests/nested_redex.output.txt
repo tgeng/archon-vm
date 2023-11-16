@@ -6,30 +6,33 @@ Let {
         value: 1,
     },
     body: Defs {
-        defs: {
-            "f": Def {
-                args: [
-                    (
-                        "x",
-                        Uniform,
-                    ),
-                ],
-                body: Redex {
-                    function: Identifier {
-                        name: "_int_add",
-                    },
+        defs: [
+            (
+                "f",
+                Def {
                     args: [
-                        Identifier {
-                            name: "a",
-                        },
-                        Identifier {
-                            name: "x",
-                        },
+                        (
+                            "x",
+                            Uniform,
+                        ),
                     ],
+                    body: Redex {
+                        function: Identifier {
+                            name: "_int_add",
+                        },
+                        args: [
+                            Identifier {
+                                name: "a",
+                            },
+                            Identifier {
+                                name: "x",
+                            },
+                        ],
+                    },
+                    c_type: Default,
                 },
-                c_type: Default,
-            },
-        },
+            ),
+        ],
         body: Some(
             Redex {
                 function: Identifier {

@@ -494,6 +494,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 }
             }
             CTerm::CaseInt { t, result_type, branches, default_branch } => {
+                let branch_map: HashMap<_, _> = branches.iter().map(|(i, v)| (i, v)).collect();
                 let t_value = self.translate_v_term(t);
                 let t_value = self.convert_to_special(t_value, Integer);
 
@@ -524,7 +525,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
 
                 // Fill branch blocks
                 for (value, branch_block) in branch_blocks.into_iter() {
-                    let branch = branches.get(&value).unwrap();
+                    let branch = branch_map.get(&value).unwrap();
                     self.create_branch_block(branch_block, is_tail, next_block, result_v_type, Some(branch));
                 }
 

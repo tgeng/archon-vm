@@ -1,0 +1,655 @@
+UTerm
+========
+Defs {
+    defs: [
+        (
+            "add",
+            Def {
+                args: [
+                    (
+                        "x",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                    (
+                        "y",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                ],
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                    },
+                    args: [
+                        Identifier {
+                            name: "x",
+                        },
+                        Identifier {
+                            name: "y",
+                        },
+                    ],
+                },
+                c_type: SpecializedF(
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            },
+        ),
+    ],
+    body: Some(
+        Defs {
+            defs: [
+                (
+                    "fold",
+                    Def {
+                        args: [
+                            (
+                                "size",
+                                Specialized(
+                                    Integer,
+                                ),
+                            ),
+                            (
+                                "array",
+                                Uniform,
+                            ),
+                            (
+                                "acc",
+                                Specialized(
+                                    Integer,
+                                ),
+                            ),
+                            (
+                                "f",
+                                Uniform,
+                            ),
+                            (
+                                "i",
+                                Specialized(
+                                    Integer,
+                                ),
+                            ),
+                        ],
+                        body: CaseInt {
+                            t: Redex {
+                                function: Identifier {
+                                    name: "_int_lt",
+                                },
+                                args: [
+                                    Identifier {
+                                        name: "i",
+                                    },
+                                    Identifier {
+                                        name: "size",
+                                    },
+                                ],
+                            },
+                            result_type: SpecializedF(
+                                Specialized(
+                                    Integer,
+                                ),
+                            ),
+                            branches: [
+                                (
+                                    1,
+                                    Redex {
+                                        function: Identifier {
+                                            name: "fold",
+                                        },
+                                        args: [
+                                            Identifier {
+                                                name: "size",
+                                            },
+                                            Identifier {
+                                                name: "array",
+                                            },
+                                            Redex {
+                                                function: Force {
+                                                    thunk: Identifier {
+                                                        name: "f",
+                                                    },
+                                                },
+                                                args: [
+                                                    Identifier {
+                                                        name: "acc",
+                                                    },
+                                                    MemGet {
+                                                        base: Identifier {
+                                                            name: "array",
+                                                        },
+                                                        offset: Identifier {
+                                                            name: "i",
+                                                        },
+                                                    },
+                                                ],
+                                            },
+                                            Identifier {
+                                                name: "f",
+                                            },
+                                            Redex {
+                                                function: Identifier {
+                                                    name: "_int_add",
+                                                },
+                                                args: [
+                                                    Identifier {
+                                                        name: "i",
+                                                    },
+                                                    Int {
+                                                        value: 1,
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ),
+                                (
+                                    0,
+                                    Identifier {
+                                        name: "acc",
+                                    },
+                                ),
+                            ],
+                            default_branch: None,
+                        },
+                        c_type: SpecializedF(
+                            Specialized(
+                                Integer,
+                            ),
+                        ),
+                    },
+                ),
+            ],
+            body: Some(
+                Redex {
+                    function: Identifier {
+                        name: "fold",
+                    },
+                    args: [
+                        Int {
+                            value: 3,
+                        },
+                        Struct {
+                            values: [
+                                Int {
+                                    value: 1,
+                                },
+                                Int {
+                                    value: 2,
+                                },
+                                Int {
+                                    value: 3,
+                                },
+                            ],
+                        },
+                        Int {
+                            value: 10,
+                        },
+                        Thunk {
+                            computation: Identifier {
+                                name: "add",
+                            },
+                        },
+                        Int {
+                            value: 0,
+                        },
+                    ],
+                },
+            ),
+        },
+    ),
+}
+
+Defs
+========
+[
+    (
+        "add",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                (
+                    1,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            ],
+            body: PrimitiveCall {
+                name: "_int_add",
+                args: [
+                    Var {
+                        index: 0,
+                    },
+                    Var {
+                        index: 1,
+                    },
+                ],
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 2,
+        },
+    ),
+    (
+        "fold",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+                (
+                    2,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                (
+                    3,
+                    Uniform,
+                ),
+                (
+                    4,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            ],
+            body: Let {
+                t: PrimitiveCall {
+                    name: "_int_lt",
+                    args: [
+                        Var {
+                            index: 4,
+                        },
+                        Var {
+                            index: 0,
+                        },
+                    ],
+                },
+                bound_index: 5,
+                body: CaseInt {
+                    t: Var {
+                        index: 5,
+                    },
+                    result_type: SpecializedF(
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                    branches: [
+                        (
+                            1,
+                            Let {
+                                t: Let {
+                                    t: MemGet {
+                                        base: Var {
+                                            index: 1,
+                                        },
+                                        offset: Var {
+                                            index: 4,
+                                        },
+                                    },
+                                    bound_index: 6,
+                                    body: Redex {
+                                        function: Force {
+                                            thunk: Var {
+                                                index: 3,
+                                            },
+                                        },
+                                        args: [
+                                            Var {
+                                                index: 2,
+                                            },
+                                            Var {
+                                                index: 6,
+                                            },
+                                        ],
+                                    },
+                                },
+                                bound_index: 7,
+                                body: Let {
+                                    t: PrimitiveCall {
+                                        name: "_int_add",
+                                        args: [
+                                            Var {
+                                                index: 4,
+                                            },
+                                            Int {
+                                                value: 1,
+                                            },
+                                        ],
+                                    },
+                                    bound_index: 8,
+                                    body: SpecializedFunctionCall {
+                                        name: "fold",
+                                        args: [
+                                            Var {
+                                                index: 0,
+                                            },
+                                            Var {
+                                                index: 1,
+                                            },
+                                            Var {
+                                                index: 7,
+                                            },
+                                            Var {
+                                                index: 3,
+                                            },
+                                            Var {
+                                                index: 8,
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        ),
+                        (
+                            0,
+                            Return {
+                                value: Var {
+                                    index: 2,
+                                },
+                            },
+                        ),
+                    ],
+                    default_branch: None,
+                },
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 9,
+        },
+    ),
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: SpecializedFunctionCall {
+                name: "fold",
+                args: [
+                    Int {
+                        value: 3,
+                    },
+                    Struct {
+                        values: [
+                            Int {
+                                value: 1,
+                            },
+                            Int {
+                                value: 2,
+                            },
+                            Int {
+                                value: 3,
+                            },
+                        ],
+                    },
+                    Int {
+                        value: 10,
+                    },
+                    Thunk {
+                        t: Redex {
+                            function: Def {
+                                name: "add",
+                            },
+                            args: [],
+                        },
+                    },
+                    Int {
+                        value: 0,
+                    },
+                ],
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 0,
+        },
+    ),
+]
+
+CLIR
+========
+[add]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+
+block0(v0: i64):
+    v1 = load.i64 v0
+    v2 = load.i64 v0+8
+    v3 = sshr_imm v1, 1
+    v4 = sshr_imm v2, 1
+    v5 = iadd v3, v4
+    v6 = ishl_imm v5, 1
+    v7 = iadd_imm v0, 8
+    store v6, v7
+    return v7
+}
+
+
+[add__specialized]
+function u0:0(i64, i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+
+block0(v0: i64, v1: i64, v2: i64):
+    v3 = iadd v1, v2
+    return v3
+}
+
+
+[fold]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64) -> i64 apple_aarch64
+    sig1 = (i64) -> i64 tail
+    sig2 = (i64, i64, i64, i64, i64, i64) -> i64 tail
+    fn0 = u0:1 sig0
+    fn1 = colocated u0:6 sig2
+
+block0(v0: i64):
+    v1 = load.i64 v0
+    v2 = load.i64 v0+8
+    v3 = load.i64 v0+16
+    v4 = load.i64 v0+24
+    v5 = load.i64 v0+32
+    v6 = sshr_imm v5, 1
+    v7 = sshr_imm v1, 1
+    v8 = icmp slt v6, v7
+    v10 = uextend.i32 v8
+    br_table v10, block4, [block3, block2]
+
+block3:
+    v11 = sshr_imm.i64 v3, 1
+    jump block1(v11)
+
+block2:
+    v12 = iadd_imm.i64 v2, -1
+    v13 = sshr_imm.i64 v5, 1
+    v14 = ishl_imm v13, 3
+    v15 = iadd v12, v14
+    v16 = load.i64 v15
+    v17 = iadd_imm.i64 v0, -8
+    store aligned v16, v17
+    v18 = iadd_imm v17, -8
+    store.i64 aligned v3, v18
+    stack_store v18, ss0
+    v19 = stack_addr.i64 ss0
+    v20 = call fn0(v4, v19)
+    v21 = stack_load.i64 ss0
+    v22 = call_indirect sig1, v20(v21)
+    v23 = load.i64 v22
+    v24 = iadd_imm v21, 8
+    v25 = iconst.i64 1
+    v26 = sshr_imm.i64 v5, 1
+    v27 = iadd v26, v25  ; v25 = 1
+    v28 = sshr_imm.i64 v1, 1
+    v29 = sshr_imm v23, 1
+    v30 = call fn1(v24, v28, v2, v29, v4, v27)
+    jump block1(v30)
+
+block4:
+    trap unreachable
+
+block1(v9: i64):
+    v31 = ishl_imm v9, 1
+    v32 = iadd_imm.i64 v0, 32
+    store v31, v32
+    return v32
+}
+
+
+[fold__specialized]
+function u0:0(i64, i64, i64, i64, i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64) -> i64 apple_aarch64
+    sig1 = (i64) -> i64 tail
+    sig2 = (i64, i64, i64, i64, i64, i64) -> i64 tail
+    fn0 = u0:1 sig0
+    fn1 = colocated u0:6 sig2
+
+block0(v0: i64, v1: i64, v2: i64, v3: i64, v4: i64, v5: i64):
+    v6 = icmp slt v5, v1
+    v8 = uextend.i32 v6
+    br_table v8, block4, [block3, block2]
+
+block2:
+    v9 = iadd_imm.i64 v2, -1
+    v10 = ishl_imm.i64 v5, 3
+    v11 = iadd v9, v10
+    v12 = load.i64 v11
+    v13 = ishl_imm.i64 v3, 1
+    v14 = iadd_imm.i64 v0, -8
+    store aligned v12, v14
+    v15 = iadd_imm v14, -8
+    store aligned v13, v15
+    stack_store v15, ss0
+    v16 = stack_addr.i64 ss0
+    v17 = call fn0(v4, v16)
+    v18 = stack_load.i64 ss0
+    v19 = call_indirect sig1, v17(v18)
+    v20 = load.i64 v19
+    v21 = iadd_imm v18, 8
+    v22 = iconst.i64 1
+    v23 = iadd.i64 v5, v22  ; v22 = 1
+    v24 = sshr_imm v20, 1
+    return_call fn1(v21, v1, v2, v24, v4, v23)
+
+block3:
+    jump block1(v3)
+
+block4:
+    trap unreachable
+
+block1(v7: i64):
+    return v7
+}
+
+
+[main]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64) -> i64 tail
+    sig2 = (i64, i64, i64, i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+    fn1 = colocated u0:3 sig1
+    fn2 = colocated u0:6 sig2
+
+block0(v0: i64):
+    v1 = iconst.i64 3
+    v2 = iconst.i64 1
+    v3 = ishl_imm v2, 1  ; v2 = 1
+    v4 = iconst.i64 2
+    v5 = ishl_imm v4, 1  ; v4 = 2
+    v6 = iconst.i64 3
+    v7 = ishl_imm v6, 1  ; v6 = 3
+    v8 = iconst.i64 24
+    v9 = call fn0(v8)  ; v8 = 24
+    store aligned v3, v9
+    store aligned v5, v9+8
+    store aligned v7, v9+16
+    v10 = iadd_imm v9, 1
+    v11 = iconst.i64 10
+    v12 = func_addr.i64 fn1
+    v13 = iadd_imm v12, 3
+    v14 = iconst.i64 0
+    v15 = call fn2(v0, v1, v10, v11, v13, v14)  ; v1 = 3, v11 = 10, v14 = 0
+    v16 = ishl_imm v15, 1
+    v17 = iadd_imm v0, -8
+    store v16, v17
+    return v17
+}
+
+
+[main__specialized]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64) -> i64 tail
+    sig2 = (i64, i64, i64, i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+    fn1 = colocated u0:3 sig1
+    fn2 = colocated u0:6 sig2
+
+block0(v0: i64):
+    v1 = iconst.i64 3
+    v2 = iconst.i64 1
+    v3 = ishl_imm v2, 1  ; v2 = 1
+    v4 = iconst.i64 2
+    v5 = ishl_imm v4, 1  ; v4 = 2
+    v6 = iconst.i64 3
+    v7 = ishl_imm v6, 1  ; v6 = 3
+    v8 = iconst.i64 24
+    v9 = call fn0(v8)  ; v8 = 24
+    store aligned v3, v9
+    store aligned v5, v9+8
+    store aligned v7, v9+16
+    v10 = iadd_imm v9, 1
+    v11 = iconst.i64 10
+    v12 = func_addr.i64 fn1
+    v13 = iadd_imm v12, 3
+    v14 = iconst.i64 0
+    return_call fn2(v0, v1, v10, v11, v13, v14)  ; v1 = 3, v11 = 10, v14 = 0
+}
+
+
+[__main__]
+function u0:0() -> i64 fast {
+    sig0 = () -> i64 apple_aarch64
+    sig1 = (i64) -> i64 tail
+    fn0 = u0:2 sig0
+    fn1 = colocated u0:8 sig1
+
+block0:
+    v0 = call fn0()
+    v1 = call fn1(v0)
+    return v1
+}
+
+
+Result
+========
+16
