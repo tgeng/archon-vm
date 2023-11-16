@@ -482,7 +482,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 self.local_vars[*bound_index] = t_value;
                 self.translate_c_term(body, is_tail)
             }
-            CTerm::Def { name } => {
+            CTerm::Def { name, has_handler_effects: effectful } => {
                 let func_ref = self.get_local_function(name);
                 if is_tail && !self.is_specialized {
                     let base_address = self.copy_tail_call_args_and_get_new_base();
@@ -569,7 +569,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 let return_value = (primitive_function.code_gen)(&mut self.function_builder, &arg_values);
                 Some((return_value, primitive_function.return_type))
             }
-            CTerm::SpecializedFunctionCall { name, args } => {
+            CTerm::SpecializedFunctionCall { name, args, has_handler_effects: effectful } => {
                 let (arg_types, CType::SpecializedF(return_type)) = self.local_function_arg_types.get(name).unwrap() else { unreachable!("{} is not specialized", name) };
                 let tip_address = self.tip_address;
                 let all_args = iter::once(tip_address)
@@ -591,6 +591,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     Some((self.function_builder.inst_results(inst)[0], *return_type))
                 }
             }
+            CTerm::OperationCall { .. } => todo!(),
+            CTerm::Handler { .. } => todo!(),
         }
     }
 
@@ -637,8 +639,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             VTerm::Thunk { box t } => {
                 let empty_args = &vec![];
                 let (name, args) = match t {
-                    CTerm::Redex { function: box CTerm::Def { name }, args } => (name, args),
-                    CTerm::Def { name } => (name, empty_args),
+                    CTerm::Redex { function: box CTerm::Def { name, has_handler_effects: effectful }, args } => (name, args),
+                    CTerm::Def { name, has_handler_effects: effectful } => (name, empty_args),
                     _ => unreachable!("thunk lifting should have guaranteed this")
                 };
                 let func_ref = self.get_local_function(name);

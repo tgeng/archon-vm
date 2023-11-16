@@ -41,6 +41,8 @@ pub trait Visitor {
             CTerm::MemSet { .. } => self.visit_mem_set(c_term),
             CTerm::PrimitiveCall { .. } => self.visit_primitive_call(c_term),
             CTerm::SpecializedFunctionCall { .. } => self.visit_specialized_function_call(c_term),
+            CTerm::OperationCall { .. } => self.visit_operation_call(c_term),
+            CTerm::Handler { .. } => self.visit_handler(c_term),
         }
     }
 
@@ -102,5 +104,61 @@ pub trait Visitor {
     fn visit_specialized_function_call(&mut self, c_term: &CTerm) {
         let CTerm::SpecializedFunctionCall { args, .. } = c_term else { unreachable!() };
         args.iter().for_each(|arg| self.visit_v_term(arg));
+    }
+
+    fn visit_operation_call(&mut self, c_term: &CTerm) {
+        let CTerm::OperationCall { eff, args } = c_term else { unreachable!() };
+        eff.args.iter().for_each(|arg| self.visit_v_term(arg));
+        args.iter().for_each(|arg| self.visit_v_term(arg));
+    }
+
+    fn visit_handler(&mut self, c_term: &CTerm) {
+        let CTerm::Handler {
+            parameter,
+            box parameter_disposer,
+            box parameter_replicator,
+            box transform,
+            complex_handlers,
+            simple_handlers,
+            box input
+        } = c_term else { unreachable!() };
+        self.visit_v_term(parameter);
+
+        let (parameter_disposer_bound_index, parameter_disposer) = parameter_disposer;
+        self.add_binding(*parameter_disposer_bound_index);
+        self.visit_c_term(parameter_disposer);
+        self.remove_binding(*parameter_disposer_bound_index);
+
+        let (parameter_replicator_bound_index, parameter_replicator) = parameter_replicator;
+        self.add_binding(*parameter_replicator_bound_index);
+        self.visit_c_term(parameter_replicator);
+        self.remove_binding(*parameter_replicator_bound_index);
+
+        let (transform_parameter_bound_index, transform_input_bound_index, transform) = transform;
+        self.add_binding(*transform_parameter_bound_index);
+        self.add_binding(*transform_input_bound_index);
+        self.visit_c_term(transform);
+        self.remove_binding(*transform_input_bound_index);
+        self.remove_binding(*transform_parameter_bound_index);
+
+        for (eff, parameter_bound_index, args_bound_index, continuation_bound_index, handler) in complex_handlers.iter() {
+            eff.args.iter().for_each(|arg| self.visit_v_term(arg));
+            self.add_binding(*parameter_bound_index);
+            args_bound_index.iter().for_each(|arg| self.add_binding(*arg));
+            self.add_binding(*continuation_bound_index);
+            self.visit_c_term(handler);
+            self.remove_binding(*continuation_bound_index);
+            args_bound_index.iter().for_each(|arg| self.remove_binding(*arg));
+            self.remove_binding(*parameter_bound_index);
+        }
+        for (eff, parameter_bound_index, args_bound_index, handler) in simple_handlers.iter() {
+            eff.args.iter().for_each(|arg| self.visit_v_term(arg));
+            self.add_binding(*parameter_bound_index);
+            args_bound_index.iter().for_each(|arg| self.add_binding(*arg));
+            self.visit_c_term(handler);
+            args_bound_index.iter().for_each(|arg| self.remove_binding(*arg));
+            self.remove_binding(*parameter_bound_index);
+        }
+        self.visit_c_term(input);
     }
 }

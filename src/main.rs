@@ -3,17 +3,17 @@
 #![allow(dead_code)]
 #![feature(let_chains)]
 
-mod term;
-mod signature;
-mod visitor;
-mod u_term;
-mod transpiler;
-mod parser;
-mod test_utils;
-mod free_var;
 mod compiler;
-mod transformer;
+mod free_var;
+// mod parser;
 mod primitive_functions;
+mod signature;
+mod term;
+mod test_utils;
+mod transformer;
+// mod transpiler;
+// mod u_term;
+mod visitor;
 
 fn main() {
     println!("Hello, world!");
