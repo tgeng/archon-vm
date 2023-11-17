@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use either::{Either, Left, Right};
-use crate::signature::{FunctionDefinition, Signature};
-use crate::term::{CTerm, CType, SpecializedType, VTerm, VType};
-use crate::u_term::{Def, UTerm};
-use crate::primitive_functions::PRIMITIVE_FUNCTIONS;
+use crate::ast::signature::{FunctionDefinition, Signature};
+use crate::ast::term::{CTerm, CType, SpecializedType, VTerm, VType};
+use crate::frontend::u_term::{Def, UTerm};
+use crate::ast::primitive_functions::PRIMITIVE_FUNCTIONS;
 
 pub struct Transpiler {
     signature: Signature,

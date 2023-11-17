@@ -7,10 +7,10 @@ use nom::error::{context, ErrorKind, ParseError};
 use nom::Parser;
 use nom::multi::{many0, many1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
-use crate::u_term::{Def, UTerm};
+use crate::frontend::u_term::{Def, UTerm};
 use nom_locate::{LocatedSpan};
-use crate::parser::Fixity::{*};
-use crate::term::{CType, SpecializedType, PType, VType};
+use crate::frontend::parser::Fixity::{*};
+use crate::ast::term::{CType, SpecializedType, PType, VType};
 
 type Span<'a> = LocatedSpan<&'a str>;
 
@@ -731,7 +731,7 @@ pub fn parse_u_term(input: &str) -> Result<UTerm, String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::{parse_u_term, tokenize};
+    use crate::frontend::parser::{parse_u_term, tokenize};
     use crate::test_utils::debug_print;
 
     #[test]

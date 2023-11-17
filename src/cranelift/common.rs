@@ -3,7 +3,7 @@ use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder};
 use cranelift_module::{FuncId, Linkage, Module};
-use crate::term::{VType, SpecializedType, PType};
+use crate::ast::term::{VType, SpecializedType, PType};
 use strum_macros::EnumIter;
 use enum_map::{Enum};
 use VType::{Specialized, Uniform};

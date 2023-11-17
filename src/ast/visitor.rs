@@ -1,4 +1,4 @@
-use crate::term::{CTerm, VTerm};
+use crate::ast::term::{CTerm, VTerm};
 
 pub trait Visitor {
     fn add_binding(&mut self, _name: usize) {}

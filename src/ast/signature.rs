@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap};
-use crate::free_var::HasFreeVar;
-use crate::primitive_functions::{PRIMITIVE_FUNCTIONS, PrimitiveFunction};
-use crate::term::{CTerm, CType, VTerm, VType};
-use crate::transformer::Transformer;
+use crate::ast::free_var::HasFreeVar;
+use crate::ast::primitive_functions::{PRIMITIVE_FUNCTIONS, PrimitiveFunction};
+use crate::ast::term::{CTerm, CType, VTerm, VType};
+use crate::ast::transformer::Transformer;
 
 #[derive(Debug, Clone)]
 pub struct FunctionDefinition {

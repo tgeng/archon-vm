@@ -5,13 +5,13 @@ use cranelift::prelude::types::{I64};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
 use cranelift_object::ObjectModule;
-use crate::signature::FunctionDefinition;
-use crate::term::{VType, CType};
+use crate::ast::signature::FunctionDefinition;
+use crate::ast::term::{VType, CType};
 use strum::IntoEnumIterator;
 use enum_map::{EnumMap};
 use VType::{Uniform};
-use crate::clir::common::{BuiltinFunction, HasType};
-use crate::clir::function_translator::FunctionTranslator;
+use crate::cranelift::common::{BuiltinFunction, HasType};
+use crate::cranelift::function_translator::FunctionTranslator;
 
 /// The basic JIT class.
 pub struct Compiler<M: Module> {
@@ -34,7 +34,7 @@ pub struct Compiler<M: Module> {
     uniform_func_signature: Signature,
 }
 
-const MAIN_WRAPPER_NAME: &'static str = "__main__";
+const MAIN_WRAPPER_NAME: &str = "__main__";
 
 impl Default for Compiler<JITModule> {
     fn default() -> Self {

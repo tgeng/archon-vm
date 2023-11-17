@@ -1,4 +1,4 @@
-use crate::term::{CType, VType};
+use crate::ast::term::{CType, VType};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UTerm {

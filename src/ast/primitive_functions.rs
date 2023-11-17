@@ -1,7 +1,7 @@
 use cranelift::prelude::{FunctionBuilder, InstBuilder, Value};
 use phf::phf_map;
-use crate::term::VType;
-use crate::term::SpecializedType;
+use crate::ast::term::SpecializedType;
+use crate::ast::term::VType;
 use SpecializedType::*;
 use VType::*;
 

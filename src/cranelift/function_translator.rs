@@ -5,12 +5,12 @@ use cranelift::frontend::Switch;
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, I32, I64};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
-use crate::term::{CTerm, VTerm, VType, SpecializedType, PType, CType};
+use crate::ast::term::{CTerm, VTerm, VType, SpecializedType, PType, CType};
 use enum_map::{EnumMap};
 use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
-use crate::clir::common::{BuiltinFunction, HasType, TypedReturnValue};
-use crate::primitive_functions::PRIMITIVE_FUNCTIONS;
+use crate::cranelift::common::{BuiltinFunction, HasType, TypedReturnValue};
+use crate::ast::primitive_functions::PRIMITIVE_FUNCTIONS;
 
 pub struct FunctionTranslator<'a, M: Module> {
     pub module: &'a mut M,

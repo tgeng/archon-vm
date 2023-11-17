@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
-use crate::term::{CTerm, VTerm};
-use crate::visitor::Visitor;
+use crate::ast::term::{CTerm, VTerm};
+use crate::ast::visitor::Visitor;
 
 pub trait HasFreeVar {
     fn free_vars(&mut self) -> HashSet<usize>;
