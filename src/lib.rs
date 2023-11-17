@@ -5,5 +5,5 @@
 
 // mod frontend;
 mod ast;
-mod cranelift;
+mod backend;
 mod test_utils;

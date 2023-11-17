@@ -9,7 +9,7 @@ use crate::ast::term::{CTerm, VTerm, VType, SpecializedType, PType, CType};
 use enum_map::{EnumMap};
 use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
-use crate::cranelift::common::{BuiltinFunction, HasType, TypedReturnValue};
+use crate::backend::common::{BuiltinFunction, HasType, TypedReturnValue};
 use crate::ast::primitive_functions::PRIMITIVE_FUNCTIONS;
 
 pub struct FunctionTranslator<'a, M: Module> {

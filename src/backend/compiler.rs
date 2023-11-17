@@ -10,8 +10,8 @@ use crate::ast::term::{VType, CType};
 use strum::IntoEnumIterator;
 use enum_map::{EnumMap};
 use VType::{Uniform};
-use crate::cranelift::common::{BuiltinFunction, HasType};
-use crate::cranelift::function_translator::FunctionTranslator;
+use crate::backend::common::{BuiltinFunction, HasType};
+use crate::backend::function_translator::FunctionTranslator;
 
 /// The basic JIT class.
 pub struct Compiler<M: Module> {
