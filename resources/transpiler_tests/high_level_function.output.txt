@@ -1,4 +1,4 @@
-UTerm
+FTerm
 ========
 Defs {
     defs: [
@@ -240,6 +240,8 @@ Defs
                 ),
             ),
             var_bound: 2,
+            may_be_pure: true,
+            may_have_handler_effects: false,
         },
     ),
     (
@@ -314,6 +316,7 @@ Defs
                                             thunk: Var {
                                                 index: 3,
                                             },
+                                            may_have_handler_effects: false,
                                         },
                                         args: [
                                             Var {
@@ -358,6 +361,7 @@ Defs
                                                 index: 8,
                                             },
                                         ],
+                                        may_have_handler_effects: false,
                                     },
                                 },
                             },
@@ -380,6 +384,8 @@ Defs
                 ),
             ),
             var_bound: 9,
+            may_be_pure: true,
+            may_have_handler_effects: false,
         },
     ),
     (
@@ -412,6 +418,7 @@ Defs
                         t: Redex {
                             function: Def {
                                 name: "add",
+                                may_have_handler_effects: false,
                             },
                             args: [],
                         },
@@ -420,6 +427,7 @@ Defs
                         value: 0,
                     },
                 ],
+                may_have_handler_effects: false,
             },
             c_type: SpecializedF(
                 Specialized(
@@ -427,6 +435,8 @@ Defs
                 ),
             ),
             var_bound: 0,
+            may_be_pure: true,
+            may_have_handler_effects: false,
         },
     ),
 ]

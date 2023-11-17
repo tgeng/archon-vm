@@ -257,7 +257,7 @@ impl<M: Module> Compiler<M> {
         match return_value_or_param {
             Some(_) => {
                 let value = translator.convert_to_uniform(return_value_or_param);
-                let return_address_offset = ((function_definition.args.len() as i64 - 1) * 8);
+                let return_address_offset = (function_definition.args.len() as i64 - 1) * 8;
                 let return_address = translator.function_builder.ins().iadd_imm(translator.base_address, return_address_offset);
                 translator.function_builder.ins().store(MemFlags::new(), value, return_address, 0);
                 translator.function_builder.ins().return_(&[return_address]);

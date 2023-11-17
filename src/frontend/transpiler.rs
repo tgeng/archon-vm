@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use either::{Either, Left, Right};
 use crate::ast::signature::{FunctionDefinition, Signature};
 use crate::ast::term::{CTerm, CType, SpecializedType, VTerm, VType};
-use crate::frontend::u_term::{Def, UTerm};
+use crate::frontend::f_term::{Def, FTerm};
 use crate::ast::primitive_functions::PRIMITIVE_FUNCTIONS;
 
 pub struct Transpiler {
@@ -21,8 +21,8 @@ impl Transpiler {
     fn into_signature(self) -> Signature {
         self.signature
     }
-    fn transpile(&mut self, u_term: UTerm) {
-        let main = self.transpile_impl(u_term, &Context {
+    fn transpile(&mut self, f_term: FTerm) {
+        let main = self.transpile_impl(f_term, &Context {
             enclosing_def_name: "",
             def_map: &HashMap::new(),
             var_map: &HashMap::new(),
@@ -32,40 +32,42 @@ impl Transpiler {
             body: main,
             c_type: CType::SpecializedF(VType::Specialized(SpecializedType::Integer)),
             var_bound: 0,
+            may_be_pure: true,
+            may_have_handler_effects: false,
         });
     }
 
-    fn transpile_impl(&mut self, u_term: UTerm, context: &Context) -> CTerm {
-        match u_term {
-            UTerm::Identifier { name } => match self.transpile_identifier(&name, context) {
+    fn transpile_impl(&mut self, f_term: FTerm, context: &Context) -> CTerm {
+        match f_term {
+            FTerm::Identifier { name } => match self.transpile_identifier(&name, context) {
                 Left(c) => c,
                 Right(v) => CTerm::Return { value: v },
             },
-            UTerm::Int { value } => CTerm::Return { value: VTerm::Int { value } },
-            UTerm::Str { value } => CTerm::Return { value: VTerm::Str { value } },
-            UTerm::Struct { values } => {
+            FTerm::Int { value } => CTerm::Return { value: VTerm::Int { value } },
+            FTerm::Str { value } => CTerm::Return { value: VTerm::Str { value } },
+            FTerm::Struct { values } => {
                 let (transpiled_values, transpiled_computations) = self.transpile_values(values, context);
                 Self::squash_computations(CTerm::Return { value: VTerm::Struct { values: transpiled_values } }, transpiled_computations)
             }
-            UTerm::Lambda { arg_names, body } => {
+            FTerm::Lambda { arg_names, body } => {
                 let lambda_name = self.new_lambda_name(context.enclosing_def_name);
-                self.transpile_impl(UTerm::Defs {
+                self.transpile_impl(FTerm::Defs {
                     defs: vec![(lambda_name.to_string(), Def {
                         args: arg_names.clone(),
                         body: body.clone(),
                         c_type: CType::Default,
                     })],
-                    body: Some(Box::new(UTerm::Identifier { name: lambda_name })),
+                    body: Some(Box::new(FTerm::Identifier { name: lambda_name })),
                 }, context)
             }
-            UTerm::Redex { function, args } => {
+            FTerm::Redex { function, args } => {
                 let (transpiled_args, transpiled_computations) = self.transpile_values(args, context);
                 let body = CTerm::Redex { function: Box::new(self.transpile_impl(*function, context)), args: transpiled_args };
                 Self::squash_computations(body, transpiled_computations)
             }
-            UTerm::Force { thunk } => self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t }),
-            UTerm::Thunk { computation } => CTerm::Return { value: VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)) } },
-            UTerm::CaseInt { t, result_type, branches, default_branch } => {
+            FTerm::Force { thunk } => self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t, may_have_handler_effects: false }),
+            FTerm::Thunk { computation } => CTerm::Return { value: VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)) } },
+            FTerm::CaseInt { t, result_type, branches, default_branch } => {
                 let mut transpiled_branches = Vec::new();
                 for (value, branch) in branches {
                     transpiled_branches.push((value, self.transpile_impl(branch, context)));
@@ -75,14 +77,14 @@ impl Transpiler {
                     CTerm::CaseInt { t, result_type, branches: transpiled_branches, default_branch: transpiled_default_branch }
                 })
             }
-            UTerm::MemGet { box base, box offset } => {
+            FTerm::MemGet { box base, box offset } => {
                 self.transpile_value_and_map(base, context, |(s, base)| {
                     s.transpile_value_and_map(offset, context, |(_, offset)| {
                         CTerm::MemGet { base, offset }
                     })
                 })
             }
-            UTerm::MemSet { box base, box offset, box value } => {
+            FTerm::MemSet { box base, box offset, box value } => {
                 self.transpile_value_and_map(base, context, |(s, base)| {
                     s.transpile_value_and_map(offset, context, |(s, offset)| {
                         s.transpile_value_and_map(value, context, |(_, value)| {
@@ -91,7 +93,7 @@ impl Transpiler {
                     })
                 })
             }
-            UTerm::Let { name, t, body } => {
+            FTerm::Let { name, t, body } => {
                 let transpiled_t = self.transpile_impl(*t, context);
                 let mut var_map = context.var_map.clone();
                 let bound_index = self.new_local_index();
@@ -103,7 +105,7 @@ impl Transpiler {
                 });
                 CTerm::Let { t: Box::new(transpiled_t), bound_index, body: Box::new(transpiled_body) }
             }
-            UTerm::Defs { defs, body } => {
+            FTerm::Defs { defs, body } => {
                 let def_names: Vec<String> = defs.iter().map(|(s, _)| s.to_string()).collect();
                 let mut def_map = context.def_map.clone();
                 let def_with_names: Vec<(Def, String, Vec<String>)> = defs.into_iter().map(|(name, def)| {
@@ -128,7 +130,7 @@ impl Transpiler {
                     let mut free_var_vec: Vec<String> = free_vars.into_iter().map(|s| s.to_owned()).collect();
                     free_var_vec.sort();
                     let term = CTerm::Redex {
-                        function: Box::new(CTerm::Def { name: def_name.clone() }),
+                        function: Box::new(CTerm::Def { name: def_name.clone(), may_have_handler_effects: false }),
                         args: free_var_vec.iter().map(|name| VTerm::Var { index: *context.var_map.get(name).unwrap() }).collect(),
                     };
                     def_map.insert(name, term);
@@ -148,7 +150,7 @@ impl Transpiler {
                     });
                     let mut free_var_strings: Vec<String> = free_vars.iter().map(|s| s.to_string()).collect();
                     free_var_strings.extend(def.args.into_iter().map(|(v, _)| v));
-                    self.signature.defs.insert(name.clone(), FunctionDefinition { args: bound_indexes, body: def_body, c_type: def.c_type, var_bound: self.local_counter });
+                    self.signature.defs.insert(name.clone(), FunctionDefinition { args: bound_indexes, body: def_body, c_type: def.c_type, var_bound: self.local_counter, may_be_pure: true, may_have_handler_effects: false });
                 });
                 match body {
                     None => CTerm::Return { value: VTerm::Struct { values: Vec::new() } },
@@ -162,46 +164,46 @@ impl Transpiler {
         }
     }
 
-    fn transpile_value(&mut self, u_term: UTerm, context: &Context) -> (VTerm, Option<(usize, CTerm)>) {
-        match u_term {
-            UTerm::Identifier { name } => match self.transpile_identifier(&name, context) {
+    fn transpile_value(&mut self, f_term: FTerm, context: &Context) -> (VTerm, Option<(usize, CTerm)>) {
+        match f_term {
+            FTerm::Identifier { name } => match self.transpile_identifier(&name, context) {
                 Left(c_term) => self.new_computation(c_term),
                 Right(v_term) => (v_term, None),
             }
-            UTerm::Int { value } => (VTerm::Int { value }, None),
-            UTerm::Str { value } => (VTerm::Str { value }, None),
-            UTerm::Struct { .. } => {
-                match self.transpile_impl(u_term, context) {
+            FTerm::Int { value } => (VTerm::Int { value }, None),
+            FTerm::Str { value } => (VTerm::Str { value }, None),
+            FTerm::Struct { .. } => {
+                match self.transpile_impl(f_term, context) {
                     CTerm::Return { value } => (value, None),
                     c_term => self.new_computation(c_term),
                 }
             }
-            UTerm::Lambda { .. } => {
-                let c_term = self.transpile_impl(u_term, context);
+            FTerm::Lambda { .. } => {
+                let c_term = self.transpile_impl(f_term, context);
                 (VTerm::Thunk { t: Box::new(c_term) }, None)
             }
-            UTerm::Thunk { computation } => {
+            FTerm::Thunk { computation } => {
                 (VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)) }, None)
             }
-            UTerm::CaseInt { .. } |
-            UTerm::MemGet { .. } |
-            UTerm::MemSet { .. } |
-            UTerm::Redex { .. } |
-            UTerm::Force { .. } |
-            UTerm::Let { .. } |
-            UTerm::Defs { .. } => {
-                let c_term = self.transpile_impl(u_term, context);
+            FTerm::CaseInt { .. } |
+            FTerm::MemGet { .. } |
+            FTerm::MemSet { .. } |
+            FTerm::Redex { .. } |
+            FTerm::Force { .. } |
+            FTerm::Let { .. } |
+            FTerm::Defs { .. } => {
+                let c_term = self.transpile_impl(f_term, context);
                 self.new_computation(c_term)
             }
         }
     }
 
-    fn transpile_values(&mut self, u_terms: Vec<UTerm>, context: &Context) -> (Vec<VTerm>, Vec<Option<(usize, CTerm)>>) {
-        u_terms.into_iter().map(|v| self.transpile_value(v, context)).unzip()
+    fn transpile_values(&mut self, f_terms: Vec<FTerm>, context: &Context) -> (Vec<VTerm>, Vec<Option<(usize, CTerm)>>) {
+        f_terms.into_iter().map(|v| self.transpile_value(v, context)).unzip()
     }
 
-    fn transpile_value_and_map<F>(&mut self, u_term: UTerm, context: &Context, f: F) -> CTerm where F: FnOnce((&mut Self, VTerm)) -> CTerm {
-        let (v_term, computation) = self.transpile_value(u_term, context);
+    fn transpile_value_and_map<F>(&mut self, f_term: FTerm, context: &Context, f: F) -> CTerm where F: FnOnce((&mut Self, VTerm)) -> CTerm {
+        let (v_term, computation) = self.transpile_value(f_term, context);
         if let Some((name, computation)) = computation {
             CTerm::Let { t: Box::new(computation), bound_index: name, body: Box::new(f((self, v_term))) }
         } else {
@@ -230,7 +232,7 @@ impl Transpiler {
         } else if let Some(term) = context.def_map.get(name) {
             Left(term.clone())
         } else if let Some(name) = PRIMITIVE_FUNCTIONS.get_key(name) {
-            Left(CTerm::Def { name: (*name).to_owned() })
+            Left(CTerm::Def { name: (*name).to_owned(), may_have_handler_effects: false })
         } else {
             // properly returning a Result is better but very annoying since that requires transposing out of various collection
             panic!("Unknown identifier: {}", name)
@@ -249,48 +251,48 @@ impl Transpiler {
         new_local_index
     }
 
-    fn get_free_vars<'a>(u_term: &'a UTerm, bound_names: &HashSet<&'a str>, free_vars: &mut HashSet<&'a str>) {
-        match u_term {
-            UTerm::Identifier { name } => if !bound_names.contains(name.as_str()) && !PRIMITIVE_FUNCTIONS.contains_key(name.as_str()) {
+    fn get_free_vars<'a>(f_term: &'a FTerm, bound_names: &HashSet<&'a str>, free_vars: &mut HashSet<&'a str>) {
+        match f_term {
+            FTerm::Identifier { name } => if !bound_names.contains(name.as_str()) && !PRIMITIVE_FUNCTIONS.contains_key(name.as_str()) {
                 free_vars.insert(name.as_str());
             }
-            UTerm::Int { .. } => {}
-            UTerm::Str { .. } => {}
-            UTerm::Struct { values } => values.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars)),
-            UTerm::Lambda { arg_names, body } => {
+            FTerm::Int { .. } => {}
+            FTerm::Str { .. } => {}
+            FTerm::Struct { values } => values.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars)),
+            FTerm::Lambda { arg_names, body } => {
                 let mut new_bound_names = bound_names.clone();
                 new_bound_names.extend(arg_names.iter().map(|(s, _)| s.as_str()));
                 Self::get_free_vars(body, &new_bound_names, free_vars);
             }
-            UTerm::Redex { function, args } => {
+            FTerm::Redex { function, args } => {
                 Self::get_free_vars(function, bound_names, free_vars);
                 args.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars));
             }
-            UTerm::Force { thunk } => Self::get_free_vars(thunk, bound_names, free_vars),
-            UTerm::Thunk { computation } => Self::get_free_vars(computation, bound_names, free_vars),
-            UTerm::CaseInt { t, branches, default_branch, .. } => {
+            FTerm::Force { thunk } => Self::get_free_vars(thunk, bound_names, free_vars),
+            FTerm::Thunk { computation } => Self::get_free_vars(computation, bound_names, free_vars),
+            FTerm::CaseInt { t, branches, default_branch, .. } => {
                 Self::get_free_vars(t, bound_names, free_vars);
                 branches.iter().for_each(|(_, v)| Self::get_free_vars(v, bound_names, free_vars));
                 if let Some(default_branch) = default_branch {
                     Self::get_free_vars(default_branch, bound_names, free_vars);
                 }
             }
-            UTerm::MemGet { base, offset } => {
+            FTerm::MemGet { base, offset } => {
                 Self::get_free_vars(base, bound_names, free_vars);
                 Self::get_free_vars(offset, bound_names, free_vars);
             }
-            UTerm::MemSet { base, offset, value } => {
+            FTerm::MemSet { base, offset, value } => {
                 Self::get_free_vars(base, bound_names, free_vars);
                 Self::get_free_vars(offset, bound_names, free_vars);
                 Self::get_free_vars(value, bound_names, free_vars);
             }
-            UTerm::Let { name, t, body } => {
+            FTerm::Let { name, t, body } => {
                 Self::get_free_vars(t, bound_names, free_vars);
                 let mut new_bound_names = bound_names.clone();
                 new_bound_names.insert(name.as_str());
                 Self::get_free_vars(body, &new_bound_names, free_vars);
             }
-            UTerm::Defs { defs, body } => {
+            FTerm::Defs { defs, body } => {
                 let mut new_bound_names = bound_names.clone();
                 new_bound_names.extend(defs.iter().map(|(s, _)| s.as_str()));
                 defs.iter().for_each(|(_, def)| {
@@ -311,20 +313,20 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
     use cranelift_jit::JITModule;
-    use crate::compiler::Compiler;
-    use crate::parser::parse_u_term;
-    use crate::signature::Signature;
-    use crate::transpiler::Transpiler;
+    use crate::backend::compiler::Compiler;
+    use crate::frontend::parser::parse_f_term;
+    use crate::ast::signature::Signature;
+    use crate::frontend::transpiler::Transpiler;
 
     fn check(test_input_path: &str, test_output_path: &str) -> Result<(), String> {
         println!("checking {}", test_input_path);
-        let u_term = parse_u_term(&fs::read_to_string(test_input_path).unwrap())?;
+        let f_term = parse_f_term(&fs::read_to_string(test_input_path).unwrap())?;
         let mut transpiler = Transpiler {
             signature: Signature::new(),
             lambda_counter: 0,
             local_counter: 0,
         };
-        transpiler.transpile(u_term.clone());
+        transpiler.transpile(f_term.clone());
         let mut signature = transpiler.into_signature();
         signature.optimize();
         let mut defs = signature.into_defs().into_iter().collect::<Vec<_>>();
@@ -340,8 +342,8 @@ mod tests {
             Err(_) => "".to_owned(),
         };
         let partial_actual = format!(
-            "UTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}\n\nCLIR\n========\n{}",
-            u_term,
+            "FTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}\n\nCLIR\n========\n{}",
+            f_term,
             defs,
             clir.iter().map(|(name, clir)| format!("[{}]\n{}", name, clir)).collect::<Vec<_>>().join("\n\n"));
         if !expected.starts_with(&partial_actual) {

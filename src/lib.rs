@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 #![feature(let_chains)]
 
-// mod frontend;
+mod frontend;
 mod ast;
 mod backend;
 mod test_utils;

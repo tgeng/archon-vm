@@ -1,4 +1,4 @@
-UTerm
+FTerm
 ========
 Int {
     value: 123,
@@ -22,6 +22,8 @@ Defs
                 ),
             ),
             var_bound: 0,
+            may_be_pure: true,
+            may_have_handler_effects: false,
         },
     ),
 ]

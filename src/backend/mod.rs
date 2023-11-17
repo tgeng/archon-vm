@@ -1,3 +1,3 @@
 mod common;
-mod compiler;
+pub(crate) mod compiler;
 mod function_translator;

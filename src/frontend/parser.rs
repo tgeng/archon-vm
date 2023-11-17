@@ -7,7 +7,7 @@ use nom::error::{context, ErrorKind, ParseError};
 use nom::Parser;
 use nom::multi::{many0, many1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
-use crate::frontend::u_term::{Def, UTerm};
+use crate::frontend::f_term::{Def, FTerm};
 use nom_locate::{LocatedSpan};
 use crate::frontend::parser::Fixity::{*};
 use crate::ast::term::{CType, SpecializedType, PType, VType};
@@ -284,8 +284,8 @@ fn id(input: Input) -> IResult<Input, String> {
     })(input)
 }
 
-fn id_term(input: Input) -> IResult<Input, UTerm> {
-    context("id_term", map(id, |name| UTerm::Identifier { name }))(input)
+fn id_term(input: Input) -> IResult<Input, FTerm> {
+    context("id_term", map(id, |name| FTerm::Identifier { name }))(input)
 }
 
 fn int(input: Input) -> IResult<Input, i64> {
@@ -295,8 +295,8 @@ fn int(input: Input) -> IResult<Input, i64> {
     })(input)
 }
 
-fn int_term(input: Input) -> IResult<Input, UTerm> {
-    context("int_term", map(int, |value| UTerm::Int { value }))(input)
+fn int_term(input: Input) -> IResult<Input, FTerm> {
+    context("int_term", map(int, |value| FTerm::Int { value }))(input)
 }
 
 fn str(input: Input) -> IResult<Input, String> {
@@ -306,11 +306,11 @@ fn str(input: Input) -> IResult<Input, String> {
     })(input)
 }
 
-fn str_term(input: Input) -> IResult<Input, UTerm> {
-    context("str_term", map(str, |value| UTerm::Str { value }))(input)
+fn str_term(input: Input) -> IResult<Input, FTerm> {
+    context("str_term", map(str, |value| FTerm::Str { value }))(input)
 }
 
-fn struct_(input: Input) -> IResult<Input, UTerm> {
+fn struct_(input: Input) -> IResult<Input, FTerm> {
     context("struct", map(
         delimited(
             token("{"),
@@ -319,11 +319,11 @@ fn struct_(input: Input) -> IResult<Input, UTerm> {
                 expr)),
             token("}"),
         ),
-        |values: Vec<UTerm>| UTerm::Struct { values },
+        |values: Vec<FTerm>| FTerm::Struct { values },
     ))(input)
 }
 
-fn atom(input: Input) -> IResult<Input, UTerm> {
+fn atom(input: Input) -> IResult<Input, FTerm> {
     context("atom", alt((
         id_term,
         int_term,
@@ -331,40 +331,40 @@ fn atom(input: Input) -> IResult<Input, UTerm> {
         struct_,
         delimited(
             pair(token("("), newline_opt),
-            cut(u_term),
+            cut(f_term),
             pair(newline_opt, token(")"))),
     )))(input)
 }
 
-fn force(input: Input) -> IResult<Input, UTerm> {
-    context("force", map(preceded(token("force"), cut(atom)), |t| UTerm::Force { thunk: Box::new(t) }))(input)
+fn force(input: Input) -> IResult<Input, FTerm> {
+    context("force", map(preceded(token("force"), cut(atom)), |t| FTerm::Force { thunk: Box::new(t) }))(input)
 }
 
-fn mem_access_or_atom(input: Input) -> IResult<Input, UTerm> {
+fn mem_access_or_atom(input: Input) -> IResult<Input, FTerm> {
     context("mem_access_or_atom", map(
-        pair(atom, many0(pair(preceded(token("@"), cut(atom)), opt(preceded(token("="), cut(u_term)))))),
+        pair(atom, many0(pair(preceded(token("@"), cut(atom)), opt(preceded(token("="), cut(f_term)))))),
         |(t, index_and_values)| {
             index_and_values.into_iter().fold(t, |t, (index, assignment)| {
                 match assignment {
-                    None => UTerm::MemGet { base: Box::new(t), offset: Box::new(index) },
-                    Some(value) => UTerm::MemSet { base: Box::new(t), offset: Box::new(index), value: Box::new(value) },
+                    None => FTerm::MemGet { base: Box::new(t), offset: Box::new(index) },
+                    Some(value) => FTerm::MemSet { base: Box::new(t), offset: Box::new(index), value: Box::new(value) },
                 }
             })
         },
     ))(input)
 }
 
-fn scoped_app(input: Input) -> IResult<Input, UTerm> {
+fn scoped_app(input: Input) -> IResult<Input, FTerm> {
     context("scoped_app", scoped(
         map(
-            pair(many1(alt((mem_access_or_atom, force))), many0(preceded(newline, u_term))),
+            pair(many1(alt((mem_access_or_atom, force))), many0(preceded(newline, f_term))),
             |(f_and_args, more_args)| {
                 if f_and_args.len() == 1 && more_args.is_empty() {
                     f_and_args.into_iter().next().unwrap()
                 } else {
                     let f = f_and_args.first().unwrap().clone();
                     let all_args = f_and_args.into_iter().skip(1).chain(more_args).collect();
-                    UTerm::Redex { function: Box::new(f), args: all_args }
+                    FTerm::Redex { function: Box::new(f), args: all_args }
                 }
             },
         )
@@ -372,11 +372,11 @@ fn scoped_app(input: Input) -> IResult<Input, UTerm> {
 }
 
 #[allow(clippy::redundant_closure)]
-fn scoped_app_boxed() -> BoxedUTermParser {
+fn scoped_app_boxed() -> BoxedFTermParser {
     Box::new(move |input| scoped_app(input))
 }
 
-fn operator_id(operators: &'static [OperatorAndName]) -> impl FnMut(Input) -> IResult<Input, UTerm> {
+fn operator_id(operators: &'static [OperatorAndName]) -> impl FnMut(Input) -> IResult<Input, FTerm> {
     map_token(|token| match token {
         Token::Normal(name, _, _) => {
             operators.iter()
@@ -387,7 +387,7 @@ fn operator_id(operators: &'static [OperatorAndName]) -> impl FnMut(Input) -> IR
                         None
                     })
                 .next()
-                .map(|fun_name| UTerm::Identifier { name: fun_name.to_string() })
+                .map(|fun_name| FTerm::Identifier { name: fun_name.to_string() })
         }
         _ => None,
     })
@@ -578,61 +578,61 @@ pub fn infix<I, O1, O2, E, F, G>(mut operator: F, mut operand: G) -> impl FnMut(
 }
 
 
-type BoxedUTermParser = Box<dyn FnMut(Input) -> IResult<Input, UTerm>>;
+type BoxedFTermParser = Box<dyn FnMut(Input) -> IResult<Input, FTerm>>;
 
-fn operator_call(operators: &'static [OperatorAndName], fixity: Fixity, mut component: BoxedUTermParser) -> BoxedUTermParser {
+fn operator_call(operators: &'static [OperatorAndName], fixity: Fixity, mut component: BoxedFTermParser) -> BoxedFTermParser {
     Box::new(
         move |input|
             match fixity {
                 Infixl => context("infixl_operator", map(
                     infixl(delimited(newline_opt, operator_id(operators), newline_opt), |input| (*component)(input)),
                     |(head, rest)| {
-                        rest.into_iter().fold(head, |acc, (op, arg)| UTerm::Redex { function: Box::new(op), args: vec![acc, arg] })
+                        rest.into_iter().fold(head, |acc, (op, arg)| FTerm::Redex { function: Box::new(op), args: vec![acc, arg] })
                     },
                 ))(input),
                 Infixr => context("infixr_operator", map(
                     infixr(delimited(newline_opt, operator_id(operators), newline_opt), |input| (*component)(input)),
                     |(init, last)| {
-                        init.into_iter().rfold(last, |acc, (arg, op)| UTerm::Redex { function: Box::new(op), args: vec![acc, arg] })
+                        init.into_iter().rfold(last, |acc, (arg, op)| FTerm::Redex { function: Box::new(op), args: vec![acc, arg] })
                     },
                 ))(input),
                 Infix => context("infix_operator", map(
                     infix(delimited(newline_opt, operator_id(operators), newline_opt), |input| (*component)(input)),
                     |(first, middle_last)| match middle_last {
                         None => first,
-                        Some((middle, last)) => UTerm::Redex { function: Box::new(middle), args: vec![first, last] }
+                        Some((middle, last)) => FTerm::Redex { function: Box::new(middle), args: vec![first, last] }
                     },
                 ))(input),
                 Prefix => context("prefix_operator", map(
                     pair(opt(operator_id(operators)), |input| (*component)(input)),
                     |(operator, operand)| match operator {
                         None => operand,
-                        Some(operator) => UTerm::Redex { function: Box::new(operator), args: vec![operand] },
+                        Some(operator) => FTerm::Redex { function: Box::new(operator), args: vec![operand] },
                     },
                 ))(input),
                 Postfix => context("postfix_operator", map(
                     pair(|input| (*component)(input), opt(operator_id(operators))),
                     |(operand, operator)| match operator {
                         None => operand,
-                        Some(operator) => UTerm::Redex { function: Box::new(operator), args: vec![operand] },
+                        Some(operator) => FTerm::Redex { function: Box::new(operator), args: vec![operand] },
                     },
                 ))(input),
             }
     )
 }
 
-fn expr_impl(input: Input) -> IResult<Input, UTerm> {
+fn expr_impl(input: Input) -> IResult<Input, FTerm> {
     let mut p = PRECEDENCE.iter().fold(scoped_app_boxed(), |f, (operators, fixity)| {
         operator_call(operators, *fixity, f)
     });
     (*p)(input)
 }
 
-fn expr(input: Input) -> IResult<Input, UTerm> {
+fn expr(input: Input) -> IResult<Input, FTerm> {
     context("expr", scoped(expr_impl))(input)
 }
 
-fn lambda(input: Input) -> IResult<Input, UTerm> {
+fn lambda(input: Input) -> IResult<Input, FTerm> {
     context("lambda", scoped(
         map(
             pair(
@@ -641,40 +641,40 @@ fn lambda(input: Input) -> IResult<Input, UTerm> {
                     separated_list0(newline_opt, pair(id, v_type_decl)),
                     token("=>")),
                 cut(expr)),
-            |(arg_names, body)| UTerm::Lambda { arg_names, body: Box::new(body) },
+            |(arg_names, body)| FTerm::Lambda { arg_names, body: Box::new(body) },
         )))(input)
 }
 
-fn case(input: Input) -> IResult<Input, UTerm> {
+fn case(input: Input) -> IResult<Input, FTerm> {
     context("case", scoped(
         map(
             tuple((
                 preceded(token("case"), map(expr, Box::new)),
                 c_type_decl,
-                many0(map(preceded(newline, scoped(tuple((int, preceded(token("=>"), u_term))))), |(i, branch)| (i, branch))),
-                opt(preceded(newline, scoped(preceded(pair(token("_"), token("=>")), map(u_term, Box::new))))),
+                many0(map(preceded(newline, scoped(tuple((int, preceded(token("=>"), f_term))))), |(i, branch)| (i, branch))),
+                opt(preceded(newline, scoped(preceded(pair(token("_"), token("=>")), map(f_term, Box::new))))),
             )),
             |(t, result_type, branches, default_branch)| {
-                UTerm::CaseInt { t, result_type, branches, default_branch }
+                FTerm::CaseInt { t, result_type, branches, default_branch }
             })
     ))(input)
 }
 
-fn let_term(input: Input) -> IResult<Input, UTerm> {
+fn let_term(input: Input) -> IResult<Input, FTerm> {
     context("let_term", map(
         tuple((
             alt((
-                scoped(pair(delimited(token("let"), id, token("=")), preceded(newline_opt, cut(u_term)))),
+                scoped(pair(delimited(token("let"), id, token("=")), preceded(newline_opt, cut(f_term)))),
                 map(expr, |t| (String::from("_"), t)),
             )),
-            preceded(newline, u_term),
+            preceded(newline, f_term),
         )),
         |((name, t), body)| {
-            UTerm::Let { name, t: Box::new(t), body: Box::new(body) }
+            FTerm::Let { name, t: Box::new(t), body: Box::new(body) }
         }))(input)
 }
 
-fn defs_term(input: Input) -> IResult<Input, UTerm> {
+fn defs_term(input: Input) -> IResult<Input, FTerm> {
     context("defs_term", map(
         pair(
             many1(
@@ -684,30 +684,30 @@ fn defs_term(input: Input) -> IResult<Input, UTerm> {
                             preceded(token("def"), cut(id)),
                             many0(pair(id, v_type_decl)),
                             c_type_decl,
-                            preceded(preceded(token("=>"), newline_opt), map(cut(u_term), Box::new))))),
+                            preceded(preceded(token("=>"), newline_opt), map(cut(f_term), Box::new))))),
                     |(name, args, c_type, body)| (name, Def { args, c_type, body }),
                 )
-            ), opt(preceded(newline, map(u_term, Box::new)))),
-        |(defs, body)| UTerm::Defs { defs, body },
+            ), opt(preceded(newline, map(f_term, Box::new)))),
+        |(defs, body)| FTerm::Defs { defs, body },
     ))(input)
 }
 
-fn computation(input: Input) -> IResult<Input, UTerm> {
+fn computation(input: Input) -> IResult<Input, FTerm> {
     alt((let_term, defs_term, expr, lambda, case))(input)
 }
 
-fn thunk(input: Input) -> IResult<Input, UTerm> {
+fn thunk(input: Input) -> IResult<Input, FTerm> {
     context(
         "thunk",
         scoped(
             map(
                 preceded(preceded(token("thunk"), newline_opt), cut(computation)),
-                |t| UTerm::Thunk { computation: Box::new(t) })
+                |t| FTerm::Thunk { computation: Box::new(t) })
         ))(input)
 }
 
-fn u_term(input: Input) -> IResult<Input, UTerm> {
-    context("u_term", alt((thunk, computation)))(input)
+fn f_term(input: Input) -> IResult<Input, FTerm> {
+    context("f_term", alt((thunk, computation)))(input)
 }
 
 fn tokenize(input: &str) -> Result<Vec<Token>, String> {
@@ -719,10 +719,10 @@ fn tokenize(input: &str) -> Result<Vec<Token>, String> {
     Ok(tokens)
 }
 
-pub fn parse_u_term(input: &str) -> Result<UTerm, String> {
+pub fn parse_f_term(input: &str) -> Result<FTerm, String> {
     let tokens = tokenize(input)?;
     let input = Input { tokens: &tokens, current_indent: 0 };
-    let (input, term) = u_term(input).map_err(|e| format!("parse error: {:?}", e))?;
+    let (input, term) = f_term(input).map_err(|e| format!("parse error: {:?}", e))?;
     if input.tokens.iter().any(|token| !matches!(token, Token::Indent(_, _))) {
         return Err(format!("parse error: unexpected token at {:?}", input.tokens.first()));
     }
@@ -731,7 +731,7 @@ pub fn parse_u_term(input: &str) -> Result<UTerm, String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::frontend::parser::{parse_u_term, tokenize};
+    use crate::frontend::parser::{parse_f_term, tokenize};
     use crate::test_utils::debug_print;
 
     #[test]
@@ -830,10 +830,10 @@ mod tests {
 
     #[test]
     fn check_literals() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("123")?), "Int {
+        assert_eq!(debug_print(parse_f_term("123")?), "Int {
     value: 123,
 }");
-        assert_eq!(debug_print(parse_u_term(r#""abc""#)?), r#"Str {
+        assert_eq!(debug_print(parse_f_term(r#""abc""#)?), r#"Str {
     value: "abc",
 }"#);
         Ok(())
@@ -841,7 +841,7 @@ mod tests {
 
     #[test]
     fn check_parse_simple_expression() -> Result<(), String> {
-        let result = parse_u_term("a + b - c * d / -e % +f")?;
+        let result = parse_f_term("a + b - c * d / -e % +f")?;
         assert_eq!(debug_print(result), r#"Redex {
     function: Identifier {
         name: "_int_sub",
@@ -914,7 +914,7 @@ mod tests {
 
     #[test]
     fn check_empty_array() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("{}")?), r#"Struct {
+        assert_eq!(debug_print(parse_f_term("{}")?), r#"Struct {
     values: [],
 }"#);
         Ok(())
@@ -923,7 +923,7 @@ mod tests {
 
     #[test]
     fn check_single_element_array() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("{a}")?), r#"Struct {
+        assert_eq!(debug_print(parse_f_term("{a}")?), r#"Struct {
     values: [
         Identifier {
             name: "a",
@@ -935,7 +935,7 @@ mod tests {
 
     #[test]
     fn check_array() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("{a, b, c}")?), r#"Struct {
+        assert_eq!(debug_print(parse_f_term("{a, b, c}")?), r#"Struct {
     values: [
         Identifier {
             name: "a",
@@ -953,7 +953,7 @@ mod tests {
 
     #[test]
     fn check_mem_get() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("{a, b, c} @ 1")?), r#"MemGet {
+        assert_eq!(debug_print(parse_f_term("{a, b, c} @ 1")?), r#"MemGet {
     base: Struct {
         values: [
             Identifier {
@@ -976,7 +976,7 @@ mod tests {
 
     #[test]
     fn check_expr_with_parentheses() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("(a + b) * c")?), r#"Redex {
+        assert_eq!(debug_print(parse_f_term("(a + b) * c")?), r#"Redex {
     function: Identifier {
         name: "_int_mul",
     },
@@ -1004,7 +1004,7 @@ mod tests {
 
     #[test]
     fn check_expr_with_parentheses2() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("f (g a)")?), r#"Redex {
+        assert_eq!(debug_print(parse_f_term("f (g a)")?), r#"Redex {
     function: Identifier {
         name: "f",
     },
@@ -1026,7 +1026,7 @@ mod tests {
 
     #[test]
     fn check_scoped_app() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("\
+        assert_eq!(debug_print(parse_f_term("\
 f a b (c d)
   g 1 2
   h 3")?), r#"Redex {
@@ -1083,7 +1083,7 @@ f a b (c d)
 
     #[test]
     fn check_force() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("force x y z")?), r#"Redex {
+        assert_eq!(debug_print(parse_f_term("force x y z")?), r#"Redex {
     function: Force {
         thunk: Identifier {
             name: "x",
@@ -1103,7 +1103,7 @@ f a b (c d)
 
     #[test]
     fn check_thunk() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("thunk \\=> a b c")?), r#"Thunk {
+        assert_eq!(debug_print(parse_f_term("thunk \\=> a b c")?), r#"Thunk {
     computation: Lambda {
         arg_names: [],
         body: Redex {
@@ -1126,7 +1126,7 @@ f a b (c d)
 
     #[test]
     fn check_let() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("
+        assert_eq!(debug_print(parse_f_term("
 let x = 1
 x")?), r#"Let {
     name: "x",
@@ -1142,7 +1142,7 @@ x")?), r#"Let {
 
     #[test]
     fn check_case_int() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("case 1 -> int
+        assert_eq!(debug_print(parse_f_term("case 1 -> int
   1 => 2
   _ => 3
 ")?), r#"CaseInt {
@@ -1173,7 +1173,7 @@ x")?), r#"Let {
 
     #[test]
     fn check_mem_access() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("let a = {1, 2, 3}
+        assert_eq!(debug_print(parse_f_term("let a = {1, 2, 3}
 a @ 0 = 4
 a @ 0 + a @ 1")?), r#"Let {
     name: "a",
@@ -1233,7 +1233,7 @@ a @ 0 + a @ 1")?), r#"Let {
 
     #[test]
     fn check_nested_mem_access() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term("{1, {2}, 3} @ 1 @ 0 = 4")?), r#"MemSet {
+        assert_eq!(debug_print(parse_f_term("{1, {2}, 3} @ 1 @ 0 = 4")?), r#"MemSet {
     base: MemGet {
         base: Struct {
             values: [
@@ -1268,7 +1268,7 @@ a @ 0 + a @ 1")?), r#"Let {
 
     #[test]
     fn check_def() -> Result<(), String> {
-        assert_eq!(debug_print(parse_u_term(r#"
+        assert_eq!(debug_print(parse_f_term(r#"
 def f x => x
 def g x y => x + y
 g (f 1) 2

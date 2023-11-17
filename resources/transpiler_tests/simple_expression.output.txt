@@ -1,4 +1,4 @@
-UTerm
+FTerm
 ========
 Let {
     name: "a",
@@ -66,6 +66,8 @@ Defs
                 ),
             ),
             var_bound: 2,
+            may_be_pure: true,
+            may_have_handler_effects: false,
         },
     ),
 ]

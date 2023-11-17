@@ -1,4 +1,4 @@
-UTerm
+FTerm
 ========
 Defs {
     defs: [
@@ -140,6 +140,7 @@ Defs
                                         index: 1,
                                     },
                                 ],
+                                may_have_handler_effects: false,
                             },
                         },
                         bound_index: 2,
@@ -163,6 +164,8 @@ Defs
                 ),
             ),
             var_bound: 3,
+            may_be_pure: true,
+            may_have_handler_effects: false,
         },
     ),
     (
@@ -176,6 +179,7 @@ Defs
                         value: 5,
                     },
                 ],
+                may_have_handler_effects: false,
             },
             c_type: SpecializedF(
                 Specialized(
@@ -183,6 +187,8 @@ Defs
                 ),
             ),
             var_bound: 0,
+            may_be_pure: true,
+            may_have_handler_effects: false,
         },
     ),
 ]
