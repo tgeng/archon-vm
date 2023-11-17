@@ -200,14 +200,14 @@ struct CallSpecializer<'a> {
 impl<'a> Transformer for CallSpecializer<'a> {
     fn transform_redex(&mut self, c_term: &mut CTerm) {
         let CTerm::Redex { box function, args } = c_term else { unreachable!() };
-        let CTerm::Def { name, has_handler_effects } = function else { return; };
+        let CTerm::Def { name, may_have_handler_effects: has_handler_effects } = function else { return; };
         if let Some((name, PrimitiveFunction { arg_types, return_type, .. })) = PRIMITIVE_FUNCTIONS.get_entry(name) {
             match arg_types.len().cmp(&args.len()) {
                 Ordering::Greater => {
                     let primitive_wrapper_name = format!("{}$__primitive_wrapper_{}", self.def_name, self.primitive_wrapper_counter);
                     // Primitive calls cannot be effectful.
                     assert!(!*has_handler_effects);
-                    *function = CTerm::Def { name: primitive_wrapper_name.clone(), has_handler_effects: false };
+                    *function = CTerm::Def { name: primitive_wrapper_name.clone(), may_have_handler_effects: false };
                     self.new_defs.push((primitive_wrapper_name, FunctionDefinition {
                         args: arg_types.iter().enumerate().map(|(i, t)| (i, *t)).collect(),
                         body: CTerm::PrimitiveCall {
@@ -237,7 +237,7 @@ impl<'a> Transformer for CallSpecializer<'a> {
             let has_handler_effects = *has_handler_effects;
             let CTerm::Redex { args, .. } = std::mem::replace(
                 c_term,
-                CTerm::SpecializedFunctionCall { name, args: vec![], has_handler_effects },
+                CTerm::SpecializedFunctionCall { name, args: vec![], may_have_handler_effects: has_handler_effects },
             ) else { unreachable!() };
             let CTerm::SpecializedFunctionCall { args: new_args, .. } = c_term else { unreachable!() };
             *new_args = args;
@@ -259,7 +259,7 @@ impl<'a> ThunkLifter<'a> {
 
         let mut redex =
             CTerm::Redex {
-                function: Box::new(CTerm::Def { name: thunk_def_name.clone(), has_handler_effects: true }),
+                function: Box::new(CTerm::Def { name: thunk_def_name.clone(), may_have_handler_effects: true }),
                 args: free_vars.iter().map(|i| VTerm::Var { index: *i }).collect(),
             };
         std::mem::swap(thunk, &mut redex);

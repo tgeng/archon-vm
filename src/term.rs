@@ -80,14 +80,14 @@ pub struct Eff {
 pub enum CTerm {
     Redex { function: Box<CTerm>, args: Vec<VTerm> },
     Return { value: VTerm },
-    Force { thunk: VTerm },
+    Force { thunk: VTerm, may_have_handler_effects: bool },
     Let { t: Box<CTerm>, bound_index: usize, body: Box<CTerm> },
     /// Note: effectful here means whether the function has side effects that need to be handled by
     /// some handlers. System effects like IO do not count because they appear to be a simple call.
     /// This value should be conservatively set to true if the function is not known to be pure.
     /// For example, the containing redex may not have enough arguments to determine the effects
     /// of this computation.
-    Def { name: String, has_handler_effects: bool },
+    Def { name: String, may_have_handler_effects: bool },
     /// Note on result type, different branches can have different computation types. For example,
     /// for record instance or function with large elimination, one branch may return a value while
     /// another consumes more arguments (aka tail call). In this case the result type is
@@ -99,7 +99,7 @@ pub enum CTerm {
     // PMemGet { base: VTerm, offset: VTerm, p_type: PType },
     // PMemSet { base: VTerm, offset: VTerm, value: VTerm, p_type: PType },
     PrimitiveCall { name: &'static str, args: Vec<VTerm> },
-    SpecializedFunctionCall { name: String, args: Vec<VTerm>, has_handler_effects: bool },
+    SpecializedFunctionCall { name: String, args: Vec<VTerm>, may_have_handler_effects: bool },
     OperationCall { eff: Eff, args: Vec<VTerm> },
     Handler {
         parameter: VTerm,

@@ -454,7 +454,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 self.translate_c_term(function, is_tail)
             }
             CTerm::Return { value } => self.translate_v_term(value),
-            CTerm::Force { thunk } => {
+            CTerm::Force { thunk, may_have_handler_effects } => {
                 let thunk_value = self.translate_v_term(thunk);
                 // We must change the thunk value to uniform representation because the built-in
                 // function expects a uniform representation in order to tell a thunk from a raw
@@ -482,7 +482,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 self.local_vars[*bound_index] = t_value;
                 self.translate_c_term(body, is_tail)
             }
-            CTerm::Def { name, has_handler_effects: effectful } => {
+            CTerm::Def { name, may_have_handler_effects } => {
                 let func_ref = self.get_local_function(name);
                 if is_tail && !self.is_specialized {
                     let base_address = self.copy_tail_call_args_and_get_new_base();
@@ -569,7 +569,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 let return_value = (primitive_function.code_gen)(&mut self.function_builder, &arg_values);
                 Some((return_value, primitive_function.return_type))
             }
-            CTerm::SpecializedFunctionCall { name, args, has_handler_effects: effectful } => {
+            CTerm::SpecializedFunctionCall { name, args, may_have_handler_effects } => {
                 let (arg_types, CType::SpecializedF(return_type)) = self.local_function_arg_types.get(name).unwrap() else { unreachable!("{} is not specialized", name) };
                 let tip_address = self.tip_address;
                 let all_args = iter::once(tip_address)
@@ -639,8 +639,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             VTerm::Thunk { box t } => {
                 let empty_args = &vec![];
                 let (name, args) = match t {
-                    CTerm::Redex { function: box CTerm::Def { name, has_handler_effects: effectful }, args } => (name, args),
-                    CTerm::Def { name, has_handler_effects: effectful } => (name, empty_args),
+                    CTerm::Redex { function: box CTerm::Def { name, may_have_handler_effects }, args } => (name, args),
+                    CTerm::Def { name, may_have_handler_effects } => (name, empty_args),
                     _ => unreachable!("thunk lifting should have guaranteed this")
                 };
                 let func_ref = self.get_local_function(name);

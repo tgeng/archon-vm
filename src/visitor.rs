@@ -58,7 +58,7 @@ pub trait Visitor {
     }
 
     fn visit_force(&mut self, c_term: &CTerm) {
-        let CTerm::Force { thunk } = c_term else { unreachable!() };
+        let CTerm::Force { thunk, .. } = c_term else { unreachable!() };
         self.visit_v_term(thunk);
     }
 
