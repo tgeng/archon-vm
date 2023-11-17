@@ -100,7 +100,7 @@ pub enum CTerm {
     // PMemSet { base: VTerm, offset: VTerm, value: VTerm, p_type: PType },
     PrimitiveCall { name: &'static str, args: Vec<VTerm> },
     SpecializedFunctionCall { name: String, args: Vec<VTerm>, may_have_handler_effects: bool },
-    OperationCall { eff: Eff, args: Vec<VTerm> },
+    OperationCall { eff: Eff, args: Vec<VTerm>, simple: bool },
     Handler {
         parameter: VTerm,
         /// parameter -> 0
@@ -115,4 +115,7 @@ pub enum CTerm {
         simple_handlers: Vec<(Eff, usize, Vec<usize>, CTerm)>,
         input: Box<CTerm>,
     },
+    ResumeContinuation { continuation: Box<CTerm>, parameter: VTerm, result: VTerm },
+    DisposeContinuation { continuation: Box<CTerm>, parameter: VTerm },
+    ReplicateContinuation { continuation: Box<CTerm>, parameter: VTerm },
 }

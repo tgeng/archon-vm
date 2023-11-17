@@ -593,6 +593,9 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             }
             CTerm::OperationCall { .. } => todo!(),
             CTerm::Handler { .. } => todo!(),
+            CTerm::ResumeContinuation { .. } => todo!(),
+            CTerm::DisposeContinuation { .. } => todo!(),
+            CTerm::ReplicateContinuation { .. } => todo!(),
         }
     }
 

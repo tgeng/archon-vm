@@ -43,6 +43,9 @@ pub trait Transformer {
             CTerm::SpecializedFunctionCall { .. } => self.transform_specialized_function_call(c_term),
             CTerm::OperationCall { .. } => self.transform_operation_call(c_term),
             CTerm::Handler { .. } => self.transform_handler(c_term),
+            CTerm::ResumeContinuation { .. } => self.transform_resume_continuation(c_term),
+            CTerm::DisposeContinuation { .. } => self.transform_dispose_continuation(c_term),
+            CTerm::ReplicateContinuation { .. } => self.transform_replicate_continuation(c_term),
         }
     }
 
@@ -108,7 +111,7 @@ pub trait Transformer {
     }
 
     fn transform_operation_call(&mut self, c_term: &mut CTerm) {
-        let CTerm::OperationCall { eff, args } = c_term else { unreachable!() };
+        let CTerm::OperationCall { eff, args, .. } = c_term else { unreachable!() };
         eff.args.iter_mut().for_each(|arg| self.transform_v_term(arg));
         args.iter_mut().for_each(|arg| self.transform_v_term(arg));
     }
@@ -171,5 +174,24 @@ pub trait Transformer {
             self.remove_binding(old_parameter_bound_index);
         }
         self.transform_c_term(input);
+    }
+
+    fn transform_resume_continuation(&mut self, c_term: &mut CTerm) {
+        let CTerm::ResumeContinuation { continuation, parameter, result } = c_term else { unreachable!() };
+        self.transform_c_term(continuation);
+        self.transform_v_term(parameter);
+        self.transform_v_term(result);
+    }
+
+    fn transform_dispose_continuation(&mut self, c_term: &mut CTerm) {
+        let CTerm::DisposeContinuation { continuation, parameter } = c_term else { unreachable!() };
+        self.transform_c_term(continuation);
+        self.transform_v_term(parameter);
+    }
+
+    fn transform_replicate_continuation(&mut self, c_term: &mut CTerm) {
+        let CTerm::ReplicateContinuation { continuation, parameter } = c_term else { unreachable!() };
+        self.transform_c_term(continuation);
+        self.transform_v_term(parameter);
     }
 }

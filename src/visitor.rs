@@ -43,6 +43,9 @@ pub trait Visitor {
             CTerm::SpecializedFunctionCall { .. } => self.visit_specialized_function_call(c_term),
             CTerm::OperationCall { .. } => self.visit_operation_call(c_term),
             CTerm::Handler { .. } => self.visit_handler(c_term),
+            CTerm::ResumeContinuation { .. } => self.visit_resume_continuation(c_term),
+            CTerm::DisposeContinuation { .. } => self.visit_dispose_continuation(c_term),
+            CTerm::ReplicateContinuation { .. } => self.visit_replicate_continuation(c_term),
         }
     }
 
@@ -107,7 +110,7 @@ pub trait Visitor {
     }
 
     fn visit_operation_call(&mut self, c_term: &CTerm) {
-        let CTerm::OperationCall { eff, args } = c_term else { unreachable!() };
+        let CTerm::OperationCall { eff, args, .. } = c_term else { unreachable!() };
         eff.args.iter().for_each(|arg| self.visit_v_term(arg));
         args.iter().for_each(|arg| self.visit_v_term(arg));
     }
@@ -160,5 +163,24 @@ pub trait Visitor {
             self.remove_binding(*parameter_bound_index);
         }
         self.visit_c_term(input);
+    }
+
+    fn visit_resume_continuation(&mut self, c_term: &CTerm) {
+        let CTerm::ResumeContinuation { continuation, parameter, result } = c_term else { unreachable!() };
+        self.visit_c_term(continuation);
+        self.visit_v_term(parameter);
+        self.visit_v_term(result);
+    }
+
+    fn visit_dispose_continuation(&mut self, c_term: &CTerm) {
+        let CTerm::DisposeContinuation { continuation, parameter } = c_term else { unreachable!() };
+        self.visit_c_term(continuation);
+        self.visit_v_term(parameter);
+    }
+
+    fn visit_replicate_continuation(&mut self, c_term: &CTerm) {
+        let CTerm::ReplicateContinuation { continuation, parameter } = c_term else { unreachable!() };
+        self.visit_c_term(continuation);
+        self.visit_v_term(parameter);
     }
 }
