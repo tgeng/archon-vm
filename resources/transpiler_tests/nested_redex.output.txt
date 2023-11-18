@@ -78,7 +78,7 @@ Defs
             c_type: Default,
             var_bound: 2,
             may_be_pure: true,
-            may_have_handler_effects: false,
+            may_have_complex_effects: false,
         },
     ),
     (
@@ -95,7 +95,7 @@ Defs
                 body: Redex {
                     function: Def {
                         name: "f",
-                        may_have_handler_effects: false,
+                        may_have_complex_effects: false,
                     },
                     args: [
                         Var {
@@ -114,7 +114,7 @@ Defs
             ),
             var_bound: 1,
             may_be_pure: true,
-            may_have_handler_effects: false,
+            may_have_complex_effects: false,
         },
     ),
 ]
