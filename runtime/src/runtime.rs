@@ -20,12 +20,6 @@ struct Continuation {
 }
 
 struct Handler {
-    parent: *mut Handler,
-    /// The return address of the function that created this handler. Returning to this address
-    /// means jumping out of the handler. So the value returned should match the output type of this
-    /// handler.
-    return_address: *const usize,
-    frame_pointer: *const usize,
     transform_continuation: *mut Continuation,
     parameter: *mut Uniform,
     parameter_disposer: ThunkPtr,

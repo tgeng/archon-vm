@@ -18,7 +18,7 @@ pub struct FunctionDefinition {
     pub may_be_pure: bool,
     /// This function may have effects that require handling by handlers. In this case a
     /// CPS-transformed version of this function is generated, which takes a continuation argument.
-    pub may_have_complex_effects: bool,
+    pub may_have_handler_effects: bool,
 }
 
 impl FunctionDefinition {
@@ -64,7 +64,7 @@ impl Signature {
     fn specialize_calls(&mut self) {
         let mut new_defs: Vec<(String, FunctionDefinition)> = Vec::new();
         let specializable_functions: HashMap<_, _> = self.defs.iter()
-            .filter_map(|(name, FunctionDefinition { args, body, c_type, var_bound, may_be_pure, may_have_complex_effects: may_be_effectful })| {
+            .filter_map(|(name, FunctionDefinition { args, body, c_type, var_bound, may_be_pure, may_have_handler_effects: may_be_effectful })| {
                 if let CType::SpecializedF(_) = c_type {
                     Some((name.clone(), args.len()))
                 } else {
@@ -95,7 +95,7 @@ impl Signature {
     }
 
     fn insert_new_defs(&mut self, new_defs: Vec<(String, FunctionDefinition)>) {
-        for (name, FunctionDefinition { mut args, mut body, c_type, var_bound: mut max_arg_size, mut may_be_pure, may_have_complex_effects: mut may_be_effectful }) in new_defs.into_iter() {
+        for (name, FunctionDefinition { mut args, mut body, c_type, var_bound: mut max_arg_size, mut may_be_pure, may_have_handler_effects: mut may_be_effectful }) in new_defs.into_iter() {
             Self::rename_local_vars_in_def(&mut args, &mut body, &mut max_arg_size);
             self.insert(name, FunctionDefinition {
                 args,
@@ -103,7 +103,7 @@ impl Signature {
                 c_type,
                 var_bound: max_arg_size,
                 may_be_pure,
-                may_have_complex_effects: may_be_effectful,
+                may_have_handler_effects: may_be_effectful,
             })
         }
     }
@@ -200,14 +200,14 @@ struct CallSpecializer<'a> {
 impl<'a> Transformer for CallSpecializer<'a> {
     fn transform_redex(&mut self, c_term: &mut CTerm) {
         let CTerm::Redex { box function, args } = c_term else { unreachable!() };
-        let CTerm::Def { name, may_have_complex_effects: has_handler_effects } = function else { return; };
+        let CTerm::Def { name, may_have_handler_effects: has_handler_effects } = function else { return; };
         if let Some((name, PrimitiveFunction { arg_types, return_type, .. })) = PRIMITIVE_FUNCTIONS.get_entry(name) {
             match arg_types.len().cmp(&args.len()) {
                 Ordering::Greater => {
                     let primitive_wrapper_name = format!("{}$__primitive_wrapper_{}", self.def_name, self.primitive_wrapper_counter);
                     // Primitive calls cannot be effectful.
                     assert!(!*has_handler_effects);
-                    *function = CTerm::Def { name: primitive_wrapper_name.clone(), may_have_complex_effects: false };
+                    *function = CTerm::Def { name: primitive_wrapper_name.clone(), may_have_handler_effects: false };
                     self.new_defs.push((primitive_wrapper_name, FunctionDefinition {
                         args: arg_types.iter().enumerate().map(|(i, t)| (i, *t)).collect(),
                         body: CTerm::PrimitiveCall {
@@ -217,7 +217,7 @@ impl<'a> Transformer for CallSpecializer<'a> {
                         c_type: CType::SpecializedF(*return_type),
                         var_bound: arg_types.len(),
                         may_be_pure: true,
-                        may_have_complex_effects: false,
+                        may_have_handler_effects: false,
                     }))
                 }
                 Ordering::Equal => {
@@ -237,7 +237,7 @@ impl<'a> Transformer for CallSpecializer<'a> {
             let has_handler_effects = *has_handler_effects;
             let CTerm::Redex { args, .. } = std::mem::replace(
                 c_term,
-                CTerm::SpecializedFunctionCall { name, args: vec![], may_have_complex_effects: has_handler_effects },
+                CTerm::SpecializedFunctionCall { name, args: vec![], may_have_handler_effects: has_handler_effects },
             ) else { unreachable!() };
             let CTerm::SpecializedFunctionCall { args: new_args, .. } = c_term else { unreachable!() };
             *new_args = args;
@@ -259,7 +259,7 @@ impl<'a> ThunkLifter<'a> {
 
         let mut redex =
             CTerm::Redex {
-                function: Box::new(CTerm::Def { name: thunk_def_name.clone(), may_have_complex_effects: true }),
+                function: Box::new(CTerm::Def { name: thunk_def_name.clone(), may_have_handler_effects: true }),
                 args: free_vars.iter().map(|i| VTerm::Var { index: *i }).collect(),
             };
         std::mem::swap(thunk, &mut redex);
@@ -271,7 +271,7 @@ impl<'a> ThunkLifter<'a> {
             var_bound,
             // All thunks are treated as effectful to simplify compilation.
             may_be_pure: false,
-            may_have_complex_effects: true,
+            may_have_handler_effects: true,
         };
         self.new_defs.push((thunk_def_name, function_definition));
     }

@@ -46,6 +46,7 @@ pub trait Visitor {
             CTerm::ResumeContinuation { .. } => self.visit_resume_continuation(c_term),
             CTerm::DisposeContinuation { .. } => self.visit_dispose_continuation(c_term),
             CTerm::ReplicateContinuation { .. } => self.visit_replicate_continuation(c_term),
+            CTerm::LongReturn { .. } => self.visit_long_return(c_term),
         }
     }
 
@@ -182,5 +183,10 @@ pub trait Visitor {
         let CTerm::ReplicateContinuation { continuation, parameter } = c_term else { unreachable!() };
         self.visit_c_term(continuation);
         self.visit_v_term(parameter);
+    }
+
+    fn visit_long_return(&mut self, c_term: &CTerm) {
+        let CTerm::LongReturn { value } = c_term else { unreachable!() };
+        self.visit_v_term(value);
     }
 }

@@ -23,7 +23,7 @@ Defs
             ),
             var_bound: 0,
             may_be_pure: true,
-            may_have_complex_effects: false,
+            may_have_handler_effects: false,
         },
     ),
 ]
