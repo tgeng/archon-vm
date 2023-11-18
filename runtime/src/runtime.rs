@@ -2,8 +2,7 @@
 type Generic = usize;
 /// Data in uniform representation. This is a tagged primitive or pointer.
 type Uniform = usize;
-/// A function pointer that is not tagged.
-type FuncPtr = *const usize;
+type ThunkPtr = *const usize;
 /// A pointer to a continuation implementation, which takes a corrresponding continuation and a
 /// result value and calls the next continuation in the end.
 type ContImplPtr = *const usize;
@@ -22,11 +21,16 @@ struct Continuation {
 
 struct Handler {
     parent: *mut Handler,
+    /// The return address of the function that created this handler. Returning to this address
+    /// means jumping out of the handler. So the value returned should match the output type of this
+    /// handler.
+    return_address: *const usize,
+    frame_pointer: *const usize,
     transform_continuation: *mut Continuation,
     parameter: *mut Uniform,
-    parameter_disposer: FuncPtr,
-    parameter_replicator: FuncPtr,
-    transform: FuncPtr,
-    simple_handler: Vec<(Eff, FuncPtr)>,
-    complex_handler: Vec<(Eff, FuncPtr)>,
+    parameter_disposer: ThunkPtr,
+    parameter_replicator: ThunkPtr,
+    transform: ThunkPtr,
+    simple_handler: Vec<(Eff, ThunkPtr)>,
+    complex_handler: Vec<(Eff, ThunkPtr)>,
 }
