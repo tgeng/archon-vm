@@ -25,6 +25,11 @@ struct Handler {
     parameter_disposer: ThunkPtr,
     parameter_replicator: ThunkPtr,
     transform: ThunkPtr,
-    simple_handler: Vec<(Eff, ThunkPtr)>,
-    complex_handler: Vec<(Eff, ThunkPtr)>,
+    simple_handler: *const [(Eff, ThunkPtr)],
+    complex_handler: *const [(Eff, ThunkPtr)],
+}
+
+enum HandlerEntry {
+    Handler(Handler),
+    SimpleOperationMarker { handler_index: usize },
 }
