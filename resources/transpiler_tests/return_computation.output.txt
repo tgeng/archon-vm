@@ -115,7 +115,7 @@ Defs
             ),
             var_bound: 2,
             may_be_pure: true,
-            may_have_handler_effects: false,
+            may_have_complex_effects: false,
         },
     ),
     (
@@ -125,7 +125,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "f",
-                    may_have_handler_effects: false,
+                    may_have_complex_effects: false,
                 },
                 args: [
                     Int {
@@ -136,7 +136,7 @@ Defs
             c_type: Default,
             var_bound: 0,
             may_be_pure: true,
-            may_have_handler_effects: false,
+            may_have_complex_effects: false,
         },
     ),
     (
@@ -146,7 +146,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "g",
-                    may_have_handler_effects: false,
+                    may_have_complex_effects: false,
                 },
                 args: [
                     Int {
@@ -161,7 +161,7 @@ Defs
             ),
             var_bound: 0,
             may_be_pure: true,
-            may_have_handler_effects: false,
+            may_have_complex_effects: false,
         },
     ),
 ]
