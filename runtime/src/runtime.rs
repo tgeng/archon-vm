@@ -12,11 +12,12 @@ type Eff = *const usize;
 
 /// A state object of a function. This also points to the caller state so it effectively represents
 /// a continuation. Hence the name.
+#[repr(C, align(8))]
 struct Continuation {
     next: *mut Continuation,
     func: ContImplPtr,
     state: usize,
-    local_vars: *mut [Generic],
+    local_vars: [Generic],
 }
 
 struct Handler {
