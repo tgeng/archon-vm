@@ -15,15 +15,15 @@ use crate::ast::primitive_functions::PRIMITIVE_FUNCTIONS;
 pub struct FunctionTranslator<'a, M: Module> {
     pub module: &'a mut M,
     pub function_builder: FunctionBuilder<'a>,
-    pub data_description: &'a mut DataDescription,
-    pub builtin_functions: &'a EnumMap<BuiltinFunction, FuncId>,
+    pub data_description: DataDescription,
+    pub builtin_functions: EnumMap<BuiltinFunction, FuncId>,
     pub static_strings: &'a mut HashMap<String, DataId>,
     pub local_functions: &'a HashMap<String, FuncId>,
-    pub local_vars: &'a mut [TypedReturnValue],
+    pub local_vars: Vec<TypedReturnValue>,
     pub base_address: Value,
     pub tip_address: Value,
     pub num_args: usize,
-    pub uniform_func_signature: &'a Signature,
+    pub uniform_func_signature: Signature,
     pub tip_address_slot: StackSlot,
     pub local_function_arg_types: &'a HashMap<String, (Vec<VType>, CType)>,
     pub is_specialized: bool,
@@ -33,11 +33,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
     pub fn translate_c_term(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
         match c_term {
             CTerm::Redex { box function, args } => {
-                let arg_values = args.iter().map(|arg| {
-                    let v = self.translate_v_term(arg);
-                    self.convert_to_uniform(v)
-                }).collect::<Vec<_>>();
-                self.push_args(arg_values);
+                self.push_arg_v_terms(args);
                 self.translate_c_term(function, is_tail)
             }
             CTerm::Return { value } => self.translate_v_term(value),
@@ -187,6 +183,14 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         }
     }
 
+    pub fn push_arg_v_terms(&mut self, args: &Vec<VTerm>) {
+        let arg_values = args.iter().map(|arg| {
+            let v = self.translate_v_term(arg);
+            self.convert_to_uniform(v)
+        }).collect::<Vec<_>>();
+        self.push_args(arg_values);
+    }
+
     fn create_branch_block(&mut self, branch_block: Block, is_tail: bool, next_block: Block, result_v_type: &VType, branch: Option<&CTerm>) {
         self.function_builder.switch_to_block(branch_block);
         let typed_return_value = match branch {
@@ -256,7 +260,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 let data_id = self.static_strings.entry(value.clone()).or_insert_with(|| {
                     self.data_description.define(value.clone().into_bytes().into_boxed_slice());
                     let data_id = self.module.declare_data(value, Linkage::Local, false, false).unwrap();
-                    self.module.define_data(data_id, self.data_description).unwrap();
+                    self.module.define_data(data_id, &mut self.data_description).unwrap();
                     self.data_description.clear();
                     data_id
                 });

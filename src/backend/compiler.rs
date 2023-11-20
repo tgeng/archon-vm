@@ -132,7 +132,7 @@ impl<M: Module> Compiler<M> {
             if function_definition.is_specializable() {
                 let sig = specialzied_function_signatures.get(name).unwrap();
                 let specialized_name = format!("{}__specialized", name);
-                self.compile_specialized_function(sig, function_definition, &local_function_arg_types);
+                self.compile_specialized_function(sig.clone(), function_definition, &local_function_arg_types);
                 let func_id = self.local_functions.get(&specialized_name).unwrap();
                 self.define_function(&specialized_name, *func_id, clir);
                 self.module.clear_context(&mut self.ctx);
@@ -211,46 +211,23 @@ impl<M: Module> Compiler<M> {
         // Whenever a function call completes, this tip is set to the callee return address plus
         // size of one word, so that the next call can happen normally.
 
-        self.ctx.clear();
-        self.ctx.func.signature = self.uniform_func_signature.clone();
-
-        let mut function_builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.builder_context);
-        let entry_block = function_builder.create_block();
-
-        // Allocate slot for storing the tip address so that a pointer to the tip address can be
-        // passed to built-in force call helper function in order to have the tip address updated.
-        let tip_address_slot = function_builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8));
-        function_builder.append_block_params_for_function_params(entry_block);
-        function_builder.switch_to_block(entry_block);
-        function_builder.seal_block(entry_block);
-
-        let base_address = function_builder.block_params(entry_block)[0];
-        let mut translator = FunctionTranslator {
-            module: &mut self.module,
-            function_builder,
-            data_description: &mut DataDescription::new(),
-            builtin_functions: &self.builtin_functions,
-            static_strings: &mut self.static_strings,
-            local_functions: &self.local_functions,
-            local_vars: &mut vec![None; function_definition.var_bound],
-            base_address,
-            tip_address: base_address,
-            num_args: function_definition.args.len(),
-            uniform_func_signature: &self.uniform_func_signature,
-            tip_address_slot,
-            local_function_arg_types,
-            is_specialized: false,
-        };
         // Here we transform the function body to non-specialized version, hence the argument types
         // are ignored.
-        for (i, (v, _)) in function_definition.args.iter().enumerate() {
-            // v is the variable index and i is the offset in the parameter list. The parameter
-            // stack grows from higher address to lower address, so parameter list grows in the
-            // reverse order and hence the offset is the index of the parameter in the parameter
-            // list.
-            let value = translator.function_builder.ins().load(I64, MemFlags::new(), translator.base_address, (i * 8) as i32);
-            translator.local_vars[*v] = Some((value, Uniform));
-        }
+
+        let mut translator = self.new_function_translator(
+            self.uniform_func_signature.clone(),
+            function_definition,
+            local_function_arg_types,
+            false,
+            |translator, _entry_block, i, _v_type| {
+                // v is the variable index and i is the offset in the parameter list. The parameter
+                // stack grows from higher address to lower address, so parameter list grows in the
+                // reverse order and hence the offset is the index of the parameter in the parameter
+                // list.
+                let value = translator.function_builder.ins().load(I64, MemFlags::new(), translator.base_address, (i * 8) as i32);
+                (value, Uniform)
+            },
+        );
         // The return value will be returned so its type does not matter. Treating it as an integer
         // is sufficient.
         let return_value_or_param = translator.translate_c_term(&function_definition.body, true);
@@ -270,49 +247,22 @@ impl<M: Module> Compiler<M> {
         translator.function_builder.finalize();
     }
 
-    fn compile_specialized_function(&mut self, sig: &Signature, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
-        // Parameters of specialized functions are just passed normally.
-
-        self.ctx.clear();
-        self.ctx.func.signature = sig.clone();
-
-        let mut function_builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.builder_context);
-        let entry_block = function_builder.create_block();
-
-        // Allocate slot for storing the tip address so that a pointer to the tip address can be
-        // passed to built-in force call helper function in order to have the tip address updated.
-        let tip_address_slot = function_builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8));
-        function_builder.append_block_params_for_function_params(entry_block);
-        function_builder.switch_to_block(entry_block);
-        function_builder.seal_block(entry_block);
-
-        let base_address = function_builder.block_params(entry_block)[0];
-        let mut translator = FunctionTranslator {
-            module: &mut self.module,
-            function_builder,
-            data_description: &mut DataDescription::new(),
-            builtin_functions: &self.builtin_functions,
-            static_strings: &mut self.static_strings,
-            local_functions: &self.local_functions,
-            local_vars: &mut vec![None; function_definition.var_bound],
-            base_address,
-            tip_address: base_address,
-            num_args: function_definition.args.len(),
-            uniform_func_signature: &self.uniform_func_signature,
-            tip_address_slot,
+    fn compile_specialized_function(&mut self, sig: Signature, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
+        let mut translator = self.new_function_translator(
+            sig,
+            function_definition,
             local_function_arg_types,
-            is_specialized: true,
-        };
-        // Here we transform the function body to non-specialized version, hence the argument types
-        // are ignored.
-        for (i, (v, v_type)) in function_definition.args.iter().enumerate() {
-            // v is the variable index and i is the offset in the parameter list. The parameter
-            // stack grows from higher address to lower address, so parameter list grows in the
-            // reverse order and hence the offset is the index of the parameter in the parameter
-            // list.
-            // In addition, i + 1 is the parameter index in the entry block
-            translator.local_vars[*v] = Some((translator.function_builder.block_params(entry_block)[i + 1], *v_type));
-        }
+            true,
+            |translator, entry_block, i, v_type| {
+                // v is the variable index and i is the offset in the parameter list. The parameter
+                // stack grows from higher address to lower address, so parameter list grows in the
+                // reverse order and hence the offset is the index of the parameter in the parameter
+                // list.
+                // In addition, i + 1 is the parameter index in the entry block
+                let value = translator.function_builder.block_params(entry_block)[i + 1];
+                (value, *v_type)
+            },
+        );
         // The return value will be returned so its type does not matter. Treating it as an integer
         // is sufficient.
         let return_value_or_param = translator.translate_c_term(&function_definition.body, true);
@@ -328,5 +278,53 @@ impl<M: Module> Compiler<M> {
         }
         translator.function_builder.seal_all_blocks();
         translator.function_builder.finalize();
+    }
+
+    fn new_function_translator<'a>(
+        &'a mut self,
+        sig: Signature,
+        function_definition: &'a FunctionDefinition,
+        local_function_arg_types: &'a HashMap<String, (Vec<VType>, CType)>,
+        specialized: bool,
+        parameter_initializer: fn(&mut FunctionTranslator<M>, Block, usize, &VType) -> (Value, VType),
+    ) -> FunctionTranslator<'a, M> {
+        // Parameters of specialized functions are just passed normally.
+
+        self.ctx.clear();
+        self.ctx.func.signature = sig;
+
+        let mut function_builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.builder_context);
+        let entry_block = function_builder.create_block();
+
+        // Allocate slot for storing the tip address so that a pointer to the tip address can be
+        // passed to built-in force call helper function in order to have the tip address updated.
+        let tip_address_slot = function_builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8));
+        function_builder.append_block_params_for_function_params(entry_block);
+        function_builder.switch_to_block(entry_block);
+        function_builder.seal_block(entry_block);
+
+        let base_address = function_builder.block_params(entry_block)[0];
+        let mut translator = FunctionTranslator {
+            module: &mut self.module,
+            function_builder,
+            data_description: DataDescription::new(),
+            builtin_functions: self.builtin_functions,
+            static_strings: &mut self.static_strings,
+            local_functions: &self.local_functions,
+            local_vars: vec![None; function_definition.var_bound],
+            base_address,
+            tip_address: base_address,
+            num_args: function_definition.args.len(),
+            uniform_func_signature: self.uniform_func_signature.clone(),
+            tip_address_slot,
+            local_function_arg_types,
+            is_specialized: specialized,
+        };
+        // Here we transform the function body to non-specialized version, hence the argument types
+        // are ignored.
+        for (i, (v, v_type)) in function_definition.args.iter().enumerate() {
+            translator.local_vars[*v] = Some(parameter_initializer(&mut translator, entry_block, i, v_type));
+        }
+        translator
     }
 }
