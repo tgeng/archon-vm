@@ -3,7 +3,7 @@ use cranelift::codegen::isa::CallConv;
 use cranelift::prelude::*;
 use cranelift::prelude::types::{I64};
 use cranelift_jit::{JITBuilder, JITModule};
-use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
+use cranelift_module::{DataId, FuncId, Linkage, Module};
 use cranelift_object::ObjectModule;
 use crate::ast::signature::FunctionDefinition;
 use crate::ast::term::{VType, CType};
@@ -17,21 +17,21 @@ use crate::backend::function_translator::FunctionTranslator;
 pub struct Compiler<M: Module> {
     /// The function builder context, which is reused across multiple
     /// FunctionBuilder instances.
-    builder_context: FunctionBuilderContext,
+    pub builder_context: FunctionBuilderContext,
 
     /// The main Cranelift context, which holds the state for codegen. Cranelift
     /// separates this from `Module` to allow for parallel compilation, with a
     /// context per thread, though this isn't in the simple demo here.
-    ctx: codegen::Context,
+    pub ctx: codegen::Context,
 
     /// The module, with the jit backend, which manages the JIT'd
     /// functions.
-    module: M,
+    pub module: M,
 
-    builtin_functions: EnumMap<BuiltinFunction, FuncId>,
-    static_strings: HashMap<String, DataId>,
-    local_functions: HashMap<String, FuncId>,
-    uniform_func_signature: Signature,
+    pub builtin_functions: EnumMap<BuiltinFunction, FuncId>,
+    pub static_strings: HashMap<String, DataId>,
+    pub local_functions: HashMap<String, FuncId>,
+    pub uniform_func_signature: Signature,
 }
 
 const MAIN_WRAPPER_NAME: &str = "__main__";
@@ -214,7 +214,8 @@ impl<M: Module> Compiler<M> {
         // Here we transform the function body to non-specialized version, hence the argument types
         // are ignored.
 
-        let mut translator = self.new_function_translator(
+        let mut translator = FunctionTranslator::new(
+            self,
             self.uniform_func_signature.clone(),
             function_definition,
             local_function_arg_types,
@@ -248,7 +249,8 @@ impl<M: Module> Compiler<M> {
     }
 
     fn compile_specialized_function(&mut self, sig: Signature, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
-        let mut translator = self.new_function_translator(
+        let mut translator = FunctionTranslator::new(
+            self,
             sig,
             function_definition,
             local_function_arg_types,
@@ -278,53 +280,5 @@ impl<M: Module> Compiler<M> {
         }
         translator.function_builder.seal_all_blocks();
         translator.function_builder.finalize();
-    }
-
-    fn new_function_translator<'a>(
-        &'a mut self,
-        sig: Signature,
-        function_definition: &'a FunctionDefinition,
-        local_function_arg_types: &'a HashMap<String, (Vec<VType>, CType)>,
-        specialized: bool,
-        parameter_initializer: fn(&mut FunctionTranslator<M>, Block, usize, &VType) -> (Value, VType),
-    ) -> FunctionTranslator<'a, M> {
-        // Parameters of specialized functions are just passed normally.
-
-        self.ctx.clear();
-        self.ctx.func.signature = sig;
-
-        let mut function_builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.builder_context);
-        let entry_block = function_builder.create_block();
-
-        // Allocate slot for storing the tip address so that a pointer to the tip address can be
-        // passed to built-in force call helper function in order to have the tip address updated.
-        let tip_address_slot = function_builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8));
-        function_builder.append_block_params_for_function_params(entry_block);
-        function_builder.switch_to_block(entry_block);
-        function_builder.seal_block(entry_block);
-
-        let base_address = function_builder.block_params(entry_block)[0];
-        let mut translator = FunctionTranslator {
-            module: &mut self.module,
-            function_builder,
-            data_description: DataDescription::new(),
-            builtin_functions: self.builtin_functions,
-            static_strings: &mut self.static_strings,
-            local_functions: &self.local_functions,
-            local_vars: vec![None; function_definition.var_bound],
-            base_address,
-            tip_address: base_address,
-            num_args: function_definition.args.len(),
-            uniform_func_signature: self.uniform_func_signature.clone(),
-            tip_address_slot,
-            local_function_arg_types,
-            is_specialized: specialized,
-        };
-        // Here we transform the function body to non-specialized version, hence the argument types
-        // are ignored.
-        for (i, (v, v_type)) in function_definition.args.iter().enumerate() {
-            translator.local_vars[*v] = Some(parameter_initializer(&mut translator, entry_block, i, v_type));
-        }
-        translator
     }
 }

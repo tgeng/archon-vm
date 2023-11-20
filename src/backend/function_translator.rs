@@ -11,6 +11,8 @@ use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
 use crate::backend::common::{BuiltinFunction, HasType, TypedReturnValue};
 use crate::ast::primitive_functions::PRIMITIVE_FUNCTIONS;
+use crate::ast::signature::FunctionDefinition;
+use crate::backend::compiler::Compiler;
 
 pub struct FunctionTranslator<'a, M: Module> {
     pub module: &'a mut M,
@@ -30,6 +32,54 @@ pub struct FunctionTranslator<'a, M: Module> {
 }
 
 impl<'a, M: Module> FunctionTranslator<'a, M> {
+    pub fn new(
+        compiler: &'a mut Compiler<M>,
+        sig: Signature,
+        function_definition: &'a FunctionDefinition,
+        local_function_arg_types: &'a HashMap<String, (Vec<VType>, CType)>,
+        specialized: bool,
+        parameter_initializer: fn(&mut FunctionTranslator<M>, Block, usize, &VType) -> (Value, VType),
+    ) -> FunctionTranslator<'a, M> {
+        // Parameters of specialized functions are just passed normally.
+
+        compiler.ctx.clear();
+        compiler.ctx.func.signature = sig;
+
+        let mut function_builder = FunctionBuilder::new(&mut compiler.ctx.func, &mut compiler.builder_context);
+        let entry_block = function_builder.create_block();
+
+        // Allocate slot for storing the tip address so that a pointer to the tip address can be
+        // passed to built-in force call helper function in order to have the tip address updated.
+        let tip_address_slot = function_builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8));
+        function_builder.append_block_params_for_function_params(entry_block);
+        function_builder.switch_to_block(entry_block);
+        function_builder.seal_block(entry_block);
+
+        let base_address = function_builder.block_params(entry_block)[0];
+        let mut translator = FunctionTranslator {
+            module: &mut compiler.module,
+            function_builder,
+            data_description: DataDescription::new(),
+            builtin_functions: compiler.builtin_functions,
+            static_strings: &mut compiler.static_strings,
+            local_functions: &compiler.local_functions,
+            local_vars: vec![None; function_definition.var_bound],
+            base_address,
+            tip_address: base_address,
+            num_args: function_definition.args.len(),
+            uniform_func_signature: compiler.uniform_func_signature.clone(),
+            tip_address_slot,
+            local_function_arg_types,
+            is_specialized: specialized,
+        };
+        // Here we transform the function body to non-specialized version, hence the argument types
+        // are ignored.
+        for (i, (v, v_type)) in function_definition.args.iter().enumerate() {
+            translator.local_vars[*v] = Some(parameter_initializer(&mut translator, entry_block, i, v_type));
+        }
+        translator
+    }
+
     pub fn translate_c_term(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
         match c_term {
             CTerm::Redex { box function, args } => {
