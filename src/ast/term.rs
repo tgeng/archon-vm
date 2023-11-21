@@ -80,7 +80,7 @@ pub struct Eff {
 pub enum CTerm {
     Redex { function: Box<CTerm>, args: Vec<VTerm> },
     Return { value: VTerm },
-    Force { thunk: VTerm, may_have_complex_effects: bool },
+    Force { thunk: VTerm },
     Let { t: Box<CTerm>, bound_index: usize, body: Box<CTerm> },
     /// Note: the flag means whether the function has complex effects that need to be handled by
     /// some handlers. System effects like IO do not count because they appear to be a simple call.
@@ -123,5 +123,5 @@ pub enum CTerm {
     /// returns to the return address of the caller of the matching simple effect handler. This is
     /// used to implement simple exceptional effects, where a normal return means good call result
     /// and a long return means exceptional call result.
-    LongReturn { value: VTerm }
+    LongReturn { value: VTerm },
 }

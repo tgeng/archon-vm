@@ -32,14 +32,15 @@ pub struct FunctionTranslator<'a, M: Module> {
 }
 
 impl<'a, M: Module> FunctionTranslator<'a, M> {
-    pub fn new(
+    pub fn new<F>(
         compiler: &'a mut Compiler<M>,
         sig: Signature,
         function_definition: &'a FunctionDefinition,
         local_function_arg_types: &'a HashMap<String, (Vec<VType>, CType)>,
-        specialized: bool,
-        parameter_initializer: fn(&mut FunctionTranslator<M>, Block, usize, &VType) -> (Value, VType),
-    ) -> FunctionTranslator<'a, M> {
+        is_specialized: bool,
+        base_address_getter: F,
+        parameter_initializer: fn(&mut FunctionTranslator<M>, Block, usize, &VType) -> TypedReturnValue,
+    ) -> FunctionTranslator<'a, M> where F: FnOnce(&mut FunctionBuilder, Block) -> Value {
         // Parameters of specialized functions are just passed normally.
 
         compiler.ctx.clear();
@@ -55,7 +56,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         function_builder.switch_to_block(entry_block);
         function_builder.seal_block(entry_block);
 
-        let base_address = function_builder.block_params(entry_block)[0];
+        let base_address = base_address_getter(&mut function_builder, entry_block);
         let mut translator = FunctionTranslator {
             module: &mut compiler.module,
             function_builder,
@@ -70,12 +71,12 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             uniform_func_signature: compiler.uniform_func_signature.clone(),
             tip_address_slot,
             local_function_arg_types,
-            is_specialized: specialized,
+            is_specialized,
         };
         // Here we transform the function body to non-specialized version, hence the argument types
         // are ignored.
         for (i, (v, v_type)) in function_definition.args.iter().enumerate() {
-            translator.local_vars[*v] = Some(parameter_initializer(&mut translator, entry_block, i, v_type));
+            translator.local_vars[*v] = parameter_initializer(&mut translator, entry_block, i, v_type);
         }
         translator
     }
@@ -87,7 +88,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 self.translate_c_term(function, is_tail)
             }
             CTerm::Return { value } => self.translate_v_term(value),
-            CTerm::Force { thunk, may_have_complex_effects } => {
+            CTerm::Force { thunk } => {
                 let thunk_value = self.translate_v_term(thunk);
                 // We must change the thunk value to uniform representation because the built-in
                 // function expects a uniform representation in order to tell a thunk from a raw
@@ -101,6 +102,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 self.tip_address = self.function_builder.ins().stack_load(I64, self.tip_address_slot, 0);
 
                 let sig_ref = self.function_builder.import_signature(self.uniform_func_signature.clone());
+                // TODO: the thunk will need to take a trivial continuation in order to return.
                 if is_tail && !self.is_specialized {
                     let base_address = self.copy_tail_call_args_and_get_new_base();
                     self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[base_address]);
@@ -115,7 +117,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 self.local_vars[*bound_index] = t_value;
                 self.translate_c_term(body, is_tail)
             }
-            CTerm::Def { name, may_have_complex_effects } => {
+            CTerm::Def { name, .. } => {
                 let func_ref = self.get_local_function(name);
                 if is_tail && !self.is_specialized {
                     let base_address = self.copy_tail_call_args_and_get_new_base();
@@ -278,17 +280,17 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         new_base_value
     }
 
-    fn translate_v_term(&mut self, v_term: &VTerm) -> TypedReturnValue {
+    pub fn translate_v_term(&mut self, v_term: &VTerm) -> TypedReturnValue {
         match v_term {
             VTerm::Var { index } => self.local_vars[*index],
             VTerm::Thunk { box t } => {
                 let empty_args = &vec![];
                 let (name, args) = match t {
-                    CTerm::Redex { function: box CTerm::Def { name, may_have_complex_effects }, args } => (name, args),
-                    CTerm::Def { name, may_have_complex_effects } => (name, empty_args),
+                    CTerm::Redex { function: box CTerm::Def { name, .. }, args } => (name, args),
+                    CTerm::Def { name, .. } => (name, empty_args),
                     _ => unreachable!("thunk lifting should have guaranteed this")
                 };
-                let func_ref = self.get_local_function(name);
+                let func_ref = self.get_local_function(&format!("{}__cps", name));
                 let func_pointer = self.function_builder.ins().func_addr(I64, func_ref);
                 let func_pointer = Some((func_pointer, Specialized(PrimitivePtr)));
                 if args.is_empty() {
@@ -310,7 +312,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 let data_id = self.static_strings.entry(value.clone()).or_insert_with(|| {
                     self.data_description.define(value.clone().into_bytes().into_boxed_slice());
                     let data_id = self.module.declare_data(value, Linkage::Local, false, false).unwrap();
-                    self.module.define_data(data_id, &mut self.data_description).unwrap();
+                    self.module.define_data(data_id, &self.data_description).unwrap();
                     self.data_description.clear();
                     data_id
                 });

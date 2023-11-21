@@ -16,6 +16,7 @@ type Eff = *const usize;
 struct Continuation {
     next: *mut Continuation,
     func: ContImplPtr,
+    base_address: *mut usize,
     state: usize,
     local_vars: [Generic],
 }

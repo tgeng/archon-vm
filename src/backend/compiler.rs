@@ -220,13 +220,14 @@ impl<M: Module> Compiler<M> {
             function_definition,
             local_function_arg_types,
             false,
+            |function_builder, entry_block| function_builder.block_params(entry_block)[0],
             |translator, _entry_block, i, _v_type| {
                 // v is the variable index and i is the offset in the parameter list. The parameter
                 // stack grows from higher address to lower address, so parameter list grows in the
                 // reverse order and hence the offset is the index of the parameter in the parameter
                 // list.
                 let value = translator.function_builder.ins().load(I64, MemFlags::new(), translator.base_address, (i * 8) as i32);
-                (value, Uniform)
+                Some((value, Uniform))
             },
         );
         // The return value will be returned so its type does not matter. Treating it as an integer
@@ -255,6 +256,7 @@ impl<M: Module> Compiler<M> {
             function_definition,
             local_function_arg_types,
             true,
+            |function_builder, entry_block| function_builder.block_params(entry_block)[0],
             |translator, entry_block, i, v_type| {
                 // v is the variable index and i is the offset in the parameter list. The parameter
                 // stack grows from higher address to lower address, so parameter list grows in the
@@ -262,7 +264,7 @@ impl<M: Module> Compiler<M> {
                 // list.
                 // In addition, i + 1 is the parameter index in the entry block
                 let value = translator.function_builder.block_params(entry_block)[i + 1];
-                (value, *v_type)
+                Some((value, *v_type))
             },
         );
         // The return value will be returned so its type does not matter. Treating it as an integer

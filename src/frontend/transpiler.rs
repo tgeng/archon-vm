@@ -33,7 +33,6 @@ impl Transpiler {
             c_type: CType::SpecializedF(VType::Specialized(SpecializedType::Integer)),
             var_bound: 0,
             may_be_pure: true,
-            may_have_complex_effects: false,
         });
     }
 
@@ -65,7 +64,7 @@ impl Transpiler {
                 let body = CTerm::Redex { function: Box::new(self.transpile_impl(*function, context)), args: transpiled_args };
                 Self::squash_computations(body, transpiled_computations)
             }
-            FTerm::Force { thunk } => self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t, may_have_complex_effects: false }),
+            FTerm::Force { thunk } => self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t }),
             FTerm::Thunk { computation } => CTerm::Return { value: VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)) } },
             FTerm::CaseInt { t, result_type, branches, default_branch } => {
                 let mut transpiled_branches = Vec::new();
@@ -150,7 +149,7 @@ impl Transpiler {
                     });
                     let mut free_var_strings: Vec<String> = free_vars.iter().map(|s| s.to_string()).collect();
                     free_var_strings.extend(def.args.into_iter().map(|(v, _)| v));
-                    self.signature.defs.insert(name.clone(), FunctionDefinition { args: bound_indexes, body: def_body, c_type: def.c_type, var_bound: self.local_counter, may_be_pure: true, may_have_complex_effects: false });
+                    self.signature.defs.insert(name.clone(), FunctionDefinition { args: bound_indexes, body: def_body, c_type: def.c_type, var_bound: self.local_counter, may_be_pure: true });
                 });
                 match body {
                     None => CTerm::Return { value: VTerm::Struct { values: Vec::new() } },
