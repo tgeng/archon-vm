@@ -1,4 +1,3 @@
-use std::fmt::format;
 use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
