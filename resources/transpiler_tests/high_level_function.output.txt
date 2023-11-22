@@ -340,8 +340,11 @@ Defs
                                         ],
                                     },
                                     bound_index: 8,
-                                    body: SpecializedFunctionCall {
-                                        name: "fold",
+                                    body: Redex {
+                                        function: Def {
+                                            name: "fold",
+                                            may_have_complex_effects: false,
+                                        },
                                         args: [
                                             Var {
                                                 index: 0,
@@ -359,7 +362,6 @@ Defs
                                                 index: 8,
                                             },
                                         ],
-                                        may_have_complex_effects: false,
                                     },
                                 },
                             },
@@ -389,8 +391,11 @@ Defs
         "main",
         FunctionDefinition {
             args: [],
-            body: SpecializedFunctionCall {
-                name: "fold",
+            body: Redex {
+                function: Def {
+                    name: "fold",
+                    may_have_complex_effects: false,
+                },
                 args: [
                     Int {
                         value: 3,
@@ -424,7 +429,6 @@ Defs
                         value: 0,
                     },
                 ],
-                may_have_complex_effects: false,
             },
             c_type: SpecializedF(
                 Specialized(

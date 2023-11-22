@@ -99,7 +99,6 @@ pub enum CTerm {
     // PMemGet { base: VTerm, offset: VTerm, p_type: PType },
     // PMemSet { base: VTerm, offset: VTerm, value: VTerm, p_type: PType },
     PrimitiveCall { name: &'static str, args: Vec<VTerm> },
-    SpecializedFunctionCall { name: String, args: Vec<VTerm>, may_have_complex_effects: bool },
     OperationCall { eff: Eff, args: Vec<VTerm>, simple: bool },
     Handler {
         parameter: VTerm,

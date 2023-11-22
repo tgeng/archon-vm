@@ -227,15 +227,6 @@ impl<'a> Transformer for CallSpecializer<'a> {
                     unreachable!()
                 }
             }
-        } else if let Some(arity) = self.specializable_functions.get(name) && args.len() == *arity {
-            let name = name.to_owned();
-            let has_handler_effects = *has_handler_effects;
-            let CTerm::Redex { args, .. } = std::mem::replace(
-                c_term,
-                CTerm::SpecializedFunctionCall { name, args: vec![], may_have_complex_effects: has_handler_effects },
-            ) else { unreachable!() };
-            let CTerm::SpecializedFunctionCall { args: new_args, .. } = c_term else { unreachable!() };
-            *new_args = args;
         }
     }
 }

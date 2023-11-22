@@ -40,7 +40,6 @@ pub trait Visitor {
             CTerm::MemGet { .. } => self.visit_mem_get(c_term),
             CTerm::MemSet { .. } => self.visit_mem_set(c_term),
             CTerm::PrimitiveCall { .. } => self.visit_primitive_call(c_term),
-            CTerm::SpecializedFunctionCall { .. } => self.visit_specialized_function_call(c_term),
             CTerm::OperationCall { .. } => self.visit_operation_call(c_term),
             CTerm::Handler { .. } => self.visit_handler(c_term),
             CTerm::ResumeContinuation { .. } => self.visit_resume_continuation(c_term),
@@ -102,11 +101,6 @@ pub trait Visitor {
 
     fn visit_primitive_call(&mut self, c_term: &CTerm) {
         let CTerm::PrimitiveCall { args, .. } = c_term else { unreachable!() };
-        args.iter().for_each(|arg| self.visit_v_term(arg));
-    }
-
-    fn visit_specialized_function_call(&mut self, c_term: &CTerm) {
-        let CTerm::SpecializedFunctionCall { args, .. } = c_term else { unreachable!() };
         args.iter().for_each(|arg| self.visit_v_term(arg));
     }
 

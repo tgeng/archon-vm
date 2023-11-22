@@ -169,8 +169,11 @@ Defs
                     Uniform,
                 ),
             ],
-            body: SpecializedFunctionCall {
-                name: "f",
+            body: Redex {
+                function: Def {
+                    name: "f",
+                    may_have_complex_effects: false,
+                },
                 args: [
                     Var {
                         index: 2,
@@ -182,7 +185,6 @@ Defs
                         index: 1,
                     },
                 ],
-                may_have_complex_effects: false,
             },
             c_type: Default,
             var_bound: 3,

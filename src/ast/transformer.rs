@@ -40,7 +40,6 @@ pub trait Transformer {
             CTerm::MemGet { .. } => self.transform_mem_get(c_term),
             CTerm::MemSet { .. } => self.transform_mem_set(c_term),
             CTerm::PrimitiveCall { .. } => self.transform_primitive_call(c_term),
-            CTerm::SpecializedFunctionCall { .. } => self.transform_specialized_function_call(c_term),
             CTerm::OperationCall { .. } => self.transform_operation_call(c_term),
             CTerm::Handler { .. } => self.transform_handler(c_term),
             CTerm::ResumeContinuation { .. } => self.transform_resume_continuation(c_term),
@@ -103,11 +102,6 @@ pub trait Transformer {
 
     fn transform_primitive_call(&mut self, c_term: &mut CTerm) {
         let CTerm::PrimitiveCall { args, .. } = c_term else { unreachable!() };
-        args.iter_mut().for_each(|arg| self.transform_v_term(arg));
-    }
-
-    fn transform_specialized_function_call(&mut self, c_term: &mut CTerm) {
-        let CTerm::SpecializedFunctionCall { args, .. } = c_term else { unreachable!() };
         args.iter_mut().for_each(|arg| self.transform_v_term(arg));
     }
 

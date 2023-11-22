@@ -84,6 +84,32 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
     pub fn translate_c_term(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
         match c_term {
             CTerm::Redex { box function, args } => {
+                if let CTerm::Def { name, .. } = function {
+                    // Handle specialized function call
+                    let (arg_types, return_type) = self.local_function_arg_types.get(name).unwrap();
+                    if let CType::SpecializedF(return_type) = return_type && arg_types.len() == args.len() {
+                        let tip_address = self.tip_address;
+                        let all_args = iter::once(tip_address)
+                            .chain(args.iter()
+                                .zip(arg_types)
+                                .map(|(arg, v_type)| {
+                                    let arg = self.translate_v_term(arg);
+                                    self.adapt_type(arg, v_type)
+                                }
+                                ))
+                            .collect::<Vec<_>>();
+                        let (func_ref, flavor) = self.get_local_function(&name, FunctionFlavor::Specialized);
+                        // The fact that this function is invoked here means it must be simple.
+                        assert_eq!(flavor, FunctionFlavor::Specialized);
+                        if is_tail && self.is_specialized {
+                            self.function_builder.ins().return_call(func_ref, &all_args);
+                            return None;
+                        } else {
+                            let inst = self.function_builder.ins().call(func_ref, &all_args);
+                            return Some((self.function_builder.inst_results(inst)[0], *return_type));
+                        }
+                    }
+                }
                 self.push_arg_v_terms(args);
                 self.translate_c_term(function, is_tail)
             }
@@ -214,29 +240,6 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let arg_values: Vec<Value> = primitive_function.arg_types.iter().zip(args).map(|(ty, arg)| self.adapt_type(arg, ty)).collect();
                 let return_value = (primitive_function.code_gen)(&mut self.function_builder, &arg_values);
                 Some((return_value, primitive_function.return_type))
-            }
-            CTerm::SpecializedFunctionCall { name, args, .. } => {
-                let (arg_types, CType::SpecializedF(return_type)) = self.local_function_arg_types.get(name).unwrap() else { unreachable!("{} is not specialized", name) };
-                let tip_address = self.tip_address;
-                let all_args = iter::once(tip_address)
-                    .chain(args.iter()
-                        .zip(arg_types)
-                        .map(|(arg, v_type)| {
-                            let arg = self.translate_v_term(arg);
-                            self.adapt_type(arg, v_type)
-                        }
-                        ))
-                    .collect::<Vec<_>>();
-                let (func_ref, flavor) = self.get_local_function(&name, FunctionFlavor::Specialized);
-                // The fact that this function is invoked here means it must be simple.
-                assert_eq!(flavor, FunctionFlavor::Specialized);
-                if is_tail && self.is_specialized {
-                    self.function_builder.ins().return_call(func_ref, &all_args);
-                    None
-                } else {
-                    let inst = self.function_builder.ins().call(func_ref, &all_args);
-                    Some((self.function_builder.inst_results(inst)[0], *return_type))
-                }
             }
             CTerm::OperationCall { .. } => todo!(),
             CTerm::Handler { .. } => todo!(),

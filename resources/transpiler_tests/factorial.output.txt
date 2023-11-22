@@ -133,14 +133,16 @@ Defs
                                 ],
                             },
                             bound_index: 1,
-                            body: SpecializedFunctionCall {
-                                name: "factorial",
+                            body: Redex {
+                                function: Def {
+                                    name: "factorial",
+                                    may_have_complex_effects: false,
+                                },
                                 args: [
                                     Var {
                                         index: 1,
                                     },
                                 ],
-                                may_have_complex_effects: false,
                             },
                         },
                         bound_index: 2,
@@ -171,14 +173,16 @@ Defs
         "main",
         FunctionDefinition {
             args: [],
-            body: SpecializedFunctionCall {
-                name: "factorial",
+            body: Redex {
+                function: Def {
+                    name: "factorial",
+                    may_have_complex_effects: false,
+                },
                 args: [
                     Int {
                         value: 5,
                     },
                 ],
-                may_have_complex_effects: false,
             },
             c_type: SpecializedF(
                 Specialized(

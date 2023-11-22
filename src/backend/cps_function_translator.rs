@@ -132,7 +132,6 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
             CTerm::Force { .. } => todo!(),
             CTerm::Def { .. } => todo!(),
             CTerm::CaseInt { .. } => todo!(),
-            CTerm::SpecializedFunctionCall { .. } => todo!(),
             CTerm::OperationCall { .. } => todo!(),
             CTerm::Handler { .. } => todo!(),
             CTerm::ResumeContinuation { .. } => todo!(),
