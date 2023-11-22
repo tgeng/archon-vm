@@ -10,8 +10,8 @@ use crate::ast::term::{VType, CType};
 use strum::IntoEnumIterator;
 use enum_map::{EnumMap};
 use VType::{Uniform};
-use crate::backend::common::{BuiltinFunction, HasType};
-use crate::backend::function_translator::FunctionTranslator;
+use crate::backend::common::{BuiltinFunction, FunctionFlavor, HasType};
+use crate::backend::pure_function_translator::PureFunctionTranslator;
 
 /// The basic JIT class.
 pub struct Compiler<M: Module> {
@@ -107,35 +107,47 @@ impl<M: Module> Compiler<M> {
                 name.clone(),
                 (function_definition.args.iter().map(|(_, v_type)| *v_type).collect::<Vec<_>>(), function_definition.c_type),
             );
-            self.local_functions.insert(name.clone(), self.module.declare_function(name, Linkage::Local, &self.uniform_func_signature).unwrap());
-            if let CType::SpecializedF(v_type) = function_definition.c_type {
-                let mut sig = self.module.make_signature();
-                sig.call_conv = CallConv::Tail;
-                // The first argument is the base address of the parameter stack, which is useful
-                // for calling non-specialized functions.
-                sig.params.push(AbiParam::new(I64));
-                for (_, v_type) in function_definition.args.iter() {
-                    sig.params.push(AbiParam::new(v_type.get_type()));
+            if function_definition.may_be_pure {
+                // Pure
+                let pure_name = FunctionFlavor::Pure.decorate_name(name);
+                self.local_functions.insert(pure_name, self.module.declare_function(name, Linkage::Local, &self.uniform_func_signature).unwrap());
+
+                // Specializable
+                if let CType::SpecializedF(v_type) = function_definition.c_type {
+                    let mut sig = self.module.make_signature();
+                    sig.call_conv = CallConv::Tail;
+                    // The first argument is the base address of the parameter stack, which is useful
+                    // for calling non-specialized functions.
+                    sig.params.push(AbiParam::new(I64));
+                    for (_, v_type) in function_definition.args.iter() {
+                        sig.params.push(AbiParam::new(v_type.get_type()));
+                    }
+                    sig.returns.push(AbiParam::new(v_type.get_type()));
+                    let specialized_name = FunctionFlavor::Specialized.decorate_name(name);
+                    self.local_functions.insert(specialized_name.clone(), self.module.declare_function(&specialized_name, Linkage::Local, &sig).unwrap());
+                    specialzied_function_signatures.insert(name, sig);
                 }
-                sig.returns.push(AbiParam::new(v_type.get_type()));
-                let specialized_name = format!("{}__specialized", name);
-                self.local_functions.insert(specialized_name.clone(), self.module.declare_function(&specialized_name, Linkage::Local, &sig).unwrap());
-                specialzied_function_signatures.insert(name, sig);
             }
         }
 
         for (name, function_definition) in defs.iter() {
-            self.compile_function(function_definition, &local_function_arg_types);
-            let func_id = self.local_functions.get(name).unwrap();
-            self.define_function(name, *func_id, clir);
-            self.module.clear_context(&mut self.ctx);
-            if function_definition.is_specializable() {
-                let sig = specialzied_function_signatures.get(name).unwrap();
-                let specialized_name = format!("{}__specialized", name);
-                self.compile_specialized_function(sig.clone(), function_definition, &local_function_arg_types);
-                let func_id = self.local_functions.get(&specialized_name).unwrap();
-                self.define_function(&specialized_name, *func_id, clir);
+            if function_definition.may_be_pure {
+                // pure
+                let pure_name = FunctionFlavor::Pure.decorate_name(name);
+                self.compile_pure_function(function_definition, &local_function_arg_types);
+                let func_id = self.local_functions.get(&pure_name).unwrap();
+                self.define_function(&pure_name, *func_id, clir);
+
+                // specialized
                 self.module.clear_context(&mut self.ctx);
+                if function_definition.is_specializable() {
+                    let sig = specialzied_function_signatures.get(name).unwrap();
+                    let specialized_name = FunctionFlavor::Specialized.decorate_name(name);
+                    self.compile_specialized_function(sig.clone(), function_definition, &local_function_arg_types);
+                    let func_id = self.local_functions.get(&specialized_name).unwrap();
+                    self.define_function(&specialized_name, *func_id, clir);
+                    self.module.clear_context(&mut self.ctx);
+                }
             }
         }
     }
@@ -160,7 +172,7 @@ impl<M: Module> Compiler<M> {
         let inst = function_builder.ins().call(alloc_stack_func_ref, &[]);
         let stack_base = function_builder.inst_results(inst)[0];
 
-        let main_id = self.local_functions.get("main__specialized").unwrap();
+        let main_id = self.local_functions.get(&FunctionFlavor::Specialized.decorate_name("main")).unwrap();
         let main_func_ref = self.module.declare_func_in_func(*main_id, function_builder.func);
         let inst = function_builder.ins().call(main_func_ref, &[stack_base]);
         let return_value = function_builder.inst_results(inst)[0];
@@ -179,7 +191,7 @@ impl<M: Module> Compiler<M> {
         self.module.define_function(func_id, &mut self.ctx).unwrap();
     }
 
-    fn compile_function(&mut self, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
+    fn compile_pure_function(&mut self, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
         // All functions have the same signature `i64 -> i64`, where the single argument is the
         // base address of the parameter stack and the single return value is the address of the
         // return address. Actual parameters can be obtained by offsetting this base address.
@@ -214,7 +226,7 @@ impl<M: Module> Compiler<M> {
         // Here we transform the function body to non-specialized version, hence the argument types
         // are ignored.
 
-        let mut translator = FunctionTranslator::new(
+        let mut translator = PureFunctionTranslator::new(
             self,
             self.uniform_func_signature.clone(),
             function_definition,
@@ -250,7 +262,7 @@ impl<M: Module> Compiler<M> {
     }
 
     fn compile_specialized_function(&mut self, sig: Signature, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
-        let mut translator = FunctionTranslator::new(
+        let mut translator = PureFunctionTranslator::new(
             self,
             sig,
             function_definition,

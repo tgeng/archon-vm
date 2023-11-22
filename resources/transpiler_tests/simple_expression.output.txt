@@ -67,14 +67,13 @@ Defs
             ),
             var_bound: 2,
             may_be_pure: true,
-            may_have_complex_effects: false,
         },
     ),
 ]
 
 CLIR
 ========
-[main]
+[main__pure]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
 

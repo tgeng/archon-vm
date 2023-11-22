@@ -14,8 +14,8 @@ type Eff = *const usize;
 /// a continuation. Hence the name.
 #[repr(C, align(8))]
 struct Continuation {
-    next: *mut Continuation,
     func: ContImplPtr,
+    next: *mut Continuation,
     base_address: *mut usize,
     state: usize,
     local_vars: [Generic],

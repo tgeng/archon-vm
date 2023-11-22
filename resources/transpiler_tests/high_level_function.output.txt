@@ -241,7 +241,6 @@ Defs
             ),
             var_bound: 2,
             may_be_pure: true,
-            may_have_complex_effects: false,
         },
     ),
     (
@@ -316,7 +315,6 @@ Defs
                                             thunk: Var {
                                                 index: 3,
                                             },
-                                            may_have_complex_effects: false,
                                         },
                                         args: [
                                             Var {
@@ -385,7 +383,6 @@ Defs
             ),
             var_bound: 9,
             may_be_pure: true,
-            may_have_complex_effects: false,
         },
     ),
     (
@@ -436,14 +433,13 @@ Defs
             ),
             var_bound: 0,
             may_be_pure: true,
-            may_have_complex_effects: false,
         },
     ),
 ]
 
 CLIR
 ========
-[add]
+[add__pure]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
 
@@ -470,7 +466,7 @@ block0(v0: i64, v1: i64, v2: i64):
 }
 
 
-[fold]
+[fold__pure]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 apple_aarch64
@@ -578,7 +574,7 @@ block1(v7: i64):
 }
 
 
-[main]
+[main__pure]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 apple_aarch64

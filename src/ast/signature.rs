@@ -20,7 +20,7 @@ pub struct FunctionDefinition {
 
 impl FunctionDefinition {
     pub fn is_specializable(&self) -> bool {
-        matches!(self.c_type, CType::SpecializedF(_))
+        self.may_be_pure && matches!(self.c_type, CType::SpecializedF(_))
     }
 }
 
@@ -265,7 +265,8 @@ impl<'a> ThunkLifter<'a> {
             c_type: CType::Default,
             var_bound,
             // All thunks are treated as effectful to simplify compilation.
-            may_be_pure: false,
+            // TODO: make this false after cps translation is done
+            may_be_pure: true,
         };
         self.new_defs.push((thunk_def_name, function_definition));
     }

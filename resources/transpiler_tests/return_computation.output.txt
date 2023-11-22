@@ -115,7 +115,6 @@ Defs
             ),
             var_bound: 2,
             may_be_pure: true,
-            may_have_complex_effects: false,
         },
     ),
     (
@@ -136,7 +135,6 @@ Defs
             c_type: Default,
             var_bound: 0,
             may_be_pure: true,
-            may_have_complex_effects: false,
         },
     ),
     (
@@ -161,14 +159,13 @@ Defs
             ),
             var_bound: 0,
             may_be_pure: true,
-            may_have_complex_effects: false,
         },
     ),
 ]
 
 CLIR
 ========
-[f]
+[f__pure]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
 
@@ -195,7 +192,7 @@ block0(v0: i64, v1: i64, v2: i64):
 }
 
 
-[g]
+[g__pure]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 tail
@@ -210,7 +207,7 @@ block0(v0: i64):
 }
 
 
-[main]
+[main__pure]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 tail

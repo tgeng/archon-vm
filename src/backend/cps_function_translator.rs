@@ -9,14 +9,14 @@ use crate::ast::term::{CTerm, CType, VTerm, VType};
 use crate::ast::term::VType::Uniform;
 use crate::backend::common::TypedReturnValue;
 use crate::backend::compiler::Compiler;
-use crate::backend::function_translator::FunctionTranslator;
+use crate::backend::pure_function_translator::PureFunctionTranslator;
 
 pub struct CpsFunctionTranslator<'a, M: Module> {
-    function_translator: FunctionTranslator<'a, M>,
+    function_translator: PureFunctionTranslator<'a, M>,
 }
 
 struct CpsImplFunctionTranslator<'a, M: Module> {
-    function_translator: FunctionTranslator<'a, M>,
+    function_translator: PureFunctionTranslator<'a, M>,
     /// The pointer to the current continuation.
     continuation: Value,
     /// The last result passed to the continuation. This is also the value needed to execute the
@@ -44,7 +44,7 @@ struct CpsImplFunctionTranslator<'a, M: Module> {
 }
 
 impl<'a, M: Module> Deref for CpsImplFunctionTranslator<'a, M> {
-    type Target = FunctionTranslator<'a, M>;
+    type Target = PureFunctionTranslator<'a, M>;
 
     fn deref(&self) -> &Self::Target {
         &self.function_translator
@@ -77,7 +77,7 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
         // The values here are just a placeholders.
         let mut continuation: Value = Value::with_number(0).unwrap();
         let mut last_result: Value = Value::with_number(0).unwrap();
-        let mut function_translator = FunctionTranslator::new(
+        let mut function_translator = PureFunctionTranslator::new(
             compiler,
             sig,
             function_definition,

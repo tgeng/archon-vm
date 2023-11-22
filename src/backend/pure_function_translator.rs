@@ -9,12 +9,12 @@ use crate::ast::term::{CTerm, VTerm, VType, SpecializedType, PType, CType};
 use enum_map::{EnumMap};
 use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
-use crate::backend::common::{BuiltinFunction, HasType, TypedReturnValue};
+use crate::backend::common::{BuiltinFunction, FunctionFlavor, HasType, TypedReturnValue};
 use crate::ast::primitive_functions::PRIMITIVE_FUNCTIONS;
 use crate::ast::signature::FunctionDefinition;
 use crate::backend::compiler::Compiler;
 
-pub struct FunctionTranslator<'a, M: Module> {
+pub struct PureFunctionTranslator<'a, M: Module> {
     pub module: &'a mut M,
     pub function_builder: FunctionBuilder<'a>,
     pub data_description: DataDescription,
@@ -31,7 +31,7 @@ pub struct FunctionTranslator<'a, M: Module> {
     pub is_specialized: bool,
 }
 
-impl<'a, M: Module> FunctionTranslator<'a, M> {
+impl<'a, M: Module> PureFunctionTranslator<'a, M> {
     pub fn new<F>(
         compiler: &'a mut Compiler<M>,
         sig: Signature,
@@ -39,8 +39,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         local_function_arg_types: &'a HashMap<String, (Vec<VType>, CType)>,
         is_specialized: bool,
         base_address_getter: F,
-        parameter_initializer: fn(&mut FunctionTranslator<M>, Block, usize, &VType) -> TypedReturnValue,
-    ) -> FunctionTranslator<'a, M> where F: FnOnce(&mut FunctionBuilder, Block) -> Value {
+        parameter_initializer: fn(&mut PureFunctionTranslator<M>, Block, usize, &VType) -> TypedReturnValue,
+    ) -> PureFunctionTranslator<'a, M> where F: FnOnce(&mut FunctionBuilder, Block) -> Value {
         // Parameters of specialized functions are just passed normally.
 
         compiler.ctx.clear();
@@ -57,7 +57,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         function_builder.seal_block(entry_block);
 
         let base_address = base_address_getter(&mut function_builder, entry_block);
-        let mut translator = FunctionTranslator {
+        let mut translator = PureFunctionTranslator {
             module: &mut compiler.module,
             function_builder,
             data_description: DataDescription::new(),
@@ -102,13 +102,22 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 self.tip_address = self.function_builder.ins().stack_load(I64, self.tip_address_slot, 0);
 
                 let sig_ref = self.function_builder.import_signature(self.uniform_func_signature.clone());
-                // TODO: the thunk will need to take a trivial continuation in order to return.
+                // Zero is specially treated as the trivial continuation.
+                // let zero = self.function_builder.ins().iconst(I64, 0);
                 if is_tail && !self.is_specialized {
                     let base_address = self.copy_tail_call_args_and_get_new_base();
-                    self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[base_address]);
+                    self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
+                        base_address,
+                        // TODO: uncomment this when cps translation is done
+                        // zero,
+                    ]);
                     None
                 } else {
-                    let inst = self.function_builder.ins().call_indirect(sig_ref, func_pointer, &[self.tip_address]);
+                    let inst = self.function_builder.ins().call_indirect(sig_ref, func_pointer, &[
+                        self.tip_address,
+                        // TODO: uncomment this when cps translation is done
+                        // zero,
+                    ]);
                     self.extract_return_value(inst)
                 }
             }
@@ -118,7 +127,9 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 self.translate_c_term(body, is_tail)
             }
             CTerm::Def { name, .. } => {
-                let func_ref = self.get_local_function(name);
+                let (func_ref, flavor) = self.get_local_function(name, FunctionFlavor::Pure);
+                // The fact that this function is invoked here means it must be pure.
+                assert_eq!(flavor, FunctionFlavor::Pure);
                 if is_tail && !self.is_specialized {
                     let base_address = self.copy_tail_call_args_and_get_new_base();
                     self.function_builder.ins().return_call(func_ref, &[base_address]);
@@ -204,7 +215,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 let return_value = (primitive_function.code_gen)(&mut self.function_builder, &arg_values);
                 Some((return_value, primitive_function.return_type))
             }
-            CTerm::SpecializedFunctionCall { name, args, may_have_complex_effects } => {
+            CTerm::SpecializedFunctionCall { name, args, .. } => {
                 let (arg_types, CType::SpecializedF(return_type)) = self.local_function_arg_types.get(name).unwrap() else { unreachable!("{} is not specialized", name) };
                 let tip_address = self.tip_address;
                 let all_args = iter::once(tip_address)
@@ -216,8 +227,9 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                         }
                         ))
                     .collect::<Vec<_>>();
-                let name = format!("{}__specialized", name);
-                let func_ref = self.get_local_function(&name);
+                let (func_ref, flavor) = self.get_local_function(&name, FunctionFlavor::Specialized);
+                // The fact that this function is invoked here means it must be pure.
+                assert_eq!(flavor, FunctionFlavor::Specialized);
                 if is_tail && self.is_specialized {
                     self.function_builder.ins().return_call(func_ref, &all_args);
                     None
@@ -290,7 +302,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     CTerm::Def { name, .. } => (name, empty_args),
                     _ => unreachable!("thunk lifting should have guaranteed this")
                 };
-                let func_ref = self.get_local_function(&format!("{}__cps", name));
+                // TODO: replace with Cps flavor here.
+                let (func_ref, _) = self.get_local_function(name, FunctionFlavor::Pure);
                 let func_pointer = self.function_builder.ins().func_addr(I64, func_ref);
                 let func_pointer = Some((func_pointer, Specialized(PrimitivePtr)));
                 if args.is_empty() {
@@ -336,9 +349,13 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         }
     }
 
-    fn get_local_function(&mut self, name: &String) -> FuncRef {
-        let func_id = self.local_functions.get(name).unwrap();
-        self.module.declare_func_in_func(*func_id, self.function_builder.func)
+    fn get_local_function(&mut self, name: &str, flavor: FunctionFlavor) -> (FuncRef, FunctionFlavor) {
+        let desired_func_name = flavor.decorate_name(name);
+        let (func_id, flavor) = match self.local_functions.get(&desired_func_name) {
+            None => (self.local_functions.get(&FunctionFlavor::Cps.decorate_name(name)).unwrap(), FunctionFlavor::Cps),
+            Some(func_id) => (func_id, flavor),
+        };
+        (self.module.declare_func_in_func(*func_id, self.function_builder.func), flavor)
     }
 
     fn create_struct(&mut self, values: Vec<Value>) -> Value {

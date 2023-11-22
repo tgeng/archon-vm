@@ -1,3 +1,4 @@
+use std::fmt::format;
 use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
@@ -95,5 +96,31 @@ impl BuiltinFunction {
     pub fn declare<M: Module>(&self, m: &mut M) -> FuncId {
         let signature = &self.signature(m);
         m.declare_function(self.func_name(), Linkage::Import, signature).unwrap()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FunctionFlavor {
+    /// The function arguments are pushed via pushing to the argument stack and a continuation is
+    /// passed to accept the return value. This is the default mode and all functions are compiled
+    /// to this mode.
+    Cps,
+    /// The function arguments are passed via pushing to the argument stack. The function does not
+    /// perform any complex effects so no return value is returned directly. Only functions that may
+    /// only perform no or simple effects are compiled to this mode.
+    Pure,
+    /// The function arguments are passed directly and return value is returned directly. Only
+    /// functions that may only perform no or simple effects and are specializable are compiled to
+    /// this mode.
+    Specialized,
+}
+
+impl FunctionFlavor {
+    pub fn decorate_name(&self, function_name: &str) -> String {
+        match self {
+            FunctionFlavor::Cps => function_name.to_owned(),
+            FunctionFlavor::Pure => format!("{}__pure", function_name),
+            FunctionFlavor::Specialized => format!("{}__specialized", function_name),
+        }
     }
 }
