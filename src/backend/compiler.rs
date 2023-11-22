@@ -11,7 +11,7 @@ use strum::IntoEnumIterator;
 use enum_map::{EnumMap};
 use VType::{Uniform};
 use crate::backend::common::{BuiltinFunction, FunctionFlavor, HasType};
-use crate::backend::pure_function_translator::PureFunctionTranslator;
+use crate::backend::simple_function_translator::SimpleFunctionTranslator;
 
 /// The basic JIT class.
 pub struct Compiler<M: Module> {
@@ -107,10 +107,10 @@ impl<M: Module> Compiler<M> {
                 name.clone(),
                 (function_definition.args.iter().map(|(_, v_type)| *v_type).collect::<Vec<_>>(), function_definition.c_type),
             );
-            if function_definition.may_be_pure {
-                // Pure
-                let pure_name = FunctionFlavor::Pure.decorate_name(name);
-                self.local_functions.insert(pure_name, self.module.declare_function(name, Linkage::Local, &self.uniform_func_signature).unwrap());
+            if function_definition.may_be_simple {
+                // Simple
+                let simple_name = FunctionFlavor::Simple.decorate_name(name);
+                self.local_functions.insert(simple_name, self.module.declare_function(name, Linkage::Local, &self.uniform_func_signature).unwrap());
 
                 // Specializable
                 if let CType::SpecializedF(v_type) = function_definition.c_type {
@@ -131,12 +131,12 @@ impl<M: Module> Compiler<M> {
         }
 
         for (name, function_definition) in defs.iter() {
-            if function_definition.may_be_pure {
-                // pure
-                let pure_name = FunctionFlavor::Pure.decorate_name(name);
-                self.compile_pure_function(function_definition, &local_function_arg_types);
-                let func_id = self.local_functions.get(&pure_name).unwrap();
-                self.define_function(&pure_name, *func_id, clir);
+            if function_definition.may_be_simple {
+                // simple
+                let simple_name = FunctionFlavor::Simple.decorate_name(name);
+                self.compile_simple_function(function_definition, &local_function_arg_types);
+                let func_id = self.local_functions.get(&simple_name).unwrap();
+                self.define_function(&simple_name, *func_id, clir);
 
                 // specialized
                 self.module.clear_context(&mut self.ctx);
@@ -191,7 +191,7 @@ impl<M: Module> Compiler<M> {
         self.module.define_function(func_id, &mut self.ctx).unwrap();
     }
 
-    fn compile_pure_function(&mut self, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
+    fn compile_simple_function(&mut self, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
         // All functions have the same signature `i64 -> i64`, where the single argument is the
         // base address of the parameter stack and the single return value is the address of the
         // return address. Actual parameters can be obtained by offsetting this base address.
@@ -226,7 +226,7 @@ impl<M: Module> Compiler<M> {
         // Here we transform the function body to non-specialized version, hence the argument types
         // are ignored.
 
-        let mut translator = PureFunctionTranslator::new(
+        let mut translator = SimpleFunctionTranslator::new(
             self,
             self.uniform_func_signature.clone(),
             function_definition,
@@ -262,7 +262,7 @@ impl<M: Module> Compiler<M> {
     }
 
     fn compile_specialized_function(&mut self, sig: Signature, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
-        let mut translator = PureFunctionTranslator::new(
+        let mut translator = SimpleFunctionTranslator::new(
             self,
             sig,
             function_definition,

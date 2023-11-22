@@ -106,9 +106,9 @@ pub enum FunctionFlavor {
     /// to this mode.
     Cps,
     /// The function arguments are passed via pushing to the argument stack. The function does not
-    /// perform any complex effects so no return value is returned directly. Only functions that may
-    /// only perform no or simple effects are compiled to this mode.
-    Pure,
+    /// perform any complex effects so return value is returned directly. Only functions that can
+    /// possibly perform no or just simple effects are compiled to this mode.
+    Simple,
     /// The function arguments are passed directly and return value is returned directly. Only
     /// functions that may only perform no or simple effects and are specializable are compiled to
     /// this mode.
@@ -119,7 +119,7 @@ impl FunctionFlavor {
     pub fn decorate_name(&self, function_name: &str) -> String {
         match self {
             FunctionFlavor::Cps => function_name.to_owned(),
-            FunctionFlavor::Pure => format!("{}__pure", function_name),
+            FunctionFlavor::Simple => format!("{}__simple", function_name),
             FunctionFlavor::Specialized => format!("{}__specialized", function_name),
         }
     }

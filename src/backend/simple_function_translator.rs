@@ -14,7 +14,7 @@ use crate::ast::primitive_functions::PRIMITIVE_FUNCTIONS;
 use crate::ast::signature::FunctionDefinition;
 use crate::backend::compiler::Compiler;
 
-pub struct PureFunctionTranslator<'a, M: Module> {
+pub struct SimpleFunctionTranslator<'a, M: Module> {
     pub module: &'a mut M,
     pub function_builder: FunctionBuilder<'a>,
     pub data_description: DataDescription,
@@ -31,7 +31,7 @@ pub struct PureFunctionTranslator<'a, M: Module> {
     pub is_specialized: bool,
 }
 
-impl<'a, M: Module> PureFunctionTranslator<'a, M> {
+impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
     pub fn new<F>(
         compiler: &'a mut Compiler<M>,
         sig: Signature,
@@ -39,8 +39,8 @@ impl<'a, M: Module> PureFunctionTranslator<'a, M> {
         local_function_arg_types: &'a HashMap<String, (Vec<VType>, CType)>,
         is_specialized: bool,
         base_address_getter: F,
-        parameter_initializer: fn(&mut PureFunctionTranslator<M>, Block, usize, &VType) -> TypedReturnValue,
-    ) -> PureFunctionTranslator<'a, M> where F: FnOnce(&mut FunctionBuilder, Block) -> Value {
+        parameter_initializer: fn(&mut SimpleFunctionTranslator<M>, Block, usize, &VType) -> TypedReturnValue,
+    ) -> SimpleFunctionTranslator<'a, M> where F: FnOnce(&mut FunctionBuilder, Block) -> Value {
         // Parameters of specialized functions are just passed normally.
 
         compiler.ctx.clear();
@@ -57,7 +57,7 @@ impl<'a, M: Module> PureFunctionTranslator<'a, M> {
         function_builder.seal_block(entry_block);
 
         let base_address = base_address_getter(&mut function_builder, entry_block);
-        let mut translator = PureFunctionTranslator {
+        let mut translator = SimpleFunctionTranslator {
             module: &mut compiler.module,
             function_builder,
             data_description: DataDescription::new(),
@@ -127,9 +127,9 @@ impl<'a, M: Module> PureFunctionTranslator<'a, M> {
                 self.translate_c_term(body, is_tail)
             }
             CTerm::Def { name, .. } => {
-                let (func_ref, flavor) = self.get_local_function(name, FunctionFlavor::Pure);
-                // The fact that this function is invoked here means it must be pure.
-                assert_eq!(flavor, FunctionFlavor::Pure);
+                let (func_ref, flavor) = self.get_local_function(name, FunctionFlavor::Simple);
+                // The fact that this function is invoked here means it must be simple.
+                assert_eq!(flavor, FunctionFlavor::Simple);
                 if is_tail && !self.is_specialized {
                     let base_address = self.copy_tail_call_args_and_get_new_base();
                     self.function_builder.ins().return_call(func_ref, &[base_address]);
@@ -228,7 +228,7 @@ impl<'a, M: Module> PureFunctionTranslator<'a, M> {
                         ))
                     .collect::<Vec<_>>();
                 let (func_ref, flavor) = self.get_local_function(&name, FunctionFlavor::Specialized);
-                // The fact that this function is invoked here means it must be pure.
+                // The fact that this function is invoked here means it must be simple.
                 assert_eq!(flavor, FunctionFlavor::Specialized);
                 if is_tail && self.is_specialized {
                     self.function_builder.ins().return_call(func_ref, &all_args);
@@ -303,7 +303,7 @@ impl<'a, M: Module> PureFunctionTranslator<'a, M> {
                     _ => unreachable!("thunk lifting should have guaranteed this")
                 };
                 // TODO: replace with Cps flavor here.
-                let (func_ref, _) = self.get_local_function(name, FunctionFlavor::Pure);
+                let (func_ref, _) = self.get_local_function(name, FunctionFlavor::Simple);
                 let func_pointer = self.function_builder.ins().func_addr(I64, func_ref);
                 let func_pointer = Some((func_pointer, Specialized(PrimitivePtr)));
                 if args.is_empty() {

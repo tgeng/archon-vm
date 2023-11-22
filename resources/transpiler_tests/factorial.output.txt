@@ -164,7 +164,7 @@ Defs
                 ),
             ),
             var_bound: 3,
-            may_be_pure: true,
+            may_be_simple: true,
         },
     ),
     (
@@ -186,14 +186,14 @@ Defs
                 ),
             ),
             var_bound: 0,
-            may_be_pure: true,
+            may_be_simple: true,
         },
     ),
 ]
 
 CLIR
 ========
-[factorial__pure]
+[factorial__simple]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 tail
@@ -250,7 +250,7 @@ block1(v2: i64):
 }
 
 
-[main__pure]
+[main__simple]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 tail
