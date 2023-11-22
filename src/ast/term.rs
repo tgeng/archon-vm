@@ -122,5 +122,5 @@ pub enum CTerm {
     /// returns to the return address of the caller of the matching simple effect handler. This is
     /// used to implement simple exceptional effects, where a normal return means good call result
     /// and a long return means exceptional call result.
-    LongReturn { value: VTerm },
+    LongJump { value: VTerm },
 }

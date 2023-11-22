@@ -137,7 +137,7 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
             CTerm::ResumeContinuation { .. } => todo!(),
             CTerm::DisposeContinuation { .. } => todo!(),
             CTerm::ReplicateContinuation { .. } => todo!(),
-            CTerm::LongReturn { .. } => todo!(),
+            CTerm::LongJump { .. } => todo!(),
             CTerm::Let { .. } => todo!(),
             CTerm::MemGet { .. } => todo!(),
             CTerm::MemSet { .. } => todo!(),

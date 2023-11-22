@@ -45,7 +45,7 @@ pub trait Transformer {
             CTerm::ResumeContinuation { .. } => self.transform_resume_continuation(c_term),
             CTerm::DisposeContinuation { .. } => self.transform_dispose_continuation(c_term),
             CTerm::ReplicateContinuation { .. } => self.transform_replicate_continuation(c_term),
-            CTerm::LongReturn { .. } => self.transform_long_return(c_term),
+            CTerm::LongJump { .. } => self.transform_long_return(c_term),
         }
     }
 
@@ -191,7 +191,7 @@ pub trait Transformer {
     }
 
     fn transform_long_return(&mut self, c_term: &mut CTerm) {
-        let CTerm::LongReturn { value } = c_term else { unreachable!() };
+        let CTerm::LongJump { value } = c_term else { unreachable!() };
         self.transform_v_term(value);
     }
 }
