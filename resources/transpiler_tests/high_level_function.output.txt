@@ -491,33 +491,33 @@ block0(v0: i64):
     v10 = uextend.i32 v8
     br_table v10, block4, [block3, block2]
 
-block2:
-    v11 = iadd_imm.i64 v2, -1
-    v12 = sshr_imm.i64 v5, 1
-    v13 = ishl_imm v12, 3
-    v14 = iadd v11, v13
-    v15 = load.i64 v14
-    v16 = iadd_imm.i64 v0, -8
-    store aligned v15, v16
-    v17 = iadd_imm v16, -8
-    store.i64 aligned v3, v17
-    stack_store v17, ss0
-    v18 = stack_addr.i64 ss0
-    v19 = call fn0(v4, v18)
-    v20 = stack_load.i64 ss0
-    v21 = call_indirect sig1, v19(v20)
-    v22 = load.i64 v21
-    v23 = iadd_imm v20, 8
-    v24 = iconst.i64 1
-    v25 = sshr_imm.i64 v5, 1
-    v26 = iadd v25, v24  ; v24 = 1
-    v27 = sshr_imm.i64 v1, 1
-    v28 = sshr_imm v22, 1
-    v29 = call fn1(v23, v27, v2, v28, v4, v26)
-    jump block1(v29)
-
 block3:
-    v30 = sshr_imm.i64 v3, 1
+    v11 = sshr_imm.i64 v3, 1
+    jump block1(v11)
+
+block2:
+    v12 = iadd_imm.i64 v2, -1
+    v13 = sshr_imm.i64 v5, 1
+    v14 = ishl_imm v13, 3
+    v15 = iadd v12, v14
+    v16 = load.i64 v15
+    v17 = iadd_imm.i64 v0, -8
+    store aligned v16, v17
+    v18 = iadd_imm v17, -8
+    store.i64 aligned v3, v18
+    stack_store v18, ss0
+    v19 = stack_addr.i64 ss0
+    v20 = call fn0(v4, v19)
+    v21 = stack_load.i64 ss0
+    v22 = call_indirect sig1, v20(v21)
+    v23 = load.i64 v22
+    v24 = iadd_imm v21, 8
+    v25 = iconst.i64 1
+    v26 = sshr_imm.i64 v5, 1
+    v27 = iadd v26, v25  ; v25 = 1
+    v28 = sshr_imm.i64 v1, 1
+    v29 = sshr_imm v23, 1
+    v30 = call fn1(v24, v28, v2, v29, v4, v27)
     jump block1(v30)
 
 block4:

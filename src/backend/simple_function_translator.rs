@@ -189,6 +189,8 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let default_block = self.function_builder.create_block();
 
                 // Create table jump
+                let mut branch_blocks: Vec<_> = branch_blocks.into_iter().collect();
+                branch_blocks.sort_by_key(|(k, _)| *k);
                 let mut switch = Switch::new();
                 for (value, branch_block) in branch_blocks.iter() {
                     switch.set_entry(*value as u128, *branch_block);
