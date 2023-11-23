@@ -29,6 +29,10 @@ pub struct SimpleFunctionTranslator<'a, M: Module> {
     pub tip_address_slot: StackSlot,
     pub local_function_arg_types: &'a HashMap<String, (Vec<VType>, CType)>,
     pub is_specialized: bool,
+    /// The pointer to the start of the local variable storage allocated inside the current
+    /// continuation object. Note that function arguments are not stored in the continuation object,
+    /// so the local variables are offset by the number of function arguments.
+    pub local_var_ptr: Value,
 }
 
 impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
@@ -72,6 +76,8 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             tip_address_slot,
             local_function_arg_types,
             is_specialized,
+            // This is a placeholder value. This value is overwritten by [CpsImplFunctionTranslator]
+            local_var_ptr: Value::with_number(0).unwrap(),
         };
         // Here we transform the function body to non-specialized version, hence the argument types
         // are ignored.
@@ -243,7 +249,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let return_value = (primitive_function.code_gen)(&mut self.function_builder, &arg_values);
                 Some((return_value, primitive_function.return_type))
             }
-            CTerm::OperationCall { .. } => todo!(),
+            CTerm::OperationCall { .. } => unreachable!("type error"),
             CTerm::Handler { .. } => todo!(),
             CTerm::ResumeContinuation { .. } => todo!(),
             CTerm::DisposeContinuation { .. } => todo!(),
@@ -287,7 +293,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         Some((return_value, Uniform))
     }
 
-    fn copy_tail_call_args_and_get_new_base(&mut self) -> Value {
+    pub fn copy_tail_call_args_and_get_new_base(&mut self) -> Value {
         if self.num_args == 0 {
             return self.tip_address;
         }
@@ -299,7 +305,25 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
 
     pub fn translate_v_term(&mut self, v_term: &VTerm) -> TypedReturnValue {
         match v_term {
-            VTerm::Var { index } => self.local_vars[*index],
+            VTerm::Var { index } => match self.local_vars[*index] {
+                None => {
+                    if *index < self.num_args {
+                        let base_address = self.base_address;
+                        let value = self.function_builder.ins().load(I64, MemFlags::new(), base_address, (8 * index) as i32);
+                        let typed_return_value = Some((value, Uniform));
+                        self.local_vars[*index] = typed_return_value;
+                        typed_return_value
+                    } else {
+                        let local_var_index = *index - self.num_args;
+                        let local_var_ptr = self.local_var_ptr;
+                        let value = self.function_builder.ins().load(I64, MemFlags::new(), local_var_ptr, (8 * local_var_index) as i32);
+                        let typed_return_value = Some((value, Uniform));
+                        self.local_vars[*index] = typed_return_value;
+                        typed_return_value
+                    }
+                }
+                v => v,
+            },
             VTerm::Thunk { box t } => {
                 let empty_args = &vec![];
                 let (name, args) = match t {
@@ -354,7 +378,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         }
     }
 
-    fn get_local_function(&mut self, name: &str, flavor: FunctionFlavor) -> (FuncRef, FunctionFlavor) {
+    pub fn get_local_function(&mut self, name: &str, flavor: FunctionFlavor) -> (FuncRef, FunctionFlavor) {
         let desired_func_name = flavor.decorate_name(name);
         let (func_id, flavor) = match self.local_functions.get(&desired_func_name) {
             None => (self.local_functions.get(&FunctionFlavor::Cps.decorate_name(name)).unwrap(), FunctionFlavor::Cps),

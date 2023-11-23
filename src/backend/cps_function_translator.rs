@@ -7,14 +7,29 @@ use cranelift::frontend::Switch;
 use crate::ast::signature::{FunctionDefinition};
 use crate::ast::term::{CTerm, CType, VTerm, VType};
 use crate::ast::term::VType::Uniform;
-use crate::backend::common::TypedReturnValue;
+use crate::backend::common::{FunctionFlavor, TypedReturnValue};
 use crate::backend::compiler::Compiler;
 use crate::backend::simple_function_translator::SimpleFunctionTranslator;
 
+/// The translated native function takes the following arguments:
+/// - the bae address on the argument stack
+/// - the next continuation that takes the final result of the current function
+/// The translated function is what callers of the CPS function will call. The implementation
+/// does one of two things
+/// - if this function only tail calls another effectful function (aka, there is only one state
+///   of the continuation object), then it just translates the function via
+///   [SimpleFunctionTranslator] and then calls the last effectful function as a tail call.
+/// - if this function has calls multiple effectful functions, then it creates a continuation
+///   object and calls the CPS implementation function.
 pub struct CpsFunctionTranslator<'a, M: Module> {
     function_translator: SimpleFunctionTranslator<'a, M>,
 }
 
+/// The translated native function takes the following arguments:
+/// - the current continuation
+/// - the last result
+/// The translated function body basically contains logic that transitions across states of the
+/// continuation object.
 struct CpsImplFunctionTranslator<'a, M: Module> {
     function_translator: SimpleFunctionTranslator<'a, M>,
     /// The pointer to the current continuation.
@@ -22,10 +37,6 @@ struct CpsImplFunctionTranslator<'a, M: Module> {
     /// The last result passed to the continuation. This is also the value needed to execute the
     /// next step.
     last_result: Value,
-    /// The pointer to the start of the local variable storage allocated inside the current
-    /// continuation object. Note that function arguments are not stored in the continuation object,
-    /// so the local variables are offset by the number of function arguments.
-    local_var_ptr: Value,
     /// The number of arguments of the current function.
     argument_count: usize,
     /// The ID of the current block. Initially it's zero, which means the first block right after
@@ -93,7 +104,7 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
             |_, _, _, _| None);
         let state = function_translator.function_builder.ins().load(I64, MemFlags::new(), continuation, 24);
         // local vars are stored in the continuation object starting at the fifth word
-        let local_var_ptr = function_translator.function_builder.ins().iadd_imm(continuation, 32);
+        function_translator.local_var_ptr = function_translator.function_builder.ins().iadd_imm(continuation, 32);
         let argument_count = function_definition.args.len();
 
         // create the switch table for jumping to the right block based on the state
@@ -113,7 +124,6 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
             function_translator,
             continuation,
             last_result,
-            local_var_ptr,
             argument_count,
             current_block_id: 0,
             blocks,
@@ -128,9 +138,15 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
                 self.function_translator.push_arg_v_terms(args);
                 self.translate_c_term_cps(function, is_tail)
             }
-            CTerm::Return { .. } => todo!(),
-            CTerm::Force { .. } => todo!(),
-            CTerm::Def { .. } => todo!(),
+            CTerm::Def { name, may_have_complex_effects: true } => {
+                let (func_ref, _) = self.get_local_function(name, FunctionFlavor::Cps);
+                self.pack_up_continuation();
+                let continuation = self.continuation;
+                let base_address = self.copy_tail_call_args_and_get_new_base();
+                self.function_builder.ins().return_call(func_ref, &[base_address, continuation]);
+                self.advance();
+                None
+            }
             CTerm::CaseInt { .. } => todo!(),
             CTerm::OperationCall { .. } => todo!(),
             CTerm::Handler { .. } => todo!(),
@@ -142,33 +158,35 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
             CTerm::MemGet { .. } => todo!(),
             CTerm::MemSet { .. } => todo!(),
             CTerm::PrimitiveCall { .. } => todo!(),
+            _ => self.translate_c_term(c_term, is_tail),
         }
     }
 
-    fn translate_v_term_cps(&mut self, v_term: &VTerm) -> TypedReturnValue {
-        match v_term {
-            VTerm::Var { index } => {
-                match self.local_vars[*index] {
-                    None => {
-                        if *index < self.num_args {
-                            let base_address = self.base_address;
-                            let value = self.function_builder.ins().load(I64, MemFlags::new(), base_address, (8 * index) as i32);
-                            let typed_return_value = Some((value, Uniform));
-                            self.local_vars[*index] = typed_return_value;
-                            typed_return_value
-                        } else {
-                            let local_var_index = *index - self.num_args;
-                            let local_var_ptr = self.local_var_ptr;
-                            let value = self.function_builder.ins().load(I64, MemFlags::new(), local_var_ptr, (8 * local_var_index) as i32);
-                            let typed_return_value = Some((value, Uniform));
-                            self.local_vars[*index] = typed_return_value;
-                            typed_return_value
-                        }
-                    }
-                    v => v,
-                }
-            }
-            _ => self.translate_v_term(v_term),
+    fn pack_up_continuation(&mut self) {
+        // Store next state
+        let current_block_id = self.current_block_id;
+        let next_block_id = self.function_builder.ins().iconst(I64, current_block_id as i64 + 1);
+        let continuation = self.continuation;
+        self.function_builder.ins().store(MemFlags::new(), next_block_id, continuation, 24);
+
+        // Store local vars
+        let local_var_ptr = self.local_var_ptr;
+        let touched_vars: Vec<_> = self.touched_vars_in_current_session.iter().copied().collect();
+        for index in touched_vars {
+            let local_var = self.local_vars[index];
+            let value = self.convert_to_uniform(local_var);
+            self.function_builder.ins().store(MemFlags::new(), value, local_var_ptr, (index * 8) as i32);
         }
+    }
+
+    fn advance(&mut self) {
+        // Clear up local vars so next block can reload them from the continuation object.
+        for v in self.local_vars.iter_mut() {
+            *v = None
+        }
+        self.current_block_id += 1;
+        let next_block = self.blocks[self.current_block_id];
+        self.function_builder.seal_block(next_block);
+        self.function_builder.switch_to_block(next_block);
     }
 }
