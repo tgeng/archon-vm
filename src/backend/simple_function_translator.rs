@@ -286,7 +286,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         }
     }
 
-    fn extract_return_value(&mut self, inst: Inst) -> TypedReturnValue {
+    pub fn extract_return_value(&mut self, inst: Inst) -> TypedReturnValue {
         let return_address = self.function_builder.inst_results(inst)[0];
         let return_value = self.function_builder.ins().load(I64, MemFlags::new(), return_address, 0);
         self.tip_address = self.function_builder.ins().iadd_imm(self.tip_address, 8);

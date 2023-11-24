@@ -142,8 +142,13 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
                 let (func_ref, _) = self.get_local_function(name, FunctionFlavor::Cps);
                 self.pack_up_continuation();
                 let continuation = self.continuation;
-                let base_address = self.copy_tail_call_args_and_get_new_base();
-                self.function_builder.ins().return_call(func_ref, &[base_address, continuation]);
+                if is_tail {
+                    let base_address = self.copy_tail_call_args_and_get_new_base();
+                    self.function_builder.ins().return_call(func_ref, &[base_address, continuation]);
+                } else {
+                    let tip_address = self.tip_address;
+                    self.function_builder.ins().return_call(func_ref, &[tip_address, continuation]);
+                }
                 self.advance();
                 None
             }
