@@ -5,14 +5,13 @@ use cranelift::prelude::types::I64;
 use cranelift_module::Module;
 use cranelift::frontend::Switch;
 use crate::ast::signature::{FunctionDefinition};
-use crate::ast::term::{CTerm, CType, VTerm, VType};
-use crate::ast::term::VType::Uniform;
+use crate::ast::term::{CTerm, CType, VType};
 use crate::backend::common::{FunctionFlavor, TypedReturnValue};
 use crate::backend::compiler::Compiler;
 use crate::backend::simple_function_translator::SimpleFunctionTranslator;
 
 /// The translated native function takes the following arguments:
-/// - the bae address on the argument stack
+/// - the base address on the argument stack
 /// - the next continuation that takes the final result of the current function
 /// The translated function is what callers of the CPS function will call. The implementation
 /// does one of two things
@@ -26,6 +25,7 @@ pub struct CpsFunctionTranslator<'a, M: Module> {
 }
 
 /// The translated native function takes the following arguments:
+/// - the base address on the argument stack
 /// - the current continuation
 /// - the last result
 /// The translated function body basically contains logic that transitions across states of the
@@ -95,10 +95,9 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
             local_function_arg_types,
             false,
             |function_builder, entry_block| {
-                continuation = function_builder.block_params(entry_block)[0];
-                last_result = function_builder.block_params(entry_block)[1];
-                // The third word in the continuation object is the base address
-                function_builder.ins().load(I64, MemFlags::new(), continuation, 16)
+                continuation = function_builder.block_params(entry_block)[1];
+                last_result = function_builder.block_params(entry_block)[2];
+                function_builder.block_params(entry_block)[0]
             },
             // We don't do anything here and each block will load the parameters on demand.
             |_, _, _, _| None);
@@ -168,10 +167,17 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
     }
 
     fn pack_up_continuation(&mut self) {
+        let continuation = self.continuation;
+
+        // Store current height
+        let tip_address = self.tip_address;
+        let base_address = self.base_address;
+        let arg_stack_frame_height = self.function_builder.ins().isub(tip_address, base_address);
+        self.function_builder.ins().store(MemFlags::new(), arg_stack_frame_height, continuation, 16);
+
         // Store next state
         let current_block_id = self.current_block_id;
         let next_block_id = self.function_builder.ins().iconst(I64, current_block_id as i64 + 1);
-        let continuation = self.continuation;
         self.function_builder.ins().store(MemFlags::new(), next_block_id, continuation, 24);
 
         // Store local vars

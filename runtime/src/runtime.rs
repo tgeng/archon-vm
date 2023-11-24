@@ -16,7 +16,8 @@ type Eff = *const usize;
 struct Continuation {
     func: ContImplPtr,
     next: *mut Continuation,
-    base_address: *mut usize,
+    /// The number of slots taken on the argument stack by this continuation.
+    arg_stack_frame_height: *mut usize,
     state: usize,
     local_vars: [Generic],
 }
