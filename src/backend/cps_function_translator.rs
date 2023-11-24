@@ -142,8 +142,19 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
                 self.pack_up_continuation();
                 let continuation = self.continuation;
                 if is_tail {
-                    let base_address = self.copy_tail_call_args_and_get_new_base();
-                    self.function_builder.ins().return_call(func_ref, &[base_address, continuation]);
+                    // accommodate the height of the next continuation is updated here because tail
+                    // call causes the next continuation to be directly passed to the callee, which,
+                    // when later invokes the next continuation, will need to compute the base
+                    // address from this new height. The height can be different because the
+                    // callee args are effectively altered by the current function.
+                    let new_base_address = self.copy_tail_call_args_and_get_new_base();
+                    let next_continuation = self.function_builder.ins().load(I64, MemFlags::new(), continuation, 8);
+                    let next_continuation_height = self.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 16);
+                    let base_address = self.base_address;
+                    let next_continuation_base = self.function_builder.ins().iadd(base_address, next_continuation_height);
+                    let new_next_continuation_height = self.function_builder.ins().isub(new_base_address, next_continuation_base);
+                    self.function_builder.ins().store(MemFlags::new(), new_next_continuation_height, next_continuation, 16);
+                    self.function_builder.ins().return_call(func_ref, &[new_base_address, next_continuation]);
                 } else {
                     let tip_address = self.tip_address;
                     self.function_builder.ins().return_call(func_ref, &[tip_address, continuation]);

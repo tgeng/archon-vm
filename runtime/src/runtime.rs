@@ -17,7 +17,7 @@ struct Continuation {
     func: ContImplPtr,
     next: *mut Continuation,
     /// The number of slots taken on the argument stack by this continuation.
-    arg_stack_frame_height: *mut usize,
+    arg_stack_frame_height: usize,
     state: usize,
     local_vars: [Generic],
 }
