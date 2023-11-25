@@ -114,6 +114,7 @@ pub enum CTerm {
         simple_handlers: Vec<(Eff, usize, Vec<usize>, CTerm)>,
         input: Box<CTerm>,
     },
+    // TODO: make these primitives instead.
     ResumeContinuation { continuation: Box<CTerm>, parameter: VTerm, result: VTerm },
     DisposeContinuation { continuation: Box<CTerm>, parameter: VTerm },
     ReplicateContinuation { continuation: Box<CTerm>, parameter: VTerm },

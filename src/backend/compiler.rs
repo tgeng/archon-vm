@@ -6,10 +6,9 @@ use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataId, FuncId, Linkage, Module};
 use cranelift_object::ObjectModule;
 use crate::ast::signature::FunctionDefinition;
-use crate::ast::term::{VType, CType};
+use crate::ast::term::{CType};
 use strum::IntoEnumIterator;
 use enum_map::{EnumMap};
-use VType::{Uniform};
 use crate::backend::common::{BuiltinFunction, FunctionFlavor, HasType};
 use crate::backend::simple_function_translator::SimpleFunctionTranslator;
 
@@ -134,7 +133,7 @@ impl<M: Module> Compiler<M> {
             if function_definition.may_be_simple {
                 // simple
                 let simple_name = FunctionFlavor::Simple.decorate_name(name);
-                self.compile_simple_function(function_definition, &local_function_arg_types);
+                SimpleFunctionTranslator::compile_simple_function(self, function_definition, &local_function_arg_types);
                 let func_id = self.local_functions.get(&simple_name).unwrap();
                 self.define_function(&simple_name, *func_id, clir);
 
@@ -143,7 +142,7 @@ impl<M: Module> Compiler<M> {
                 if function_definition.is_specializable() {
                     let sig = specialzied_function_signatures.get(name).unwrap();
                     let specialized_name = FunctionFlavor::Specialized.decorate_name(name);
-                    self.compile_specialized_function(sig.clone(), function_definition, &local_function_arg_types);
+                    SimpleFunctionTranslator::compile_specialized_function(self, sig.clone(), function_definition, &local_function_arg_types);
                     let func_id = self.local_functions.get(&specialized_name).unwrap();
                     self.define_function(&specialized_name, *func_id, clir);
                     self.module.clear_context(&mut self.ctx);
@@ -189,110 +188,5 @@ impl<M: Module> Compiler<M> {
             clir.push((name.to_owned(), format!("{}", self.ctx.func.display())));
         }
         self.module.define_function(func_id, &mut self.ctx).unwrap();
-    }
-
-    fn compile_simple_function(&mut self, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
-        // All functions have the same signature `i64 -> i64`, where the single argument is the
-        // base address of the parameter stack and the single return value is the address of the
-        // return address. Actual parameters can be obtained by offsetting this base address.
-        //
-        // Callee should compute the return address by adding the total size of the parameters to
-        // the callee base address minus one word. See diagram below for the following call
-        //
-        // fn caller(x, y) {
-        //   ...
-        //   let i = callee(a, b, c);
-        //   ...
-        // }
-        //
-        //  |---------|
-        //  |    y    |
-        //  |---------| <- caller return address
-        //  |    x    |
-        //  |---------| <- caller base address
-        //  |  c / i  |
-        //  |---------| <- callee return address: the address where callee put the return value
-        //  |    b    |
-        //  |---------|
-        //  |    a    |
-        //  |---------| <- callee base address: the address from which callee finds arguments
-        //
-        // Caller tracks a current tip address, which initially points to the caller base address.
-        // When evaluating a redex, this pointer is bumped and a new parameter is stored at this
-        // address. After all parameters are pushed, this pointer becomes the callee base address.
-        // Whenever a function call completes, this tip is set to the callee return address plus
-        // size of one word, so that the next call can happen normally.
-
-        // Here we transform the function body to non-specialized version, hence the argument types
-        // are ignored.
-
-        let mut translator = SimpleFunctionTranslator::new(
-            self,
-            self.uniform_func_signature.clone(),
-            function_definition,
-            local_function_arg_types,
-            false,
-            |function_builder, entry_block| function_builder.block_params(entry_block)[0],
-            |translator, _entry_block, i, _v_type| {
-                // v is the variable index and i is the offset in the parameter list. The parameter
-                // stack grows from higher address to lower address, so parameter list grows in the
-                // reverse order and hence the offset is the index of the parameter in the parameter
-                // list.
-                let value = translator.function_builder.ins().load(I64, MemFlags::new(), translator.base_address, (i * 8) as i32);
-                Some((value, Uniform))
-            },
-        );
-        // The return value will be returned so its type does not matter. Treating it as an integer
-        // is sufficient.
-        let return_value_or_param = translator.translate_c_term(&function_definition.body, true);
-        match return_value_or_param {
-            Some(_) => {
-                let value = translator.convert_to_uniform(return_value_or_param);
-                let return_address_offset = (function_definition.args.len() as i64 - 1) * 8;
-                let return_address = translator.function_builder.ins().iadd_imm(translator.base_address, return_address_offset);
-                translator.function_builder.ins().store(MemFlags::new(), value, return_address, 0);
-                translator.function_builder.ins().return_(&[return_address]);
-            }
-            None => {
-                // Nothing to do since tail call is already a terminating instruction.
-            }
-        }
-        translator.function_builder.seal_all_blocks();
-        translator.function_builder.finalize();
-    }
-
-    fn compile_specialized_function(&mut self, sig: Signature, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
-        let mut translator = SimpleFunctionTranslator::new(
-            self,
-            sig,
-            function_definition,
-            local_function_arg_types,
-            true,
-            |function_builder, entry_block| function_builder.block_params(entry_block)[0],
-            |translator, entry_block, i, v_type| {
-                // v is the variable index and i is the offset in the parameter list. The parameter
-                // stack grows from higher address to lower address, so parameter list grows in the
-                // reverse order and hence the offset is the index of the parameter in the parameter
-                // list.
-                // In addition, i + 1 is the parameter index in the entry block
-                let value = translator.function_builder.block_params(entry_block)[i + 1];
-                Some((value, *v_type))
-            },
-        );
-        // The return value will be returned so its type does not matter. Treating it as an integer
-        // is sufficient.
-        let return_value_or_param = translator.translate_c_term(&function_definition.body, true);
-        match return_value_or_param {
-            Some(_) => {
-                let CType::SpecializedF(v_type) = function_definition.c_type else { unreachable!() };
-                let value = translator.adapt_type(return_value_or_param, &v_type);
-                translator.function_builder.ins().return_(&[value]);
-            }
-            None => {
-                // Nothing to do since tail call is already a terminating instruction.
-            }
-        }
-        translator.function_builder.seal_all_blocks();
-        translator.function_builder.finalize();
     }
 }
