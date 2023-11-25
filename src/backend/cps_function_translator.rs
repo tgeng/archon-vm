@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
-use cranelift::prelude::{AbiParam, Block, InstBuilder, MemFlags, TrapCode, Value};
+use cranelift::prelude::{Block, InstBuilder, MemFlags, TrapCode, Value};
 use cranelift::prelude::types::I64;
 use cranelift_module::{FuncId, Linkage, Module};
 use cranelift::frontend::Switch;
@@ -24,6 +24,42 @@ use crate::backend::simple_function_translator::SimpleFunctionTranslator;
 ///   object and calls the CPS implementation function.
 pub struct CpsFunctionTranslator<'a, M: Module> {
     function_translator: SimpleFunctionTranslator<'a, M>,
+}
+
+impl<'a, M: Module> Deref for CpsFunctionTranslator<'a, M> {
+    type Target = SimpleFunctionTranslator<'a, M>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.function_translator
+    }
+}
+
+impl<'a, M: Module> DerefMut for CpsFunctionTranslator<'a, M> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.function_translator
+    }
+}
+
+impl<'a, M: Module> CpsFunctionTranslator<'a, M> {
+    pub fn compile_cps_impl_function(
+        name: &str,
+        compiler: &mut Compiler<M>,
+        function_definition: &FunctionDefinition,
+        local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>,
+        clir: &mut Option<&mut Vec<(String, String)>>,
+    ) {
+        let signature = compiler.uniform_cps_func_signature.clone();
+
+        // TODO: tranlate the function body to CPS
+
+        let cps_name = FunctionFlavor::Cps.decorate_name(name);
+        let func_id = compiler.module.declare_function(&cps_name, Linkage::Local, &compiler.uniform_cps_func_signature).unwrap();
+        SimpleFunctionTranslator::define_function(&mut compiler.module, &mut compiler.ctx, &cps_name, func_id, clir);
+    }
+
+    fn translate_c_term_cps(&mut self, c_term: &CTerm, is_tail: bool) {
+        todo!()
+    }
 }
 
 /// The translated native function takes the following arguments:
@@ -88,7 +124,7 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
             num_blocks,
             case_blocks,
         );
-        let typed_return_value = translator.translate_c_term_cps(&function_definition.body, true);
+        let typed_return_value = translator.translate_c_term_cps_impl(&function_definition.body, true);
         match typed_return_value {
             None => {
                 // Nothing to do since tail call is already a terminating instruction
@@ -131,20 +167,12 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
         case_blocks: HashMap<usize, (Vec<usize>, usize, usize)>,
     ) -> Self {
         assert!(num_blocks > 1, "if there is only a single block, one should not create a cps_impl function at all!");
-        let mut sig = compiler.module.make_signature();
-        // continuation
-        sig.params.push(AbiParam::new(I64));
-        // last result as pointer to result on the argument stack
-        sig.params.push(AbiParam::new(I64));
-        // the result is always tail returned from the parent continuation, which, in turn, can be
-        // a special trivial continuation that just returns the address of the first argument.
-        sig.returns.push(AbiParam::new(I64));
         // The values here are just a placeholders.
         let mut continuation: Value = Value::with_number(0).unwrap();
         let mut last_result_ptr: Value = Value::with_number(0).unwrap();
         let mut function_translator = SimpleFunctionTranslator::new(
             compiler,
-            sig,
+            compiler.uniform_cps_impl_func_signature.clone(),
             function_definition,
             local_function_arg_types,
             false,
@@ -190,11 +218,11 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
         }
     }
 
-    fn translate_c_term_cps(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
+    fn translate_c_term_cps_impl(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
         match c_term {
             CTerm::Redex { box function, args } => {
                 self.function_translator.push_arg_v_terms(args);
-                self.translate_c_term_cps(function, is_tail)
+                self.translate_c_term_cps_impl(function, is_tail)
             }
             CTerm::Force { thunk, may_have_complex_effects: true } => {
                 let thunk_value = self.translate_v_term(thunk);
@@ -232,10 +260,10 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
                 r
             }
             CTerm::Let { box t, bound_index, box body } => {
-                let t_value = self.translate_c_term_cps(t, false);
+                let t_value = self.translate_c_term_cps_impl(t, false);
                 self.local_vars[*bound_index] = t_value;
                 self.touched_vars_in_current_session.insert(*bound_index);
-                self.translate_c_term_cps(body, is_tail)
+                self.translate_c_term_cps_impl(body, is_tail)
             }
             CTerm::Def { name, may_have_complex_effects: true } => {
                 let (func_ref, _) = self.get_local_function(name, FunctionFlavor::Cps);
@@ -326,7 +354,7 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
                 self.function_builder.ins().trap(TrapCode::UnreachableCodeReached);
                 None
             }
-            Some(branch) => self.translate_c_term_cps(branch, is_tail),
+            Some(branch) => self.translate_c_term_cps_impl(branch, is_tail),
         };
         match typed_return_value {
             None => {
