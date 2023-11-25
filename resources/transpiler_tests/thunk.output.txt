@@ -321,6 +321,7 @@ Defs
                                             thunk: Var {
                                                 index: 4,
                                             },
+                                            may_have_complex_effects: false,
                                         },
                                         bound_index: 7,
                                         body: Let {
@@ -328,6 +329,7 @@ Defs
                                                 thunk: Var {
                                                     index: 6,
                                                 },
+                                                may_have_complex_effects: false,
                                             },
                                             bound_index: 8,
                                             body: PrimitiveCall {

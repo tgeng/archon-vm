@@ -120,7 +120,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 self.translate_c_term(function, is_tail)
             }
             CTerm::Return { value } => self.translate_v_term(value),
-            CTerm::Force { thunk } => {
+            CTerm::Force { thunk, .. } => {
                 let thunk_value = self.translate_v_term(thunk);
                 // We must change the thunk value to uniform representation because the built-in
                 // function expects a uniform representation in order to tell a thunk from a raw
@@ -177,13 +177,13 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let t_value = self.convert_to_special(t_value, Integer);
 
                 // Create next block
-                let next_block = self.function_builder.create_block();
+                let joining_block = self.function_builder.create_block();
                 let result_v_type = match result_type {
                     CType::Default => &Uniform,
                     CType::SpecializedF(vty) => vty,
                 };
                 let result_value_type = result_v_type.get_type();
-                self.function_builder.append_block_param(next_block, result_value_type);
+                self.function_builder.append_block_param(joining_block, result_value_type);
 
                 // Create branch blocks
                 let mut branch_blocks = HashMap::new();
@@ -206,18 +206,18 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 // Fill branch blocks
                 for (value, branch_block) in branch_blocks.into_iter() {
                     let branch = branch_map.get(&value).unwrap();
-                    self.create_branch_block(branch_block, is_tail, next_block, result_v_type, Some(branch));
+                    self.create_branch_block(branch_block, is_tail, joining_block, result_v_type, Some(branch));
                 }
 
-                self.create_branch_block(default_block, is_tail, next_block, result_v_type, match default_branch {
+                self.create_branch_block(default_block, is_tail, joining_block, result_v_type, match default_branch {
                     None => None,
                     Some(box branch) => Some(branch),
                 });
 
-                // Switch to next block for future code generation
+                // Switch to joining block for future code generation
                 self.function_builder.seal_all_blocks();
-                self.function_builder.switch_to_block(next_block);
-                Some((self.function_builder.block_params(next_block)[0], *result_v_type))
+                self.function_builder.switch_to_block(joining_block);
+                Some((self.function_builder.block_params(joining_block)[0], *result_v_type))
             }
             CTerm::MemGet { base, offset } => {
                 let base_value = self.translate_v_term(base);
@@ -402,7 +402,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         struct_address
     }
 
-    fn call_builtin_func(&mut self, builtin_function: BuiltinFunction, args: &[Value]) -> Inst {
+    pub(crate) fn call_builtin_func(&mut self, builtin_function: BuiltinFunction, args: &[Value]) -> Inst {
         let func_ref = self.module.declare_func_in_func(self.builtin_functions[builtin_function], self.function_builder.func);
         self.function_builder.ins().call(func_ref, args)
     }
@@ -438,7 +438,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         }
     }
 
-    fn convert_to_special(&mut self, value_and_type: TypedReturnValue, specialized_type: SpecializedType) -> Value {
+    pub(crate) fn convert_to_special(&mut self, value_and_type: TypedReturnValue, specialized_type: SpecializedType) -> Value {
         let (value, value_type) = Self::extract_value_and_type(value_and_type);
         match value_type {
             Uniform => match specialized_type {

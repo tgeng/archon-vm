@@ -64,7 +64,7 @@ impl Transpiler {
                 let body = CTerm::Redex { function: Box::new(self.transpile_impl(*function, context)), args: transpiled_args };
                 Self::squash_computations(body, transpiled_computations)
             }
-            FTerm::Force { thunk } => self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t }),
+            FTerm::Force { thunk } => self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t, may_have_complex_effects: false }),
             FTerm::Thunk { computation } => CTerm::Return { value: VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)) } },
             FTerm::CaseInt { t, result_type, branches, default_branch } => {
                 let mut transpiled_branches = Vec::new();

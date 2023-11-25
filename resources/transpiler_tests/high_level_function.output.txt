@@ -315,6 +315,7 @@ Defs
                                             thunk: Var {
                                                 index: 3,
                                             },
+                                            may_have_complex_effects: false,
                                         },
                                         args: [
                                             Var {
