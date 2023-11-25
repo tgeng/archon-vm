@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
 use cranelift::prelude::{AbiParam, Block, InstBuilder, MemFlags, TrapCode, Value};
 use cranelift::prelude::types::I64;
-use cranelift_module::Module;
+use cranelift_module::{FuncId, Linkage, Module};
 use cranelift::frontend::Switch;
 use crate::ast::signature::{FunctionDefinition};
 use crate::ast::term::{CTerm, CType, VType};
@@ -72,12 +72,14 @@ impl<'a, M: Module> DerefMut for CpsImplFunctionTranslator<'a, M> {
 
 impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
     fn compile_cps_impl_function(
+        name: &str,
         compiler: &mut Compiler<M>,
         function_definition: &FunctionDefinition,
         local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>,
         num_blocks: usize,
         case_blocks: HashMap<usize, (Vec<usize>, usize, usize)>,
-    ) {
+        clir: &mut Option<&mut Vec<(String, String)>>,
+    ) -> FuncId {
         let signature = compiler.uniform_cps_func_signature.clone();
         let mut translator = CpsImplFunctionTranslator::new(
             compiler,
@@ -114,6 +116,11 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
             }
         }
         translator.function_translator.function_builder.finalize();
+
+        let cps_impl_name = FunctionFlavor::CpsImpl.decorate_name(name);
+        let func_id = compiler.module.declare_function(&cps_impl_name, Linkage::Local, &compiler.uniform_cps_impl_func_signature).unwrap();
+        SimpleFunctionTranslator::define_function(&mut compiler.module, &mut compiler.ctx, &cps_impl_name, func_id, clir);
+        func_id
     }
 
     fn new(

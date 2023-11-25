@@ -36,7 +36,13 @@ pub struct SimpleFunctionTranslator<'a, M: Module> {
 }
 
 impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
-    pub fn compile_simple_function(compiler: &mut Compiler<M>, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
+    pub fn compile_simple_function(
+        name: &str,
+        compiler: &mut Compiler<M>,
+        function_definition: &FunctionDefinition,
+        local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>,
+        clir: &mut Option<&mut Vec<(String, String)>>,
+    ) {
         // All functions have the same signature `i64 -> i64`, where the single argument is the
         // base address of the parameter stack and the single return value is the address of the
         // return address. Actual parameters can be obtained by offsetting this base address.
@@ -104,8 +110,19 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         }
         translator.function_builder.seal_all_blocks();
         translator.function_builder.finalize();
+
+        let simple_name = FunctionFlavor::Simple.decorate_name(name);
+        let func_id = compiler.local_functions.get(&simple_name).unwrap();
+        SimpleFunctionTranslator::define_function(&mut compiler.module, &mut compiler.ctx, &simple_name, *func_id, clir);
     }
-    pub fn compile_specialized_function(compiler: &mut Compiler<M>, sig: Signature, function_definition: &FunctionDefinition, local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>) {
+    pub fn compile_specialized_function(
+        name: &str,
+        compiler: &mut Compiler<M>,
+        sig: Signature,
+        function_definition: &FunctionDefinition,
+        local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>,
+        clir: &mut Option<&mut Vec<(String, String)>>,
+    ) {
         let mut translator = SimpleFunctionTranslator::new(
             compiler,
             sig,
@@ -138,6 +155,10 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         }
         translator.function_builder.seal_all_blocks();
         translator.function_builder.finalize();
+
+        let specialized_name = FunctionFlavor::Specialized.decorate_name(name);
+        let func_id = compiler.local_functions.get(&specialized_name).unwrap();
+        SimpleFunctionTranslator::define_function(&mut compiler.module, &mut compiler.ctx, &specialized_name, *func_id, clir);
     }
     pub fn new<F>(
         compiler: &'a mut Compiler<M>,
@@ -587,5 +608,12 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
 
     fn extract_value_and_type(value_and_type: TypedReturnValue) -> (Value, VType) {
         value_and_type.expect("non-local return value cannot be converted and this must be a bug in the compilation logic or input is not well-typed")
+    }
+
+    pub fn define_function(module: &mut M, ctx: &mut codegen::Context, name: &str, func_id: FuncId, clir: &mut Option<&mut Vec<(String, String)>>) {
+        if let Some(clir) = clir {
+            clir.push((name.to_owned(), format!("{}", ctx.func.display())));
+        }
+        module.define_function(func_id, ctx).unwrap();
     }
 }

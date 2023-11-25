@@ -32,6 +32,7 @@ pub struct Compiler<M: Module> {
     pub local_functions: HashMap<String, FuncId>,
     pub uniform_func_signature: Signature,
     pub uniform_cps_func_signature: Signature,
+    pub uniform_cps_impl_func_signature: Signature,
 }
 
 const MAIN_WRAPPER_NAME: &str = "__main__";
@@ -91,10 +92,16 @@ impl<M: Module> Compiler<M> {
 
         let mut uniform_cps_func_signature = module.make_signature();
         uniform_cps_func_signature.params.push(AbiParam::new(I64)); // base address
-        uniform_cps_func_signature.params.push(AbiParam::new(I64)); // continuation pointer
-        uniform_cps_func_signature.params.push(AbiParam::new(I64)); // last result
+        uniform_cps_func_signature.params.push(AbiParam::new(I64)); // the next continuation object
         uniform_cps_func_signature.returns.push(AbiParam::new(I64));
         uniform_cps_func_signature.call_conv = CallConv::Tail;
+
+        let mut uniform_cps_impl_func_signature = module.make_signature();
+        uniform_cps_impl_func_signature.params.push(AbiParam::new(I64)); // base address
+        uniform_cps_impl_func_signature.params.push(AbiParam::new(I64)); // the continuation object
+        uniform_cps_impl_func_signature.params.push(AbiParam::new(I64)); // the last result
+        uniform_cps_impl_func_signature.returns.push(AbiParam::new(I64));
+        uniform_cps_impl_func_signature.call_conv = CallConv::Tail;
         Self {
             builder_context: FunctionBuilderContext::new(),
             ctx: module.make_context(),
@@ -104,6 +111,7 @@ impl<M: Module> Compiler<M> {
             local_functions: HashMap::new(),
             uniform_func_signature,
             uniform_cps_func_signature,
+            uniform_cps_impl_func_signature,
         }
     }
 
@@ -141,20 +149,12 @@ impl<M: Module> Compiler<M> {
         for (name, function_definition) in defs.iter() {
             if function_definition.may_be_simple {
                 // simple
-                let simple_name = FunctionFlavor::Simple.decorate_name(name);
-                SimpleFunctionTranslator::compile_simple_function(self, function_definition, &local_function_arg_types);
-                let func_id = self.local_functions.get(&simple_name).unwrap();
-                self.define_function(&simple_name, *func_id, clir);
+                SimpleFunctionTranslator::compile_simple_function(name, self, function_definition, &local_function_arg_types, clir);
 
                 // specialized
-                self.module.clear_context(&mut self.ctx);
                 if function_definition.is_specializable() {
                     let sig = specialzied_function_signatures.get(name).unwrap();
-                    let specialized_name = FunctionFlavor::Specialized.decorate_name(name);
-                    SimpleFunctionTranslator::compile_specialized_function(self, sig.clone(), function_definition, &local_function_arg_types);
-                    let func_id = self.local_functions.get(&specialized_name).unwrap();
-                    self.define_function(&specialized_name, *func_id, clir);
-                    self.module.clear_context(&mut self.ctx);
+                    SimpleFunctionTranslator::compile_specialized_function(name, self, sig.clone(), function_definition, &local_function_arg_types, clir);
                 }
             }
         }
