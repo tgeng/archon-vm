@@ -31,6 +31,7 @@ pub struct Compiler<M: Module> {
     pub static_strings: HashMap<String, DataId>,
     pub local_functions: HashMap<String, FuncId>,
     pub uniform_func_signature: Signature,
+    pub uniform_cps_func_signature: Signature,
 }
 
 const MAIN_WRAPPER_NAME: &str = "__main__";
@@ -87,6 +88,13 @@ impl<M: Module> Compiler<M> {
         uniform_func_signature.params.push(AbiParam::new(I64));
         uniform_func_signature.returns.push(AbiParam::new(I64));
         uniform_func_signature.call_conv = CallConv::Tail;
+
+        let mut uniform_cps_func_signature = module.make_signature();
+        uniform_cps_func_signature.params.push(AbiParam::new(I64)); // base address
+        uniform_cps_func_signature.params.push(AbiParam::new(I64)); // continuation pointer
+        uniform_cps_func_signature.params.push(AbiParam::new(I64)); // last result
+        uniform_cps_func_signature.returns.push(AbiParam::new(I64));
+        uniform_cps_func_signature.call_conv = CallConv::Tail;
         Self {
             builder_context: FunctionBuilderContext::new(),
             ctx: module.make_context(),
@@ -95,6 +103,7 @@ impl<M: Module> Compiler<M> {
             static_strings: HashMap::new(),
             local_functions: HashMap::new(),
             uniform_func_signature,
+            uniform_cps_func_signature,
         }
     }
 

@@ -71,6 +71,51 @@ impl<'a, M: Module> DerefMut for CpsImplFunctionTranslator<'a, M> {
 }
 
 impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
+    fn compile_cps_impl_function(
+        compiler: &mut Compiler<M>,
+        function_definition: &FunctionDefinition,
+        local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>,
+        num_blocks: usize,
+        case_blocks: HashMap<usize, (Vec<usize>, usize, usize)>,
+    ) {
+        let signature = compiler.uniform_cps_func_signature.clone();
+        let mut translator = CpsImplFunctionTranslator::new(
+            compiler,
+            function_definition,
+            local_function_arg_types,
+            num_blocks,
+            case_blocks,
+        );
+        let typed_return_value = translator.translate_c_term_cps(&function_definition.body, true);
+        match typed_return_value {
+            None => {
+                // Nothing to do since tail call is already a terminating instruction
+            }
+            Some(_) => {
+                // store return value on the argument stack
+                let value = translator.convert_to_uniform(typed_return_value);
+                let return_address_offset = (function_definition.args.len() as i64 - 1) * 8;
+                let base_address = translator.base_address;
+                let return_address = translator.function_builder.ins().iadd_imm(base_address, return_address_offset);
+                translator.function_builder.ins().store(MemFlags::new(), value, return_address, 0);
+
+                let continuation = translator.continuation;
+                let next_continuation = translator.function_builder.ins().load(I64, MemFlags::new(), continuation, 8);
+                // compute next base address
+                let next_continuation_height = translator.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 16);
+                let next_base_address = translator.function_builder.ins().iadd(base_address, next_continuation_height);
+
+                // get next continuation impl function
+                let next_continuation_impl = translator.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 0);
+
+                // call the next continuation
+                let sig_ref = translator.function_builder.import_signature(signature);
+                translator.function_builder.ins().return_call_indirect(sig_ref, next_continuation_impl, &[next_base_address, next_continuation, return_address]);
+            }
+        }
+        translator.function_translator.function_builder.finalize();
+    }
+
     fn new(
         compiler: &'a mut Compiler<M>,
         function_definition: &'a FunctionDefinition,
