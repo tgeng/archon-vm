@@ -107,7 +107,7 @@ pub trait Transformer {
 
     fn transform_operation_call(&mut self, c_term: &mut CTerm) {
         let CTerm::OperationCall { eff, args, .. } = c_term else { unreachable!() };
-        eff.args.iter_mut().for_each(|arg| self.transform_v_term(arg));
+        self.transform_v_term(eff);
         args.iter_mut().for_each(|arg| self.transform_v_term(arg));
     }
 
@@ -145,7 +145,7 @@ pub trait Transformer {
         self.remove_binding(old_transform_parameter_bound_index);
 
         for (eff, parameter_bound_index, args_bound_index, continuation_bound_index, handler) in complex_handlers.iter_mut() {
-            eff.args.iter_mut().for_each(|arg| self.transform_v_term(arg));
+            self.transform_v_term(eff);
             let old_parameter_bound_index = *parameter_bound_index;
             *parameter_bound_index = self.add_binding(*parameter_bound_index);
             let old_args_bound_index = args_bound_index.clone();
@@ -159,7 +159,7 @@ pub trait Transformer {
         }
 
         for (eff, parameter_bound_index, args_bound_index, handler) in simple_handlers.iter_mut() {
-            eff.args.iter_mut().for_each(|arg| self.transform_v_term(arg));
+            self.transform_v_term(eff);
             let old_parameter_bound_index = *parameter_bound_index;
             *parameter_bound_index = self.add_binding(*parameter_bound_index);
             let old_args_bound_index = args_bound_index.clone();

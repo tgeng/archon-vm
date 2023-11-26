@@ -71,12 +71,6 @@ pub enum VTerm {
 }
 
 #[derive(Debug, Clone)]
-pub struct Eff {
-    pub label: String,
-    pub args: Vec<VTerm>,
-}
-
-#[derive(Debug, Clone)]
 pub enum CTerm {
     Redex { function: Box<CTerm>, args: Vec<VTerm> },
     Return { value: VTerm },
@@ -99,7 +93,7 @@ pub enum CTerm {
     // PMemGet { base: VTerm, offset: VTerm, p_type: PType },
     // PMemSet { base: VTerm, offset: VTerm, value: VTerm, p_type: PType },
     PrimitiveCall { name: &'static str, args: Vec<VTerm> },
-    OperationCall { eff: Eff, args: Vec<VTerm>, simple: bool },
+    OperationCall { eff: VTerm, args: Vec<VTerm>, simple: bool },
     Handler {
         parameter: VTerm,
         /// parameter -> 0
@@ -109,9 +103,9 @@ pub enum CTerm {
         /// (parameter, input) -> output
         transform: Box<(usize, usize, CTerm)>,
         /// each handler: (parameter, operation_args...,  continuation) -> output
-        complex_handlers: Vec<(Eff, usize, Vec<usize>, usize, CTerm)>,
+        complex_handlers: Vec<(VTerm, usize, Vec<usize>, usize, CTerm)>,
         /// each handler: (parameter, operation_args...) -> output
-        simple_handlers: Vec<(Eff, usize, Vec<usize>, CTerm)>,
+        simple_handlers: Vec<(VTerm, usize, Vec<usize>, CTerm)>,
         input: Box<CTerm>,
     },
     // TODO: make these primitives instead.

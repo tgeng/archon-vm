@@ -106,7 +106,7 @@ pub trait Visitor {
 
     fn visit_operation_call(&mut self, c_term: &CTerm) {
         let CTerm::OperationCall { eff, args, .. } = c_term else { unreachable!() };
-        eff.args.iter().for_each(|arg| self.visit_v_term(arg));
+        self.visit_v_term(eff);
         args.iter().for_each(|arg| self.visit_v_term(arg));
     }
 
@@ -140,7 +140,7 @@ pub trait Visitor {
         self.remove_binding(*transform_parameter_bound_index);
 
         for (eff, parameter_bound_index, args_bound_index, continuation_bound_index, handler) in complex_handlers.iter() {
-            eff.args.iter().for_each(|arg| self.visit_v_term(arg));
+            self.visit_v_term(eff);
             self.add_binding(*parameter_bound_index);
             args_bound_index.iter().for_each(|arg| self.add_binding(*arg));
             self.add_binding(*continuation_bound_index);
@@ -150,7 +150,7 @@ pub trait Visitor {
             self.remove_binding(*parameter_bound_index);
         }
         for (eff, parameter_bound_index, args_bound_index, handler) in simple_handlers.iter() {
-            eff.args.iter().for_each(|arg| self.visit_v_term(arg));
+            self.visit_v_term(eff);
             self.add_binding(*parameter_bound_index);
             args_bound_index.iter().for_each(|arg| self.add_binding(*arg));
             self.visit_c_term(handler);
