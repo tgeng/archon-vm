@@ -6,7 +6,7 @@ type ThunkPtr = *const usize;
 /// A pointer to a continuation implementation, which takes a corrresponding continuation and a
 /// result value and calls the next continuation in the end.
 type ContImplPtr = *const usize;
-/// A pointer to a struct consisting of the effect name and all the arguments to the effect.
+/// A pointer to a struct consisting of the effect struct
 type Eff = *const usize;
 
 

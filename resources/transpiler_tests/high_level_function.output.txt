@@ -478,7 +478,7 @@ function u0:0(i64) -> i64 tail {
     sig1 = (i64) -> i64 tail
     sig2 = (i64, i64, i64, i64, i64, i64) -> i64 tail
     fn0 = u0:1 sig0
-    fn1 = colocated u0:6 sig2
+    fn1 = colocated u0:8 sig2
 
 block0(v0: i64):
     v1 = load.i64 v0
@@ -512,7 +512,7 @@ block2:
     v21 = stack_load.i64 ss0
     v22 = call_indirect sig1, v20(v21)
     v23 = load.i64 v22
-    v24 = iadd_imm v21, 8
+    v24 = iadd_imm v22, 8
     v25 = iconst.i64 1
     v26 = sshr_imm.i64 v5, 1
     v27 = iadd v26, v25  ; v25 = 1
@@ -539,7 +539,7 @@ function u0:0(i64, i64, i64, i64, i64, i64) -> i64 tail {
     sig1 = (i64) -> i64 tail
     sig2 = (i64, i64, i64, i64, i64, i64) -> i64 tail
     fn0 = u0:1 sig0
-    fn1 = colocated u0:6 sig2
+    fn1 = colocated u0:8 sig2
 
 block0(v0: i64, v1: i64, v2: i64, v3: i64, v4: i64, v5: i64):
     v6 = icmp slt v5, v1
@@ -565,7 +565,7 @@ block2:
     v18 = stack_load.i64 ss0
     v19 = call_indirect sig1, v17(v18)
     v20 = load.i64 v19
-    v21 = iadd_imm v18, 8
+    v21 = iadd_imm v19, 8
     v22 = iconst.i64 1
     v23 = iadd.i64 v5, v22  ; v22 = 1
     v24 = sshr_imm v20, 1
@@ -586,8 +586,8 @@ function u0:0(i64) -> i64 tail {
     sig1 = (i64) -> i64 tail
     sig2 = (i64, i64, i64, i64, i64, i64) -> i64 tail
     fn0 = u0:0 sig0
-    fn1 = colocated u0:3 sig1
-    fn2 = colocated u0:6 sig2
+    fn1 = colocated u0:5 sig1
+    fn2 = colocated u0:8 sig2
 
 block0(v0: i64):
     v1 = iconst.i64 3
@@ -622,8 +622,8 @@ function u0:0(i64) -> i64 tail {
     sig1 = (i64) -> i64 tail
     sig2 = (i64, i64, i64, i64, i64, i64) -> i64 tail
     fn0 = u0:0 sig0
-    fn1 = colocated u0:3 sig1
-    fn2 = colocated u0:6 sig2
+    fn1 = colocated u0:5 sig1
+    fn2 = colocated u0:8 sig2
 
 block0(v0: i64):
     v1 = iconst.i64 3
@@ -652,7 +652,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:8 sig1
+    fn1 = colocated u0:10 sig1
 
 block0:
     v0 = call fn0()

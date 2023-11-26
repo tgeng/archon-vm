@@ -49,6 +49,21 @@ pub unsafe fn runtime_alloc_stack() -> *mut usize {
     start.add(stack_size)
 }
 
+/// Returns the result of the operation in uniform representation
+/// TODO: add args
+pub unsafe fn runtime_simple_operation(eff: usize, base_address: *const usize) -> usize {
+    todo!()
+}
+
+/// Returns the following results on the argument stack.
+/// - ptr + 0: the function pointer to the matched handler implementationon
+/// - ptr + 8: the next continuation after handler finishes execution
+/// The pointer + 8 is the base address that should be passed to this pointed handler implementaion
+/// function, which will find its arguments from that base address.
+pub unsafe fn runtime_complex_operation(eff: usize, base_address: *const usize) -> *const usize {
+    todo!()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

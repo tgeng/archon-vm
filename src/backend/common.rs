@@ -1,4 +1,4 @@
-use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack};
+use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_simple_operation, runtime_complex_operation};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder};
@@ -52,6 +52,8 @@ pub enum BuiltinFunction {
     Alloc,
     ForceThunk,
     AllocStack,
+    SimpleOperation,
+    ComplexOperation,
 }
 
 impl BuiltinFunction {
@@ -60,6 +62,8 @@ impl BuiltinFunction {
             BuiltinFunction::Alloc => "__runtime_alloc__",
             BuiltinFunction::ForceThunk => "__runtime_force_thunk__",
             BuiltinFunction::AllocStack => "__runtime_alloc_stack__",
+            BuiltinFunction::SimpleOperation => "__runtime_simple_operation",
+            BuiltinFunction::ComplexOperation => "__runtime_complex_operation",
         }
     }
 
@@ -67,7 +71,9 @@ impl BuiltinFunction {
         let func_ptr = match self {
             BuiltinFunction::Alloc => runtime_alloc as *const u8,
             BuiltinFunction::ForceThunk => runtime_force_thunk as *const u8,
-            BuiltinFunction::AllocStack => runtime_alloc_stack as *const u8
+            BuiltinFunction::AllocStack => runtime_alloc_stack as *const u8,
+            BuiltinFunction::SimpleOperation => runtime_simple_operation as *const u8,
+            BuiltinFunction::ComplexOperation => runtime_complex_operation as *const u8,
         };
 
         builder.symbol(self.func_name(), func_ptr);
@@ -88,6 +94,14 @@ impl BuiltinFunction {
             BuiltinFunction::AllocStack => {
                 sig.returns.push(AbiParam::new(I64));
             }
+            BuiltinFunction::SimpleOperation => {
+                // TODO: params
+                sig.returns.push(AbiParam::new(I64));
+            }
+            BuiltinFunction::ComplexOperation => {
+                // TODO: params
+                sig.returns.push(AbiParam::new(I64));
+            }
         }
         sig
     }
@@ -104,7 +118,7 @@ pub enum FunctionFlavor {
     /// passed to accept the return value. This is the default mode and all functions are compiled
     /// to this mode.
     Cps,
-    /// The CPS implementation of the function. This function transitions the continuaution object
+    /// The CPS implementation of the function. This function transitions the continuation object
     /// from one state to the next.
     CpsImpl,
     /// The function arguments are passed via pushing to the argument stack. The function does not

@@ -26,6 +26,7 @@ pub struct SimpleFunctionTranslator<'a, M: Module> {
     pub tip_address: Value,
     pub num_args: usize,
     pub uniform_func_signature: Signature,
+    pub uniform_cps_func_signature: Signature,
     pub tip_address_slot: StackSlot,
     pub local_function_arg_types: &'a HashMap<String, (Vec<VType>, CType)>,
     pub is_specialized: bool,
@@ -197,6 +198,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             tip_address: base_address,
             num_args: function_definition.args.len(),
             uniform_func_signature: compiler.uniform_func_signature.clone(),
+            uniform_cps_func_signature: compiler.uniform_cps_func_signature.clone(),
             tip_address_slot,
             local_function_arg_types,
             is_specialized,
@@ -413,7 +415,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
     pub fn extract_return_value(&mut self, inst: Inst) -> TypedReturnValue {
         let return_address = self.function_builder.inst_results(inst)[0];
         let return_value = self.function_builder.ins().load(I64, MemFlags::new(), return_address, 0);
-        self.tip_address = self.function_builder.ins().iadd_imm(self.tip_address, 8);
+        self.tip_address = self.function_builder.ins().iadd_imm(return_address, 8);
         Some((return_value, Uniform))
     }
 
