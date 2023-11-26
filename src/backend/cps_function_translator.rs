@@ -305,11 +305,13 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
 
                 // Fill branch blocks
                 for ((_, c_term), (block_id, branch_block)) in branch_body_and_blocks.into_iter() {
-                    self.current_block_id = block_id;
+                    self.advance();
+                    assert_eq!(self.current_block_id, block_id);
                     self.create_branch_block(branch_block, is_tail, joining_block, result_v_type, Some(c_term));
                 }
 
-                self.current_block_id = *default_block_id;
+                self.advance();
+                assert_eq!(self.current_block_id, *default_block_id);
                 self.create_branch_block(default_block, is_tail, joining_block, result_v_type, match default_branch {
                     None => None,
                     Some(box branch) => Some(branch),
