@@ -373,7 +373,15 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let return_value = (primitive_function.code_gen)(&mut self.function_builder, &arg_values);
                 Some((return_value, primitive_function.return_type))
             }
-            CTerm::OperationCall { .. } => unreachable!("type error"),
+            CTerm::OperationCall { eff, args, simple } => {
+                assert!(simple);
+                let eff_value = self.translate_v_term(eff);
+                let eff_value = self.convert_to_uniform(eff_value);
+                self.push_arg_v_terms(args);
+                let inst = self.call_builtin_func(BuiltinFunction::SimpleOperation, &[eff_value, self.tip_address]);
+                let result = self.function_builder.inst_results(inst)[0];
+                Some((result, Uniform))
+            }
             CTerm::Handler { .. } => todo!(),
             CTerm::ResumeContinuation { .. } => todo!(),
             CTerm::DisposeContinuation { .. } => todo!(),

@@ -1,4 +1,4 @@
-use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_simple_operation, runtime_complex_operation};
+use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_handle_simple_operation, runtime_prepare_complex_operation};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder};
@@ -72,8 +72,8 @@ impl BuiltinFunction {
             BuiltinFunction::Alloc => runtime_alloc as *const u8,
             BuiltinFunction::ForceThunk => runtime_force_thunk as *const u8,
             BuiltinFunction::AllocStack => runtime_alloc_stack as *const u8,
-            BuiltinFunction::SimpleOperation => runtime_simple_operation as *const u8,
-            BuiltinFunction::ComplexOperation => runtime_complex_operation as *const u8,
+            BuiltinFunction::SimpleOperation => runtime_handle_simple_operation as *const u8,
+            BuiltinFunction::ComplexOperation => runtime_prepare_complex_operation as *const u8,
         };
 
         builder.symbol(self.func_name(), func_ptr);

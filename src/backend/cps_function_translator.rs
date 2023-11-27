@@ -408,39 +408,31 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 self.function_builder.switch_to_block(joining_block);
                 Some((self.function_builder.block_params(joining_block)[0], *result_v_type))
             }
-            CTerm::OperationCall { eff, args, simple } => {
+            CTerm::OperationCall { eff, args, simple: false } => {
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);
-                let tip_address = self.tip_address;
-                if *simple {
-                    let inst = self.call_builtin_func(BuiltinFunction::SimpleOperation, &[eff_value, tip_address]);
-                    let result = self.function_builder.inst_results(inst)[0];
-                    Some((result, Uniform))
+                let (base_address, continuation) = if is_tail {
+                    self.adjust_next_continuation_frame_height(self.continuation)
                 } else {
-                    let (base_address, continuation) = if is_tail {
-                        self.adjust_next_continuation_frame_height(self.continuation)
-                    } else {
-                        self.pack_up_continuation();
-                        (self.tip_address, self.continuation)
-                    };
-                    let inst = self.call_builtin_func(BuiltinFunction::ComplexOperation, &[eff_value, base_address, continuation]);
-                    let result_ptr = self.function_builder.inst_results(inst)[0];
-                    let handler_impl = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 0);
-                    let handler_continuation = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 8);
-                    let base_address = self.function_builder.ins().iadd_imm(result_ptr, 8);
+                    self.pack_up_continuation();
+                    (self.tip_address, self.continuation)
+                };
+                let inst = self.call_builtin_func(BuiltinFunction::ComplexOperation, &[eff_value, base_address, continuation]);
+                let result_ptr = self.function_builder.inst_results(inst)[0];
+                let handler_impl = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 0);
+                let handler_base_address = self.function_builder.ins().iadd_imm(result_ptr, 8);
+                let handler_continuation = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 16);
 
-                    // TODO: think about what the signature should look like.
-                    let signature = self.uniform_cps_func_signature.clone();
-                    let sig_ref = self.function_builder.import_signature(signature);
+                let signature = self.uniform_cps_func_signature.clone();
+                let sig_ref = self.function_builder.import_signature(signature);
 
-                    self.function_builder.ins().return_call_indirect(sig_ref, handler_impl, &[base_address, handler_continuation]);
-                    self.advance();
-                    if is_tail {
-                        None
-                    } else {
-                        Some((self.last_result, Uniform))
-                    }
+                self.function_builder.ins().return_call_indirect(sig_ref, handler_impl, &[handler_base_address, handler_continuation]);
+                self.advance();
+                if is_tail {
+                    None
+                } else {
+                    Some((self.last_result, Uniform))
                 }
             }
             CTerm::Handler { .. } => todo!(),
