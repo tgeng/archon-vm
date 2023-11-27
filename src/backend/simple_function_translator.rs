@@ -99,11 +99,11 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         let return_value_or_param = translator.translate_c_term(&function_definition.body, true);
         match return_value_or_param {
             Some(_) => {
-                let value = translator.convert_to_uniform(return_value_or_param);
-                let return_address_offset = (function_definition.args.len() as i64 - 1) * 8;
-                let return_address = translator.function_builder.ins().iadd_imm(translator.base_address, return_address_offset);
-                translator.function_builder.ins().store(MemFlags::new(), value, return_address, 0);
-                translator.function_builder.ins().return_(&[return_address]);
+                let return_value_address = translator.store_return_value_on_argument_stack(
+                    return_value_or_param,
+                    function_definition.args.len(),
+                );
+                translator.function_builder.ins().return_(&[return_value_address]);
             }
             None => {
                 // Nothing to do since tail call is already a terminating instruction.
@@ -115,6 +115,14 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         let simple_name = FunctionFlavor::Simple.decorate_name(name);
         let func_id = compiler.local_functions.get(&simple_name).unwrap();
         SimpleFunctionTranslator::define_function(&mut compiler.module, &mut compiler.ctx, &simple_name, *func_id, clir);
+    }
+
+    pub fn store_return_value_on_argument_stack(&mut self, return_value_or_param: TypedReturnValue, num_args: usize) -> Value {
+        let value = self.convert_to_uniform(return_value_or_param);
+        let return_address_offset = (num_args as i64 - 1) * 8;
+        let return_address = self.function_builder.ins().iadd_imm(self.base_address, return_address_offset);
+        self.function_builder.ins().store(MemFlags::new(), value, return_address, 0);
+        return_address
     }
     pub fn compile_specialized_function(
         name: &str,
@@ -247,17 +255,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             }
             CTerm::Return { value } => self.translate_v_term(value),
             CTerm::Force { thunk, .. } => {
-                let thunk_value = self.translate_v_term(thunk);
-                // We must change the thunk value to uniform representation because the built-in
-                // function expects a uniform representation in order to tell a thunk from a raw
-                // function pointer.
-                let thunk_value = self.convert_to_uniform(thunk_value);
-
-                self.function_builder.ins().stack_store(self.tip_address, self.tip_address_slot, 0);
-                let tip_address_ptr = self.function_builder.ins().stack_addr(I64, self.tip_address_slot, 0);
-                let inst = self.call_builtin_func(BuiltinFunction::ForceThunk, &[thunk_value, tip_address_ptr]);
-                let func_pointer = self.function_builder.inst_results(inst)[0];
-                self.tip_address = self.function_builder.ins().stack_load(I64, self.tip_address_slot, 0);
+                let func_pointer = self.process_thunk(thunk);
 
                 let sig_ref = self.function_builder.import_signature(self.uniform_func_signature.clone());
                 // Zero is specially treated as the trivial continuation.
@@ -382,6 +380,21 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             CTerm::ReplicateContinuation { .. } => todo!(),
             CTerm::LongJump { .. } => todo!(),
         }
+    }
+
+    pub fn process_thunk(&mut self, thunk: &VTerm) -> Value {
+        let thunk_value = self.translate_v_term(thunk);
+        // We must change the thunk value to uniform representation because the built-in
+        // function expects a uniform representation in order to tell a thunk from a raw
+        // function pointer.
+        let thunk_value = self.convert_to_uniform(thunk_value);
+
+        self.function_builder.ins().stack_store(self.tip_address, self.tip_address_slot, 0);
+        let tip_address_ptr = self.function_builder.ins().stack_addr(I64, self.tip_address_slot, 0);
+        let inst = self.call_builtin_func(BuiltinFunction::ForceThunk, &[thunk_value, tip_address_ptr]);
+        let func_pointer = self.function_builder.inst_results(inst)[0];
+        self.tip_address = self.function_builder.ins().stack_load(I64, self.tip_address_slot, 0);
+        func_pointer
     }
 
     pub fn push_arg_v_terms(&mut self, args: &Vec<VTerm>) {

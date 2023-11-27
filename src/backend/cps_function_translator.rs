@@ -4,7 +4,7 @@ use cranelift::prelude::{Block, InstBuilder, MemFlags, TrapCode, Value};
 use cranelift::prelude::types::I64;
 use cranelift_module::{FuncId, Linkage, Module};
 use cranelift::frontend::Switch;
-use crate::ast::signature::{FunctionDefinition};
+use crate::ast::signature::FunctionDefinition;
 use crate::ast::term::{CTerm, CType, VType};
 use crate::ast::term::SpecializedType::Integer;
 use crate::ast::term::VType::Uniform;
@@ -22,11 +22,12 @@ use crate::backend::simple_function_translator::SimpleFunctionTranslator;
 ///   [SimpleFunctionTranslator] and then calls the last effectful function as a tail call.
 /// - if this function has calls multiple effectful functions, then it creates a continuation
 ///   object and calls the CPS implementation function.
-pub struct CpsFunctionTranslator<'a, M: Module> {
+pub struct SimpleCpsFunctionTranslator<'a, M: Module> {
     function_translator: SimpleFunctionTranslator<'a, M>,
+    continuation: Value,
 }
 
-impl<'a, M: Module> Deref for CpsFunctionTranslator<'a, M> {
+impl<'a, M: Module> Deref for SimpleCpsFunctionTranslator<'a, M> {
     type Target = SimpleFunctionTranslator<'a, M>;
 
     fn deref(&self) -> &Self::Target {
@@ -34,41 +35,110 @@ impl<'a, M: Module> Deref for CpsFunctionTranslator<'a, M> {
     }
 }
 
-impl<'a, M: Module> DerefMut for CpsFunctionTranslator<'a, M> {
+impl<'a, M: Module> DerefMut for SimpleCpsFunctionTranslator<'a, M> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.function_translator
     }
 }
 
-impl<'a, M: Module> CpsFunctionTranslator<'a, M> {
-    pub fn compile_cps_impl_function(
+impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
+    pub fn compile_cps_function(
         name: &str,
         compiler: &mut Compiler<M>,
         function_definition: &FunctionDefinition,
         local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>,
         clir: &mut Option<&mut Vec<(String, String)>>,
     ) {
-        let signature = compiler.uniform_cps_func_signature.clone();
-
-        // TODO: tranlate the function body to CPS
+        let mut translator = SimpleCpsFunctionTranslator::new(compiler, function_definition, local_function_arg_types);
+        let typed_return_value = translator.translate_c_term_cps(&function_definition.body, true);
+        match typed_return_value {
+            None => {}
+            Some(_) => {
+                let return_value_address = translator.store_return_value_on_argument_stack(
+                    typed_return_value,
+                    function_definition.args.len(),
+                );
+                let continuation = translator.continuation;
+                invoke_next_continuation_in_the_end(&mut translator, return_value_address, continuation);
+            }
+        }
 
         let cps_name = FunctionFlavor::Cps.decorate_name(name);
         let func_id = compiler.module.declare_function(&cps_name, Linkage::Local, &compiler.uniform_cps_func_signature).unwrap();
         SimpleFunctionTranslator::define_function(&mut compiler.module, &mut compiler.ctx, &cps_name, func_id, clir);
     }
 
-    fn translate_c_term_cps(&mut self, c_term: &CTerm, is_tail: bool) {
-        todo!()
+    fn new(
+        compiler: &'a mut Compiler<M>,
+        function_definition: &'a FunctionDefinition,
+        local_function_arg_types: &'a HashMap<String, (Vec<VType>, CType)>,
+    ) -> Self {
+        let signature = compiler.uniform_cps_func_signature.clone();
+
+        let mut continuation: Value = Value::with_number(0).unwrap();
+        let function_translator = SimpleFunctionTranslator::new(
+            compiler,
+            signature,
+            function_definition,
+            local_function_arg_types,
+            false,
+            |function_builder, entry_block| {
+                continuation = function_builder.block_params(entry_block)[1];
+                function_builder.block_params(entry_block)[0]
+            },
+            |translator, _entry_block, i, _v_type| {
+                // v is the variable index and i is the offset in the parameter list. The parameter
+                // stack grows from higher address to lower address, so parameter list grows in the
+                // reverse order and hence the offset is the index of the parameter in the parameter
+                // list.
+                let value = translator.function_builder.ins().load(I64, MemFlags::new(), translator.base_address, (i * 8) as i32);
+                Some((value, Uniform))
+            },
+        );
+
+        Self {
+            function_translator,
+            continuation,
+        }
+    }
+
+
+    fn translate_c_term_cps(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
+        match c_term {
+            CTerm::Force { thunk, may_have_complex_effects: true } if is_tail => {
+                let func_pointer = self.process_thunk(thunk);
+
+                let signature = self.uniform_cps_func_signature.clone();
+                let sig_ref = self.function_builder.import_signature(signature);
+                let continuation = self.continuation;
+                let new_base_address = compute_cps_tail_call_base_address(self, continuation);
+                self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
+                    new_base_address, continuation,
+                ]);
+                None
+            }
+            CTerm::Def { name, may_have_complex_effects: true } if is_tail => {
+                let (func_ref, _) = self.get_local_function(name, FunctionFlavor::Cps);
+                let continuation = self.continuation;
+                let new_base_address = compute_cps_tail_call_base_address(self, continuation);
+                self.function_builder.ins().return_call(func_ref, &[new_base_address, continuation]);
+                None
+            }
+            CTerm::OperationCall { eff, args, simple: false } if is_tail => todo!(),
+            _ => self.translate_c_term(c_term, is_tail),
+        }
     }
 }
 
-/// The translated native function takes the following arguments:
+/// The translated native function to a CPS function with the same signature as the simple CPS
+/// translator.
+/// In addition, it creates a helper function that takes the following arguments:
 /// - the base address on the argument stack
 /// - the current continuation
 /// - the address to the last result. Initially it's set to be base address - 8.
 /// The translated function body basically contains logic that transitions across states of the
 /// continuation object.
-struct CpsImplFunctionTranslator<'a, M: Module> {
+struct ComplexCpsFunctionTranslator<'a, M: Module> {
     function_translator: SimpleFunctionTranslator<'a, M>,
     /// The pointer to the current continuation.
     continuation: Value,
@@ -92,7 +162,7 @@ struct CpsImplFunctionTranslator<'a, M: Module> {
     touched_vars_in_current_session: HashSet<usize>,
 }
 
-impl<'a, M: Module> Deref for CpsImplFunctionTranslator<'a, M> {
+impl<'a, M: Module> Deref for ComplexCpsFunctionTranslator<'a, M> {
     type Target = SimpleFunctionTranslator<'a, M>;
 
     fn deref(&self) -> &Self::Target {
@@ -100,13 +170,25 @@ impl<'a, M: Module> Deref for CpsImplFunctionTranslator<'a, M> {
     }
 }
 
-impl<'a, M: Module> DerefMut for CpsImplFunctionTranslator<'a, M> {
+impl<'a, M: Module> DerefMut for ComplexCpsFunctionTranslator<'a, M> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.function_translator
     }
 }
 
-impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
+impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
+    pub fn compile_cps_function(
+        name: &str,
+        compiler: &mut Compiler<M>,
+        function_definition: &FunctionDefinition,
+        local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>,
+        num_blocks: usize,
+        case_blocks: HashMap<usize, (Vec<usize>, usize, usize)>,
+        clir: &mut Option<&mut Vec<(String, String)>>,
+    ) {
+        todo!()
+    }
+
     fn compile_cps_impl_function(
         name: &str,
         compiler: &mut Compiler<M>,
@@ -116,8 +198,7 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
         case_blocks: HashMap<usize, (Vec<usize>, usize, usize)>,
         clir: &mut Option<&mut Vec<(String, String)>>,
     ) -> FuncId {
-        let signature = compiler.uniform_cps_func_signature.clone();
-        let mut translator = CpsImplFunctionTranslator::new(
+        let mut translator = ComplexCpsFunctionTranslator::new(
             compiler,
             function_definition,
             local_function_arg_types,
@@ -131,24 +212,15 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
             }
             Some(_) => {
                 // store return value on the argument stack
-                let value = translator.convert_to_uniform(typed_return_value);
-                let return_address_offset = (function_definition.args.len() as i64 - 1) * 8;
-                let base_address = translator.base_address;
-                let return_address = translator.function_builder.ins().iadd_imm(base_address, return_address_offset);
-                translator.function_builder.ins().store(MemFlags::new(), value, return_address, 0);
+                let return_address = translator.store_return_value_on_argument_stack(
+                    typed_return_value,
+                    function_definition.args.len(),
+                );
 
                 let continuation = translator.continuation;
                 let next_continuation = translator.function_builder.ins().load(I64, MemFlags::new(), continuation, 8);
-                // compute next base address
-                let next_continuation_height = translator.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 16);
-                let next_base_address = translator.function_builder.ins().iadd(base_address, next_continuation_height);
 
-                // get next continuation impl function
-                let next_continuation_impl = translator.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 0);
-
-                // call the next continuation
-                let sig_ref = translator.function_builder.import_signature(signature);
-                translator.function_builder.ins().return_call_indirect(sig_ref, next_continuation_impl, &[next_base_address, next_continuation, return_address]);
+                invoke_next_continuation_in_the_end(&mut translator, return_address, next_continuation);
             }
         }
         translator.function_translator.function_builder.finalize();
@@ -225,21 +297,9 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
                 self.translate_c_term_cps_impl(function, is_tail)
             }
             CTerm::Force { thunk, may_have_complex_effects: true } => {
-                let thunk_value = self.translate_v_term(thunk);
-                // We must change the thunk value to uniform representation because the built-in
-                // function expects a uniform representation in order to tell a thunk from a raw
-                // function pointer.
-                let thunk_value = self.convert_to_uniform(thunk_value);
+                let func_pointer = self.process_thunk(thunk);
 
-                let tip_address = self.tip_address;
-                let tip_address_slot = self.tip_address_slot;
-                self.function_builder.ins().stack_store(tip_address, tip_address_slot, 0);
-                let tip_address_ptr = self.function_builder.ins().stack_addr(I64, tip_address_slot, 0);
-                let inst = self.call_builtin_func(BuiltinFunction::ForceThunk, &[thunk_value, tip_address_ptr]);
-                let func_pointer = self.function_builder.inst_results(inst)[0];
-                let tip_address = self.function_builder.ins().stack_load(I64, tip_address_slot, 0);
-
-                let signature = self.uniform_func_signature.clone();
+                let signature = self.uniform_cps_func_signature.clone();
                 let sig_ref = self.function_builder.import_signature(signature);
                 let r = if is_tail {
                     let (new_base_address, next_continuation) = self.adjust_next_continuation_frame_height(self.continuation);
@@ -250,6 +310,7 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
                 } else {
                     self.pack_up_continuation();
                     let continuation = self.continuation;
+                    let tip_address = self.tip_address;
                     self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
                         tip_address,
                         continuation,
@@ -368,18 +429,9 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
     }
 
     fn adjust_next_continuation_frame_height(&mut self, continuation: Value) -> (Value, Value) {
-// accommodate the height of the next continuation is updated here because tail
-        // call causes the next continuation to be directly passed to the callee, which,
-        // when later invokes the next continuation, will need to compute the base
-        // address from this new height. The height can be different because the
-        // callee args are effectively altered by the current function.
-        let new_base_address = self.copy_tail_call_args_and_get_new_base();
         let next_continuation = self.function_builder.ins().load(I64, MemFlags::new(), continuation, 8);
-        let next_continuation_height = self.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 16);
-        let base_address = self.base_address;
-        let next_continuation_base = self.function_builder.ins().iadd(base_address, next_continuation_height);
-        let new_next_continuation_height = self.function_builder.ins().isub(new_base_address, next_continuation_base);
-        self.function_builder.ins().store(MemFlags::new(), new_next_continuation_height, next_continuation, 16);
+
+        let new_base_address = compute_cps_tail_call_base_address(self, next_continuation);
         (new_base_address, next_continuation)
     }
 
@@ -437,4 +489,34 @@ impl<'a, M: Module> CpsImplFunctionTranslator<'a, M> {
         self.function_builder.seal_block(next_block);
         self.function_builder.switch_to_block(next_block);
     }
+}
+
+fn compute_cps_tail_call_base_address<M: Module>(translator: &mut SimpleFunctionTranslator<M>, next_continuation: Value) -> Value {
+    // accommodate the height of the next continuation is updated here because tail
+    // call causes the next continuation to be directly passed to the callee, which,
+    // when later invokes the next continuation, will need to compute the base
+    // address from this new height. The height can be different because the
+    // callee args are effectively altered by the current function.
+    let new_base_address = translator.copy_tail_call_args_and_get_new_base();
+    let next_continuation_height = translator.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 16);
+    let base_address = translator.base_address;
+    let next_continuation_base = translator.function_builder.ins().iadd(base_address, next_continuation_height);
+    let new_next_continuation_height = translator.function_builder.ins().isub(new_base_address, next_continuation_base);
+    translator.function_builder.ins().store(MemFlags::new(), new_next_continuation_height, next_continuation, 16);
+    new_base_address
+}
+
+fn invoke_next_continuation_in_the_end<M: Module>(translator: &mut SimpleFunctionTranslator<M>, return_address: Value, next_continuation: Value) {
+    // compute next base address
+    let next_continuation_height = translator.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 16);
+    let base_address = translator.base_address;
+    let next_base_address = translator.function_builder.ins().iadd(base_address, next_continuation_height);
+
+    // get next continuation impl function
+    let next_continuation_impl = translator.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 0);
+
+    // call the next continuation
+    let signature = translator.uniform_cps_func_signature.clone();
+    let sig_ref = translator.function_builder.import_signature(signature);
+    translator.function_builder.ins().return_call_indirect(sig_ref, next_continuation_impl, &[next_base_address, next_continuation, return_address]);
 }
