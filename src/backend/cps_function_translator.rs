@@ -182,14 +182,38 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         compiler: &mut Compiler<M>,
         function_definition: &FunctionDefinition,
         local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>,
-        num_blocks: usize,
-        case_blocks: HashMap<usize, (Vec<usize>, usize, usize)>,
+        cps_impl_func_id: FuncId,
         clir: &mut Option<&mut Vec<(String, String)>>,
     ) {
-        todo!()
+        let mut next_continuation: Value = Value::with_number(0).unwrap();
+        let mut translator = SimpleFunctionTranslator::new(
+            compiler,
+            compiler.uniform_cps_func_signature.clone(),
+            function_definition,
+            local_function_arg_types,
+            false,
+            |function_builder, entry_block| {
+                next_continuation = function_builder.block_params(entry_block)[1];
+                function_builder.block_params(entry_block)[0]
+            },
+            // We don't do anything here and each block will load the parameters on demand.
+            |_, _, _, _| None);
+        let num_local_vars = function_definition.var_bound - function_definition.args.len();
+        let continuation_size = 32 + num_local_vars * 8;
+        let continuation_size_value = translator.function_builder.ins().iconst(I64, continuation_size as i64);
+        let inst = translator.call_builtin_func(BuiltinFunction::Alloc, &[continuation_size_value]);
+        let continuation = translator.function_builder.inst_results(inst)[0];
+        let last_result_ptr = translator.function_builder.ins().iadd_imm(translator.base_address, -8);
+        let cps_impl_func_ref = translator.module.declare_func_in_func(cps_impl_func_id, translator.function_builder.func);
+        translator.function_builder.ins().return_call(cps_impl_func_ref, &[translator.base_address, continuation, last_result_ptr]);
+        translator.function_builder.finalize();
+
+        let cps_name = FunctionFlavor::Cps.decorate_name(name);
+        let func_id = compiler.local_functions.get(&cps_name).unwrap();
+        SimpleFunctionTranslator::define_function(&mut compiler.module, &mut compiler.ctx, &cps_name, *func_id, clir);
     }
 
-    fn compile_cps_impl_function(
+    pub fn compile_cps_impl_function(
         name: &str,
         compiler: &mut Compiler<M>,
         function_definition: &FunctionDefinition,
@@ -198,6 +222,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         case_blocks: HashMap<usize, (Vec<usize>, usize, usize)>,
         clir: &mut Option<&mut Vec<(String, String)>>,
     ) -> FuncId {
+        assert!(num_blocks > 1, "if there is only a single block, one should not create a cps_impl function at all!");
         let mut translator = ComplexCpsFunctionTranslator::new(
             compiler,
             function_definition,
@@ -238,7 +263,6 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         num_blocks: usize,
         case_blocks: HashMap<usize, (Vec<usize>, usize, usize)>,
     ) -> Self {
-        assert!(num_blocks > 1, "if there is only a single block, one should not create a cps_impl function at all!");
         // The values here are just a placeholders.
         let mut continuation: Value = Value::with_number(0).unwrap();
         let mut last_result_ptr: Value = Value::with_number(0).unwrap();
