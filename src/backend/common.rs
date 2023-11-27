@@ -52,8 +52,8 @@ pub enum BuiltinFunction {
     Alloc,
     ForceThunk,
     AllocStack,
-    SimpleOperation,
-    ComplexOperation,
+    HandleSimpleOperation,
+    PrepareComplexOperation,
 }
 
 impl BuiltinFunction {
@@ -62,8 +62,8 @@ impl BuiltinFunction {
             BuiltinFunction::Alloc => "__runtime_alloc__",
             BuiltinFunction::ForceThunk => "__runtime_force_thunk__",
             BuiltinFunction::AllocStack => "__runtime_alloc_stack__",
-            BuiltinFunction::SimpleOperation => "__runtime_simple_operation",
-            BuiltinFunction::ComplexOperation => "__runtime_complex_operation",
+            BuiltinFunction::HandleSimpleOperation => "__runtime_handle_simple_operation",
+            BuiltinFunction::PrepareComplexOperation => "__runtime_prepare_complex_operation",
         }
     }
 
@@ -72,8 +72,8 @@ impl BuiltinFunction {
             BuiltinFunction::Alloc => runtime_alloc as *const u8,
             BuiltinFunction::ForceThunk => runtime_force_thunk as *const u8,
             BuiltinFunction::AllocStack => runtime_alloc_stack as *const u8,
-            BuiltinFunction::SimpleOperation => runtime_handle_simple_operation as *const u8,
-            BuiltinFunction::ComplexOperation => runtime_prepare_complex_operation as *const u8,
+            BuiltinFunction::HandleSimpleOperation => runtime_handle_simple_operation as *const u8,
+            BuiltinFunction::PrepareComplexOperation => runtime_prepare_complex_operation as *const u8,
         };
 
         builder.symbol(self.func_name(), func_ptr);
@@ -94,11 +94,11 @@ impl BuiltinFunction {
             BuiltinFunction::AllocStack => {
                 sig.returns.push(AbiParam::new(I64));
             }
-            BuiltinFunction::SimpleOperation => {
+            BuiltinFunction::HandleSimpleOperation => {
                 // TODO: params
                 sig.returns.push(AbiParam::new(I64));
             }
-            BuiltinFunction::ComplexOperation => {
+            BuiltinFunction::PrepareComplexOperation => {
                 // TODO: params
                 sig.returns.push(AbiParam::new(I64));
             }

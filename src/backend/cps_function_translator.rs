@@ -418,7 +418,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                     self.pack_up_continuation();
                     (self.tip_address, self.continuation)
                 };
-                let inst = self.call_builtin_func(BuiltinFunction::ComplexOperation, &[eff_value, base_address, continuation]);
+                let inst = self.call_builtin_func(BuiltinFunction::PrepareComplexOperation, &[eff_value, base_address, continuation]);
                 let result_ptr = self.function_builder.inst_results(inst)[0];
                 let handler_impl = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 0);
                 let handler_base_address = self.function_builder.ins().iadd_imm(result_ptr, 8);

@@ -378,7 +378,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);
-                let inst = self.call_builtin_func(BuiltinFunction::SimpleOperation, &[eff_value, self.tip_address]);
+                let inst = self.call_builtin_func(BuiltinFunction::HandleSimpleOperation, &[eff_value, self.tip_address]);
                 let result = self.function_builder.inst_results(inst)[0];
                 Some((result, Uniform))
             }
