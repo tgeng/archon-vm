@@ -46,6 +46,8 @@ pub trait Transformer {
             CTerm::DisposeContinuation { .. } => self.transform_dispose_continuation(c_term),
             CTerm::ReplicateContinuation { .. } => self.transform_replicate_continuation(c_term),
             CTerm::LongJump { .. } => self.transform_long_return(c_term),
+            CTerm::PopHandler => {}
+            CTerm::GetLastResult => {}
         }
     }
 

@@ -46,6 +46,8 @@ pub trait Visitor {
             CTerm::DisposeContinuation { .. } => self.visit_dispose_continuation(c_term),
             CTerm::ReplicateContinuation { .. } => self.visit_replicate_continuation(c_term),
             CTerm::LongJump { .. } => self.visit_long_return(c_term),
+            CTerm::PopHandler => {}
+            CTerm::GetLastResult => {}
         }
     }
 

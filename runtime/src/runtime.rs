@@ -1,38 +1,50 @@
 /// Data of unknown representation. This could be a primitive or pointer.
-type Generic = usize;
+pub type Generic = usize;
 /// Data in uniform representation. This is a tagged primitive or pointer.
-type Uniform = usize;
-type ThunkPtr = *const usize;
+pub type Uniform = usize;
+pub type ThunkPtr = *const usize;
 /// A pointer to a continuation implementation, which takes a corrresponding continuation and a
 /// result value and calls the next continuation in the end.
-type ContImplPtr = *const usize;
+pub type ContImplPtr = *const usize;
 /// A pointer to a struct consisting of the effect struct
-type Eff = *const usize;
+pub type Eff = usize;
 
 
 /// A state object of a function. This also points to the caller state so it effectively represents
 /// a continuation. Hence the name.
 #[repr(C, align(8))]
-struct Continuation {
-    func: ContImplPtr,
-    next: *mut Continuation,
+pub struct Continuation {
+    pub func: ContImplPtr,
+    pub next: *mut Continuation,
     /// The number of slots taken on the argument stack by this continuation.
-    arg_stack_frame_height: usize,
-    state: usize,
-    local_vars: [Generic],
+    pub arg_stack_frame_height: usize,
+    pub state: usize,
+    // local variables follows from here.
 }
 
-struct Handler {
-    transform_continuation: *mut Continuation,
-    parameter: *mut Uniform,
-    parameter_disposer: ThunkPtr,
-    parameter_replicator: ThunkPtr,
-    transform: ThunkPtr,
-    simple_handler: *const [(Eff, ThunkPtr)],
-    complex_handler: *const [(Eff, ThunkPtr)],
+// TODO: use custom allocator that allocates through Boehm GC for vecs
+pub struct Handler {
+    pub transform_continuation: *mut Continuation,
+    pub transform_num_args: usize,
+    pub parameter: Uniform,
+    pub parameter_disposer: ThunkPtr,
+    pub parameter_replicator: ThunkPtr,
+    pub simple_handler: Vec<(Eff, ThunkPtr, usize)>,
+    pub complex_handler: Vec<(Eff, ThunkPtr, usize)>,
 }
 
-enum HandlerEntry {
+pub enum HandlerEntry {
     Handler(Handler),
     SimpleOperationMarker { handler_index: usize },
+}
+
+pub struct CapturedContinuation {
+    /// The number of arguments passed to the complex operation handler that creates this captured
+    /// continuation. This is used to determine where the result of the operation is stored, which
+    /// will be passed as the "last_result" of the tip continuation.
+    pub tip_operation_num_args: usize,
+    pub tip: *mut Continuation,
+    pub base: *mut Continuation,
+    pub handler_fragment: Vec<HandlerEntry>,
+    pub stack_fragment: Vec<Generic>,
 }

@@ -387,6 +387,8 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             CTerm::DisposeContinuation { .. } => todo!(),
             CTerm::ReplicateContinuation { .. } => todo!(),
             CTerm::LongJump { .. } => todo!(),
+            CTerm::PopHandler => todo!(),
+            CTerm::GetLastResult => todo!(),
         }
     }
 

@@ -64,3 +64,9 @@ impl UniformPtr<*const usize> for *const usize {
     }
 }
 
+impl UniformPtr<*const usize> for usize {
+    fn to_normal_ptr(self) -> *const usize {
+        (self & POINTER_MASK) as *mut usize
+    }
+}
+

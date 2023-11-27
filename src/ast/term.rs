@@ -102,9 +102,9 @@ pub enum CTerm {
         parameter_replicator: Box<(usize, CTerm)>,
         /// (parameter, input) -> output
         transform: Box<(usize, usize, CTerm)>,
-        /// each handler: (parameter, operation_args...,  continuation) -> output
+        /// each handler: (effect, parameter index, operation arg indexes...,  continuation index) -> output
         complex_handlers: Vec<(VTerm, usize, Vec<usize>, usize, CTerm)>,
-        /// each handler: (parameter, operation_args...) -> output
+        /// each handler: (effect, parameter index, operation_arg indexes...) -> output
         simple_handlers: Vec<(VTerm, usize, Vec<usize>, CTerm)>,
         input: Box<CTerm>,
     },
@@ -113,9 +113,22 @@ pub enum CTerm {
     DisposeContinuation { continuation: Box<CTerm>, parameter: VTerm },
     ReplicateContinuation { continuation: Box<CTerm>, parameter: VTerm },
 
+    // Internal operations used during optimization and code generation.
+
     /// This can only appear inside a simple operation implementation. It means that the operation
     /// returns to the return address of the caller of the matching simple effect handler. This is
     /// used to implement simple exceptional effects, where a normal return means good call result
     /// and a long return means exceptional call result.
     LongJump { value: VTerm },
+
+    /// Special operation created during handler component lifting. This is only used inside helper
+    /// function created for handler transform component. This operation returns the handler
+    /// parameter.
+    PopHandler,
+
+    /// Special operation that gets the last result of the current continuation. This is only used
+    /// inside helper function created for handler transform component. The purpose is that with
+    /// this operation, the transform implementation can retrieve the input value in the very first
+    /// basic block.
+    GetLastResult,
 }
