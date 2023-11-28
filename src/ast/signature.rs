@@ -48,6 +48,8 @@ impl Signature {
         self.specialize_calls();
         self.lift_thunks();
         // TODO: add a pass that collapse immediate force thunk pairs
+        // TODO: implement a pass that uses special constructs when lifting handler transform components
+        // TODO: lift all handler components (input, transform, handler ops, param ops).
     }
 
     fn normalize_redex(&mut self) {

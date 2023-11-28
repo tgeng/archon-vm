@@ -250,7 +250,7 @@ pub fn runtime_add_complex_handler(handler: &mut Handler<*const usize>, eff: Eff
 /// - ptr + 8: the base address for the resumed continuation to find its arguments
 /// - ptr + 16: the pointer to the "last result" that should be passed to the resumed continuation
 pub unsafe fn runtime_prepare_resume_continuation(
-    mut tip_address: *mut usize,
+    mut base_address: *mut usize,
     captured_continuation: *mut CapturedContinuation,
     parameter: Uniform,
     result: Uniform,
@@ -264,12 +264,12 @@ pub unsafe fn runtime_prepare_resume_continuation(
     // update the stack frame height of the next continuation.
     next_continuation.arg_stack_frame_height += base_handler.transform_num_args;
 
-    let transform_base_address = tip_address.add(base_handler.transform_num_args);
+    let transform_base_address = base_address.add(base_handler.transform_num_args);
     for arg in captured_continuation.stack_fragment.iter().rev() {
-        tip_address = tip_address.sub(1);
-        tip_address.write(*arg);
+        base_address = base_address.sub(1);
+        base_address.write(*arg);
     }
-    let new_base_address = tip_address;
+    let new_base_address = base_address;
 
     HANDLERS.with(|handlers| {
         let mut handlers = handlers.borrow_mut();
@@ -288,16 +288,16 @@ pub unsafe fn runtime_prepare_resume_continuation(
     });
 
     // Write the last result
-    let last_result_address = tip_address.add(1);
+    let last_result_address = base_address.add(1);
     last_result_address.write(result);
 
     // Write the return values of this helper function.
-    tip_address = last_result_address.add(3);
-    tip_address.write((*captured_continuation.tip_continuation).func as usize);
-    tip_address.add(1).write(new_base_address as usize);
-    tip_address.add(2).write(last_result_address as usize);
+    base_address = last_result_address.add(3);
+    base_address.write((*captured_continuation.tip_continuation).func as usize);
+    base_address.add(1).write(new_base_address as usize);
+    base_address.add(2).write(last_result_address as usize);
 
-    tip_address
+    base_address
 }
 
 unsafe fn compare_uniform(a: Uniform, b: Uniform) -> bool {
