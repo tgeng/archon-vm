@@ -258,21 +258,23 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let func_pointer = self.process_thunk(thunk);
 
                 let sig_ref = self.function_builder.import_signature(self.uniform_func_signature.clone());
-                // Zero is specially treated as the trivial continuation.
-                // let zero = self.function_builder.ins().iconst(I64, 0);
+                // TODO: we need to construct a trivial continuation that returns the result.
+                //  Specially handle zero is tough because such special logic will need to appear
+                //  in a lot of places.
+                // let trivial_continuation = self.function_builder.ins().iconst(I64, 0);
                 if is_tail && !self.is_specialized {
                     let base_address = self.copy_tail_call_args_and_get_new_base();
                     self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
                         base_address,
                         // TODO: uncomment this when cps translation is done
-                        // zero,
+                        // trivial_continuation ,
                     ]);
                     None
                 } else {
                     let inst = self.function_builder.ins().call_indirect(sig_ref, func_pointer, &[
                         self.tip_address,
                         // TODO: uncomment this when cps translation is done
-                        // zero,
+                        // trivial_continuation ,
                     ]);
                     self.extract_return_value(inst)
                 }

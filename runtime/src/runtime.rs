@@ -23,7 +23,8 @@ pub struct Continuation {
 }
 
 // TODO: use custom allocator that allocates through Boehm GC for vecs
-pub struct Handler {
+pub struct Handler<T> {
+    pub transform_base_address: T,
     pub transform_continuation: *mut Continuation,
     pub transform_num_args: usize,
     pub parameter: Uniform,
@@ -34,17 +35,17 @@ pub struct Handler {
 }
 
 pub enum HandlerEntry {
-    Handler(Handler),
+    Handler(Handler<*const usize>),
     SimpleOperationMarker { handler_index: usize },
 }
 
 pub struct CapturedContinuation {
-    /// The number of arguments passed to the complex operation handler that creates this captured
-    /// continuation. This is used to determine where the result of the operation is stored, which
-    /// will be passed as the "last_result" of the tip continuation.
-    pub tip_operation_num_args: usize,
-    pub tip: *mut Continuation,
-    pub base: *mut Continuation,
-    pub handler_fragment: Vec<HandlerEntry>,
+    pub tip_continuation: *mut Continuation,
+    /// The base continuation is the continuation created from the matching handler's transform
+    /// component.
+    pub base_continuation: *mut Continuation,
+    pub handler_fragment: Vec<Handler<usize>>,
+    /// This contains all the arguments passed to the matching handler's transform component. But
+    /// it does NOT contain any arguments passed to the handler implementation. That is,
     pub stack_fragment: Vec<Generic>,
 }

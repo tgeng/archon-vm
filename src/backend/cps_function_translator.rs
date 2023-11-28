@@ -412,13 +412,13 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);
-                let (base_address, continuation) = if is_tail {
+                let (new_base_address, continuation) = if is_tail {
                     self.adjust_next_continuation_frame_height(self.continuation)
                 } else {
                     self.pack_up_continuation();
                     (self.tip_address, self.continuation)
                 };
-                let inst = self.call_builtin_func(BuiltinFunction::PrepareComplexOperation, &[eff_value, base_address, continuation]);
+                let inst = self.call_builtin_func(BuiltinFunction::PrepareComplexOperation, &[eff_value, new_base_address, continuation]);
                 let result_ptr = self.function_builder.inst_results(inst)[0];
                 let handler_impl = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 0);
                 let handler_base_address = self.function_builder.ins().iadd_imm(result_ptr, 8);
