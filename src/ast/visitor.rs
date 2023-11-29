@@ -42,9 +42,6 @@ pub trait Visitor {
             CTerm::PrimitiveCall { .. } => self.visit_primitive_call(c_term),
             CTerm::OperationCall { .. } => self.visit_operation_call(c_term),
             CTerm::Handler { .. } => self.visit_handler(c_term),
-            CTerm::ResumeContinuation { .. } => self.visit_resume_continuation(c_term),
-            CTerm::DisposeContinuation { .. } => self.visit_dispose_continuation(c_term),
-            CTerm::ReplicateContinuation { .. } => self.visit_replicate_continuation(c_term),
             CTerm::LongJump { .. } => self.visit_long_return(c_term),
             CTerm::PopHandler => {}
             CTerm::GetLastResult => {}
@@ -160,25 +157,6 @@ pub trait Visitor {
             self.remove_binding(*parameter_bound_index);
         }
         self.visit_c_term(input);
-    }
-
-    fn visit_resume_continuation(&mut self, c_term: &CTerm) {
-        let CTerm::ResumeContinuation { continuation, parameter, result } = c_term else { unreachable!() };
-        self.visit_c_term(continuation);
-        self.visit_v_term(parameter);
-        self.visit_v_term(result);
-    }
-
-    fn visit_dispose_continuation(&mut self, c_term: &CTerm) {
-        let CTerm::DisposeContinuation { continuation, parameter } = c_term else { unreachable!() };
-        self.visit_c_term(continuation);
-        self.visit_v_term(parameter);
-    }
-
-    fn visit_replicate_continuation(&mut self, c_term: &CTerm) {
-        let CTerm::ReplicateContinuation { continuation, parameter } = c_term else { unreachable!() };
-        self.visit_c_term(continuation);
-        self.visit_v_term(parameter);
     }
 
     fn visit_long_return(&mut self, c_term: &CTerm) {

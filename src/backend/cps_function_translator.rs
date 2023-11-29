@@ -436,9 +436,6 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 }
             }
             CTerm::Handler { .. } => todo!(),
-            CTerm::ResumeContinuation { .. } => todo!(),
-            CTerm::DisposeContinuation { .. } => todo!(),
-            CTerm::ReplicateContinuation { .. } => todo!(),
             CTerm::LongJump { .. } => todo!(),
             _ => self.translate_c_term(c_term, is_tail),
         }

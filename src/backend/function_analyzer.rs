@@ -41,7 +41,6 @@ impl FunctionAnalyzer {
                 self.case_blocks.insert(current_block_id, (branch_block_ids, default_block_id, joining_block_id));
             }
             CTerm::OperationCall { simple: false, .. } if !is_tail => self.count += 1,
-            CTerm::ResumeContinuation { .. } if !is_tail => self.count += 1,
             _ => {}
         }
     }
