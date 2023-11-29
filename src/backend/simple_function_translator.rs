@@ -536,7 +536,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
     }
 
     fn create_struct(&mut self, values: Vec<Value>) -> Value {
-        let struct_size = values.len() * 8;
+        let struct_size = values.len();
         let struct_size_value = self.function_builder.ins().iconst(I64, struct_size as i64);
         let runtime_alloc_call = self.call_builtin_func(BuiltinFunction::Alloc, &[struct_size_value]);
         let struct_address = self.function_builder.inst_results(runtime_alloc_call)[0];

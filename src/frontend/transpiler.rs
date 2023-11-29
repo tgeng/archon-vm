@@ -333,7 +333,6 @@ mod tests {
         let mut compiler: Compiler<JITModule> = Default::default();
         let mut clir = vec![];
         compiler.compile(&defs, &mut Some(&mut clir));
-        compiler.generate_main_wrapper(&mut Some(&mut clir));
         let main_func = compiler.finalize_and_get_main();
 
         let expected = match fs::read_to_string(test_output_path) {

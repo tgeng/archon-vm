@@ -1,3 +1,5 @@
+use cranelift::codegen::Context;
+use cranelift::codegen::isa::CallConv;
 use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_handle_simple_operation, runtime_prepare_complex_operation};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
@@ -54,6 +56,7 @@ pub enum BuiltinFunction {
     AllocStack,
     HandleSimpleOperation,
     PrepareComplexOperation,
+    GetTrivialContinuation,
 }
 
 impl BuiltinFunction {
@@ -64,6 +67,7 @@ impl BuiltinFunction {
             BuiltinFunction::AllocStack => "__runtime_alloc_stack__",
             BuiltinFunction::HandleSimpleOperation => "__runtime_handle_simple_operation",
             BuiltinFunction::PrepareComplexOperation => "__runtime_prepare_complex_operation",
+            BuiltinFunction::GetTrivialContinuation => "__runtime_get_trivial_continuation",
         }
     }
 
@@ -74,12 +78,13 @@ impl BuiltinFunction {
             BuiltinFunction::AllocStack => runtime_alloc_stack as *const u8,
             BuiltinFunction::HandleSimpleOperation => runtime_handle_simple_operation as *const u8,
             BuiltinFunction::PrepareComplexOperation => runtime_prepare_complex_operation as *const u8,
+            BuiltinFunction::GetTrivialContinuation => return,
         };
 
         builder.symbol(self.func_name(), func_ptr);
     }
 
-    pub fn signature<M: Module>(&self, m: &mut M) -> Signature {
+    pub fn declare<M: Module>(&self, m: &mut M) -> FuncId {
         let mut sig = m.make_signature();
         match self {
             BuiltinFunction::Alloc => {
@@ -102,13 +107,73 @@ impl BuiltinFunction {
                 // TODO: params
                 sig.returns.push(AbiParam::new(I64));
             }
+            BuiltinFunction::GetTrivialContinuation => {
+                let mut ctx = m.make_context();
+                let mut builder_context = FunctionBuilderContext::new();
+                let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
+
+                let impl_func_id = Self::generate_trivial_continuation_impl(m, &mut builder);
+                m.define_function(impl_func_id, &mut ctx).unwrap();
+                m.clear_context(&mut ctx);
+                let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
+                let func_id = Self::generate_trivial_continuation_helper(m, impl_func_id, &mut builder);
+                m.define_function(func_id, &mut ctx).unwrap();
+                return func_id;
+            }
         }
-        sig
+        m.declare_function(self.func_name(), Linkage::Import, &sig).unwrap()
     }
 
-    pub fn declare<M: Module>(&self, m: &mut M) -> FuncId {
-        let signature = &self.signature(m);
-        m.declare_function(self.func_name(), Linkage::Import, signature).unwrap()
+
+    fn generate_trivial_continuation_impl<M: Module>(module: &mut M, builder: &mut FunctionBuilder) -> FuncId {
+        let sig = create_cps_impl_signature(module);
+        let func_id = module.declare_function(BuiltinFunction::GetTrivialContinuation.func_name(), Linkage::Local, &sig).unwrap();
+        let entry_block = builder.create_block();
+        builder.append_block_params_for_function_params(entry_block);
+        builder.switch_to_block(entry_block);
+        builder.seal_block(entry_block);
+        // We don't need to do anything other than just return the last result because the height
+        // of this trivial continuation should be exactly the number of arguments of the function
+        // that accepts this trivial continuation. Hence, when that function calls this trivial
+        // continuation, it will place the result right below the base address, which is where this
+        // trivial continuation should be placing the result.
+        let last_result_ptr = builder.block_params(entry_block)[2];
+        builder.ins().return_(&[last_result_ptr]);
+        func_id
+    }
+
+    fn generate_trivial_continuation_helper<M: Module>(module: &mut M, impl_func_id: FuncId, builder: &mut FunctionBuilder) -> FuncId {
+        let mut sig = module.make_signature();
+        // the frame height, which is the number of arguments passed to the function accepting the
+        // returned continuation object.
+        sig.params.push(AbiParam::new(I64));
+        // The pointer to the created continuation object.
+        sig.returns.push(AbiParam::new(I64));
+        let func_id = module.declare_function(BuiltinFunction::GetTrivialContinuation.func_name(), Linkage::Local, &sig).unwrap();
+        let entry_block = builder.create_block();
+        builder.append_block_params_for_function_params(entry_block);
+        builder.switch_to_block(entry_block);
+        builder.seal_block(entry_block);
+
+        let alloc_func_id = module.declare_function(BuiltinFunction::Alloc.func_name(), Linkage::Import, &sig);
+        let alloc_func_ref = module.declare_func_in_func(alloc_func_id.unwrap(), builder.func);
+        // We only need the first two words for the trivial continuation.
+        let continuation_size = builder.ins().iconst(I64, 2);
+        let inst = builder.ins().call(alloc_func_ref, &[continuation_size]);
+        let continuation_ptr = builder.inst_results(inst)[0];
+
+        // first word of continuation is the continuation implementation
+        let impl_func_ref = module.declare_func_in_func(impl_func_id, builder.func);
+        let impl_func_ptr = builder.ins().func_addr(I64, impl_func_ref);
+        builder.ins().store(MemFlags::new(), impl_func_ptr, continuation_ptr, 0);
+
+        // second word is the frame height, which should be the given parameter
+        let frame_height = builder.block_params(entry_block)[0];
+        builder.ins().store(MemFlags::new(), frame_height, continuation_ptr, 8);
+
+        // return the pointer to the continuation object
+        builder.ins().return_(&[continuation_ptr]);
+        func_id
     }
 }
 
@@ -140,4 +205,14 @@ impl FunctionFlavor {
             FunctionFlavor::Specialized => format!("{}__specialized", function_name),
         }
     }
+}
+
+pub fn create_cps_impl_signature<M: Module>(module: &M) -> Signature {
+    let mut uniform_cps_impl_func_signature = module.make_signature();
+    uniform_cps_impl_func_signature.params.push(AbiParam::new(I64)); // base address
+    uniform_cps_impl_func_signature.params.push(AbiParam::new(I64)); // the continuation object
+    uniform_cps_impl_func_signature.params.push(AbiParam::new(I64)); // the last result
+    uniform_cps_impl_func_signature.returns.push(AbiParam::new(I64));
+    uniform_cps_impl_func_signature.call_conv = CallConv::Tail;
+    uniform_cps_impl_func_signature
 }

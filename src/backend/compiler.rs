@@ -9,7 +9,7 @@ use crate::ast::signature::FunctionDefinition;
 use crate::ast::term::{CType};
 use strum::IntoEnumIterator;
 use enum_map::{EnumMap};
-use crate::backend::common::{BuiltinFunction, FunctionFlavor, HasType};
+use crate::backend::common::{BuiltinFunction, create_cps_impl_signature, FunctionFlavor, HasType};
 use crate::backend::simple_function_translator::SimpleFunctionTranslator;
 
 /// The basic JIT class.
@@ -96,12 +96,8 @@ impl<M: Module> Compiler<M> {
         uniform_cps_func_signature.returns.push(AbiParam::new(I64));
         uniform_cps_func_signature.call_conv = CallConv::Tail;
 
-        let mut uniform_cps_impl_func_signature = module.make_signature();
-        uniform_cps_impl_func_signature.params.push(AbiParam::new(I64)); // base address
-        uniform_cps_impl_func_signature.params.push(AbiParam::new(I64)); // the continuation object
-        uniform_cps_impl_func_signature.params.push(AbiParam::new(I64)); // the last result
-        uniform_cps_impl_func_signature.returns.push(AbiParam::new(I64));
-        uniform_cps_impl_func_signature.call_conv = CallConv::Tail;
+        let uniform_cps_impl_func_signature = create_cps_impl_signature(&module);
+
         Self {
             builder_context: FunctionBuilderContext::new(),
             ctx: module.make_context(),
@@ -158,11 +154,13 @@ impl<M: Module> Compiler<M> {
                 }
             }
         }
+
+        self.generate_main_wrapper(clir);
     }
 
     /// Creates a main wrapper function (named `__main__`) that calls the `__runtime_alloc_stack__`,
     /// which sets up the parameter stack and invokes the user-defined `main` function.
-    pub fn generate_main_wrapper(&mut self, clir: &mut Option<&mut Vec<(String, String)>>) {
+    fn generate_main_wrapper(&mut self, clir: &mut Option<&mut Vec<(String, String)>>) {
         let main_wrapper_id = self.module.declare_function(MAIN_WRAPPER_NAME, Linkage::Local, &self.uniform_func_signature).unwrap();
         self.local_functions.insert(MAIN_WRAPPER_NAME.to_string(), main_wrapper_id);
         self.ctx.clear();
