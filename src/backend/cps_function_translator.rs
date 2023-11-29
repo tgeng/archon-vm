@@ -425,6 +425,9 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 let handler_impl = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 0);
                 let handler_base_address = self.function_builder.ins().iadd_imm(result_ptr, 8);
                 let handler_continuation = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 16);
+                let captured_continuation_ptr = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 24);
+
+                self.call_builtin_func(BuiltinFunction::ConvertCapturedContinuationToThunk, &[captured_continuation_ptr]);
 
                 let signature = self.uniform_cps_func_signature.clone();
                 let sig_ref = self.function_builder.import_signature(signature);

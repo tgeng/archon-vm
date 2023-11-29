@@ -65,8 +65,13 @@ pub unsafe fn runtime_handle_simple_operation(eff: usize, base_address: *const u
 /// - ptr + 0: the function pointer to the matched handler implementationon
 /// - ptr + 8: the base address used to find the arguments when invoking the handler implementation
 /// - ptr + 16: the next continuation after handler finishes execution
-/// The pointer + 8 is the base address that should be passed to this pointed handler implementaion
-/// function, which will find its arguments from that base address.
+/// - ptr + 24: the pointer to the pointer of the captured continuation. This captured continuation
+///             is just a struct containing all the necessary information. However, to actually use
+///             it, one need a normal thunk instead. Hence, caller of
+///             [runtime_prepare_complex_operation] will need to replace the value pointed by this
+///             pointer with a normal thunk by calling the built-in
+///             `ConvertCapturedContinuationToThunk` function.
+///
 pub unsafe fn runtime_prepare_complex_operation(
     eff: usize,
     handler_call_base_address: *const usize,
@@ -116,6 +121,7 @@ pub unsafe fn runtime_prepare_complex_operation(
         }
     }).collect();
 
+    // TODO: create a normal thunk here instead.
     let captured_continuation = runtime_alloc((std::mem::size_of::<CapturedContinuation>()) / 8) as *mut CapturedContinuation;
 
     *captured_continuation = CapturedContinuation {
@@ -126,10 +132,13 @@ pub unsafe fn runtime_prepare_complex_operation(
     };
 
     let mut new_tip_address = stack_fragment_end as *mut usize;
-    // Set up arguments for invoking the handler.
-    // First set up the handler parameter.
-    new_tip_address = new_tip_address.sub(1);
-    new_tip_address.write(matching_parameter);
+    // Set up arguments for invoking the handler. Note that arguments on the stack are in reverse
+    // order.
+
+    // Firstly, set up the reified continuation.
+    let captured_continuation_ptr = new_tip_address.sub(1);
+    captured_continuation_ptr.write(UniformType::to_uniform_sptr(captured_continuation));
+    new_tip_address = captured_continuation_ptr;
 
     // Then set up explicit handler arguments.
     for i in (0..tip_operation_num_args).rev() {
@@ -137,17 +146,18 @@ pub unsafe fn runtime_prepare_complex_operation(
         new_tip_address.write(handler_call_base_address.add(i).read());
     }
 
-    // Lastly, set up the reified continuation.
+    // Lastly set up the handler parameter.
     new_tip_address = new_tip_address.sub(1);
-    new_tip_address.write(UniformType::to_uniform_sptr(captured_continuation));
+    new_tip_address.write(matching_parameter);
 
     // Set up return values.
     let handler_function_ptr = runtime_force_thunk(handler_impl, &mut new_tip_address);
     let new_base_address = new_tip_address;
-    let result_ptr = new_tip_address.add(3);
+    let result_ptr = new_tip_address.add(4);
     result_ptr.write(handler_function_ptr as usize);
     result_ptr.add(1).write(new_base_address as usize);
     result_ptr.add(2).write(next_continuation as usize);
+    result_ptr.add(3).write(captured_continuation_ptr as usize);
     result_ptr
 }
 
@@ -251,10 +261,10 @@ pub fn runtime_add_complex_handler(handler: &mut Handler<*const usize>, eff: Eff
 /// - ptr + 16: the pointer to the "last result" that should be passed to the resumed continuation
 pub unsafe fn runtime_prepare_resume_continuation(
     mut base_address: *mut usize,
+    next_continuation: &mut Continuation,
     captured_continuation: *mut CapturedContinuation,
     parameter: Uniform,
     result: Uniform,
-    next_continuation: &mut Continuation,
 ) -> *const usize {
     let captured_continuation = captured_continuation.read();
     let base_handler = captured_continuation.handler_fragment.first().unwrap();

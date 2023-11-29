@@ -1,4 +1,3 @@
-use cranelift::codegen::Context;
 use cranelift::codegen::isa::CallConv;
 use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_handle_simple_operation, runtime_prepare_complex_operation};
 use cranelift::prelude::*;
@@ -57,6 +56,7 @@ pub enum BuiltinFunction {
     HandleSimpleOperation,
     PrepareComplexOperation,
     GetTrivialContinuation,
+    ConvertCapturedContinuationToThunk,
 }
 
 impl BuiltinFunction {
@@ -68,6 +68,7 @@ impl BuiltinFunction {
             BuiltinFunction::HandleSimpleOperation => "__runtime_handle_simple_operation",
             BuiltinFunction::PrepareComplexOperation => "__runtime_prepare_complex_operation",
             BuiltinFunction::GetTrivialContinuation => "__runtime_get_trivial_continuation",
+            BuiltinFunction::ConvertCapturedContinuationToThunk => "__runtime_convert_captured_continuation_to_thunk",
         }
     }
 
@@ -79,6 +80,7 @@ impl BuiltinFunction {
             BuiltinFunction::HandleSimpleOperation => runtime_handle_simple_operation as *const u8,
             BuiltinFunction::PrepareComplexOperation => runtime_prepare_complex_operation as *const u8,
             BuiltinFunction::GetTrivialContinuation => return,
+            BuiltinFunction::ConvertCapturedContinuationToThunk => return,
         };
 
         builder.symbol(self.func_name(), func_ptr);
@@ -117,6 +119,19 @@ impl BuiltinFunction {
                 m.clear_context(&mut ctx);
                 let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
                 let func_id = Self::generate_trivial_continuation_helper(m, impl_func_id, &mut builder);
+                m.define_function(func_id, &mut ctx).unwrap();
+                return func_id;
+            }
+            BuiltinFunction::ConvertCapturedContinuationToThunk => {
+                let mut ctx = m.make_context();
+                let mut builder_context = FunctionBuilderContext::new();
+                let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
+
+                let impl_func_id = Self::convert_captured_continuation_to_thunk_impl(m, &mut builder);
+                m.define_function(impl_func_id, &mut ctx).unwrap();
+                m.clear_context(&mut ctx);
+                let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
+                let func_id = Self::convert_captured_continuation_to_thunk(m, impl_func_id, &mut builder);
                 m.define_function(func_id, &mut ctx).unwrap();
                 return func_id;
             }
@@ -174,6 +189,14 @@ impl BuiltinFunction {
         // return the pointer to the continuation object
         builder.ins().return_(&[continuation_ptr]);
         func_id
+    }
+
+    fn convert_captured_continuation_to_thunk_impl<M: Module>(module: &mut M, builder: &mut FunctionBuilder) -> FuncId {
+        todo!()
+    }
+
+    fn convert_captured_continuation_to_thunk<M: Module>(module: &mut M, impl_func_id: FuncId, builder: &mut FunctionBuilder) -> FuncId {
+        todo!()
     }
 }
 
