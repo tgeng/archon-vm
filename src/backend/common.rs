@@ -1,5 +1,5 @@
 use cranelift::codegen::isa::CallConv;
-use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_handle_simple_operation, runtime_prepare_complex_operation};
+use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_handle_simple_operation, runtime_prepare_complex_operation, runtime_pop_handler, runtime_register_handler_and_get_transform_continuation, runtime_get_current_handler, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder};
@@ -50,11 +50,20 @@ impl HasType for PType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, Enum)]
 pub enum BuiltinFunction {
+    // from rust runtime lib
     Alloc,
     ForceThunk,
     AllocStack,
     HandleSimpleOperation,
     PrepareComplexOperation,
+    PopHandler,
+    RegisterHandlerAndGetTransformContinuation,
+    GetCurrentHandler,
+    AddSimpleHandler,
+    AddComplexHandler,
+    PrepareResumeContinuation,
+
+    // generated
     GetTrivialContinuation,
     ConvertCapturedContinuationToThunk,
 }
@@ -67,6 +76,12 @@ impl BuiltinFunction {
             BuiltinFunction::AllocStack => "__runtime_alloc_stack__",
             BuiltinFunction::HandleSimpleOperation => "__runtime_handle_simple_operation",
             BuiltinFunction::PrepareComplexOperation => "__runtime_prepare_complex_operation",
+            BuiltinFunction::PopHandler => "__runtime_pop_handler",
+            BuiltinFunction::RegisterHandlerAndGetTransformContinuation => "__runtime_register_handler_and_get_transform_continuation",
+            BuiltinFunction::GetCurrentHandler => "__runtime_get_current_handler",
+            BuiltinFunction::AddSimpleHandler => "__runtime_add_simple_handler",
+            BuiltinFunction::AddComplexHandler => "__runtime_add_complex_handler",
+            BuiltinFunction::PrepareResumeContinuation => "__runtime_prepare_resume_continuation",
             BuiltinFunction::GetTrivialContinuation => "__runtime_get_trivial_continuation",
             BuiltinFunction::ConvertCapturedContinuationToThunk => "__runtime_convert_captured_continuation_to_thunk",
         }
@@ -79,6 +94,12 @@ impl BuiltinFunction {
             BuiltinFunction::AllocStack => runtime_alloc_stack as *const u8,
             BuiltinFunction::HandleSimpleOperation => runtime_handle_simple_operation as *const u8,
             BuiltinFunction::PrepareComplexOperation => runtime_prepare_complex_operation as *const u8,
+            BuiltinFunction::PopHandler => runtime_pop_handler as *const u8,
+            BuiltinFunction::RegisterHandlerAndGetTransformContinuation => runtime_register_handler_and_get_transform_continuation as *const u8,
+            BuiltinFunction::GetCurrentHandler => runtime_get_current_handler as *const u8,
+            BuiltinFunction::AddSimpleHandler => runtime_add_simple_handler as *const u8,
+            BuiltinFunction::AddComplexHandler => runtime_add_complex_handler as *const u8,
+            BuiltinFunction::PrepareResumeContinuation => runtime_prepare_resume_continuation as *const u8,
             BuiltinFunction::GetTrivialContinuation => return,
             BuiltinFunction::ConvertCapturedContinuationToThunk => return,
         };
@@ -88,27 +109,27 @@ impl BuiltinFunction {
 
     pub fn declare<M: Module>(&self, m: &mut M) -> FuncId {
         let mut sig = m.make_signature();
+        let mut declare_external_func = |arg_count: usize, return_count: usize| {
+            for _ in 0..arg_count {
+                sig.params.push(AbiParam::new(I64));
+            }
+            for _ in 0..return_count {
+                sig.returns.push(AbiParam::new(I64));
+            }
+            m.declare_function(self.func_name(), Linkage::Import, &sig).unwrap()
+        };
         match self {
-            BuiltinFunction::Alloc => {
-                sig.params.push(AbiParam::new(I64));
-                sig.returns.push(AbiParam::new(I64));
-            }
-            BuiltinFunction::ForceThunk => {
-                sig.params.push(AbiParam::new(I64));
-                sig.params.push(AbiParam::new(I64));
-                sig.returns.push(AbiParam::new(I64));
-            }
-            BuiltinFunction::AllocStack => {
-                sig.returns.push(AbiParam::new(I64));
-            }
-            BuiltinFunction::HandleSimpleOperation => {
-                // TODO: params
-                sig.returns.push(AbiParam::new(I64));
-            }
-            BuiltinFunction::PrepareComplexOperation => {
-                // TODO: params
-                sig.returns.push(AbiParam::new(I64));
-            }
+            BuiltinFunction::Alloc => declare_external_func(1, 1),
+            BuiltinFunction::ForceThunk => declare_external_func(2, 1),
+            BuiltinFunction::AllocStack => declare_external_func(0, 1),
+            BuiltinFunction::HandleSimpleOperation => declare_external_func(2, 1),
+            BuiltinFunction::PrepareComplexOperation => declare_external_func(3, 1),
+            BuiltinFunction::PopHandler => declare_external_func(0, 1),
+            BuiltinFunction::RegisterHandlerAndGetTransformContinuation => declare_external_func(8, 1),
+            BuiltinFunction::GetCurrentHandler => declare_external_func(8, 1),
+            BuiltinFunction::AddSimpleHandler => declare_external_func(4, 0),
+            BuiltinFunction::AddComplexHandler => declare_external_func(4, 0),
+            BuiltinFunction::PrepareResumeContinuation => declare_external_func(5, 1),
             BuiltinFunction::GetTrivialContinuation => {
                 let mut ctx = m.make_context();
                 let mut builder_context = FunctionBuilderContext::new();
@@ -120,7 +141,7 @@ impl BuiltinFunction {
                 let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
                 let func_id = Self::generate_trivial_continuation_helper(m, impl_func_id, &mut builder);
                 m.define_function(func_id, &mut ctx).unwrap();
-                return func_id;
+                func_id
             }
             BuiltinFunction::ConvertCapturedContinuationToThunk => {
                 let mut ctx = m.make_context();
@@ -133,10 +154,9 @@ impl BuiltinFunction {
                 let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
                 let func_id = Self::convert_captured_continuation_to_thunk(m, impl_func_id, &mut builder);
                 m.define_function(func_id, &mut ctx).unwrap();
-                return func_id;
+                func_id
             }
         }
-        m.declare_function(self.func_name(), Linkage::Import, &sig).unwrap()
     }
 
 

@@ -56,7 +56,7 @@ pub unsafe fn runtime_alloc_stack() -> *mut usize {
 
 /// Returns the result of the operation in uniform representation
 /// TODO: add args
-pub unsafe fn runtime_handle_simple_operation(eff: usize, base_address: *const usize) -> usize {
+pub unsafe fn runtime_handle_simple_operation(eff: usize, handler_call_base_address: *const usize) -> usize {
     let (handler_index, handler_impl, num_args) = find_matching_handler(eff, true);
     todo!()
 }
