@@ -126,7 +126,7 @@ CLIR
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 tail
-    fn0 = colocated u0:6 sig0
+    fn0 = colocated u0:16 sig0
 
 block0(v0: i64):
     v1 = iconst.i64 1
@@ -168,7 +168,7 @@ block0(v0: i64, v1: i64, v2: i64):
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 tail
-    fn0 = colocated u0:5 sig0
+    fn0 = colocated u0:15 sig0
 
 block0(v0: i64):
     v1 = iconst.i64 2
@@ -183,7 +183,7 @@ block0(v0: i64):
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 tail
-    fn0 = colocated u0:5 sig0
+    fn0 = colocated u0:15 sig0
 
 block0(v0: i64):
     v1 = iconst.i64 2
@@ -203,7 +203,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:9 sig1
+    fn1 = colocated u0:19 sig1
 
 block0:
     v0 = call fn0()

@@ -256,7 +256,7 @@ pub fn runtime_add_complex_handler(handler: &mut Handler<*const usize>, eff: Eff
 }
 
 /// Returns a pointer pointing to the following:
-/// - ptr + 0: the function pointer to the resumed continuation implementation
+/// - ptr + 0: the function pointer to the resumed continuation
 /// - ptr + 8: the base address for the resumed continuation to find its arguments
 /// - ptr + 16: the pointer to the "last result" that should be passed to the resumed continuation
 pub unsafe fn runtime_prepare_resume_continuation(
@@ -303,7 +303,7 @@ pub unsafe fn runtime_prepare_resume_continuation(
 
     // Write the return values of this helper function.
     base_address = last_result_address.add(3);
-    base_address.write((*captured_continuation.tip_continuation).func as usize);
+    base_address.write(captured_continuation.tip_continuation as usize);
     base_address.add(1).write(new_base_address as usize);
     base_address.add(2).write(last_result_address as usize);
 

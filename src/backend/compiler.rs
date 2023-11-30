@@ -9,7 +9,7 @@ use crate::ast::signature::FunctionDefinition;
 use crate::ast::term::{CType};
 use strum::IntoEnumIterator;
 use enum_map::{EnumMap};
-use crate::backend::common::{BuiltinFunction, create_cps_impl_signature, FunctionFlavor, HasType};
+use crate::backend::common::{BuiltinFunction, create_cps_impl_signature, create_cps_signature, FunctionFlavor, HasType};
 use crate::backend::simple_function_translator::SimpleFunctionTranslator;
 
 /// The basic JIT class.
@@ -90,11 +90,7 @@ impl<M: Module> Compiler<M> {
         uniform_func_signature.returns.push(AbiParam::new(I64));
         uniform_func_signature.call_conv = CallConv::Tail;
 
-        let mut uniform_cps_func_signature = module.make_signature();
-        uniform_cps_func_signature.params.push(AbiParam::new(I64)); // base address
-        uniform_cps_func_signature.params.push(AbiParam::new(I64)); // the next continuation object
-        uniform_cps_func_signature.returns.push(AbiParam::new(I64));
-        uniform_cps_func_signature.call_conv = CallConv::Tail;
+        let uniform_cps_func_signature = create_cps_signature(&module);
 
         let uniform_cps_impl_func_signature = create_cps_impl_signature(&module);
 

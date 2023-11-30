@@ -396,7 +396,7 @@ CLIR
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64, i64, i64) -> i64 tail
-    fn0 = colocated u0:7 sig0
+    fn0 = colocated u0:17 sig0
 
 block0(v0: i64):
     v1 = load.i64 v0
@@ -454,9 +454,9 @@ function u0:0(i64) -> i64 tail {
     sig4 = (i64) -> i64 tail
     sig5 = (i64, i64) -> i64 apple_aarch64
     sig6 = (i64) -> i64 tail
-    fn0 = colocated u0:5 sig0
+    fn0 = colocated u0:15 sig0
     fn1 = u0:0 sig1
-    fn2 = colocated u0:10 sig2
+    fn2 = colocated u0:20 sig2
     fn3 = u0:1 sig3
     fn4 = u0:1 sig5
 
@@ -471,8 +471,8 @@ block0(v0: i64):
     v8 = ishl_imm v1, 1  ; v1 = 0
     v9 = ishl_imm v2, 1  ; v2 = 1
     v10 = ishl_imm v4, 1  ; v4 = 3
-    v11 = iconst.i64 40
-    v12 = call fn1(v11)  ; v11 = 40
+    v11 = iconst.i64 5
+    v12 = call fn1(v11)  ; v11 = 5
     store aligned v7, v12
     store aligned v6, v12+8  ; v6 = 3
     store aligned v8, v12+16
@@ -515,9 +515,9 @@ function u0:0(i64) -> i64 tail {
     sig4 = (i64) -> i64 tail
     sig5 = (i64, i64) -> i64 apple_aarch64
     sig6 = (i64) -> i64 tail
-    fn0 = colocated u0:5 sig0
+    fn0 = colocated u0:15 sig0
     fn1 = u0:0 sig1
-    fn2 = colocated u0:10 sig2
+    fn2 = colocated u0:20 sig2
     fn3 = u0:1 sig3
     fn4 = u0:1 sig5
 
@@ -532,8 +532,8 @@ block0(v0: i64):
     v8 = ishl_imm v1, 1  ; v1 = 0
     v9 = ishl_imm v2, 1  ; v2 = 1
     v10 = ishl_imm v4, 1  ; v4 = 3
-    v11 = iconst.i64 40
-    v12 = call fn1(v11)  ; v11 = 40
+    v11 = iconst.i64 5
+    v12 = call fn1(v11)  ; v11 = 5
     store aligned v7, v12
     store aligned v6, v12+8  ; v6 = 3
     store aligned v8, v12+16
@@ -583,7 +583,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:9 sig1
+    fn1 = colocated u0:19 sig1
 
 block0:
     v0 = call fn0()

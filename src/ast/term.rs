@@ -87,6 +87,7 @@ pub enum CTerm {
     /// another consumes more arguments (aka tail call). In this case the result type is
     /// [CType::Default].
     CaseInt { t: VTerm, result_type: CType, branches: Vec<(i64, CTerm)>, default_branch: Option<Box<CTerm>> },
+    // TODO: add first class lambda and lifting
     MemGet { base: VTerm, offset: VTerm },
     MemSet { base: VTerm, offset: VTerm, value: VTerm },
     // TODO: implement the following for setting and getting primitive values
