@@ -345,6 +345,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 self.function_builder.switch_to_block(joining_block);
                 Some((self.function_builder.block_params(joining_block)[0], *result_v_type))
             }
+            CTerm::Lambda { .. } => unreachable!("lambda should have been lifted away"),
             CTerm::MemGet { base, offset } => {
                 let base_value = self.translate_v_term(base);
                 let offset_value = self.translate_v_term(offset);

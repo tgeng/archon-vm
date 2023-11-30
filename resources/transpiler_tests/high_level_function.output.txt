@@ -418,12 +418,9 @@ Defs
                         value: 10,
                     },
                     Thunk {
-                        t: Redex {
-                            function: Def {
-                                name: "add",
-                                may_have_complex_effects: false,
-                            },
-                            args: [],
+                        t: Def {
+                            name: "add",
+                            may_have_complex_effects: false,
                         },
                     },
                     Int {

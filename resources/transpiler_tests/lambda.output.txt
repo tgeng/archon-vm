@@ -1,0 +1,247 @@
+FTerm
+========
+Let {
+    name: "a",
+    t: Int {
+        value: 1,
+    },
+    body: Let {
+        name: "f",
+        t: Thunk {
+            computation: Lambda {
+                arg_names: [
+                    (
+                        "x",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                ],
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                    },
+                    args: [
+                        Identifier {
+                            name: "x",
+                        },
+                        Identifier {
+                            name: "a",
+                        },
+                    ],
+                },
+            },
+        },
+        body: Redex {
+            function: Force {
+                thunk: Identifier {
+                    name: "f",
+                },
+            },
+            args: [
+                Int {
+                    value: 2,
+                },
+            ],
+        },
+    },
+}
+
+Defs
+========
+[
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Let {
+                t: Return {
+                    value: Int {
+                        value: 1,
+                    },
+                },
+                bound_index: 0,
+                body: Let {
+                    t: Return {
+                        value: Thunk {
+                            t: Redex {
+                                function: Def {
+                                    name: "main$__lambda_0",
+                                    may_have_complex_effects: true,
+                                },
+                                args: [
+                                    Var {
+                                        index: 0,
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    bound_index: 2,
+                    body: Redex {
+                        function: Force {
+                            thunk: Var {
+                                index: 2,
+                            },
+                            may_have_complex_effects: false,
+                        },
+                        args: [
+                            Int {
+                                value: 2,
+                            },
+                        ],
+                    },
+                },
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 3,
+            may_be_simple: true,
+        },
+    ),
+    (
+        "main$__lambda_0",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            ],
+            body: PrimitiveCall {
+                name: "_int_add",
+                args: [
+                    Var {
+                        index: 1,
+                    },
+                    Var {
+                        index: 0,
+                    },
+                ],
+            },
+            c_type: Default,
+            var_bound: 2,
+            may_be_simple: true,
+        },
+    ),
+]
+
+CLIR
+========
+[main__simple]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 tail
+    sig1 = (i64) -> i64 apple_aarch64
+    sig2 = (i64, i64) -> i64 apple_aarch64
+    sig3 = (i64) -> i64 tail
+    fn0 = colocated u0:17 sig0
+    fn1 = u0:0 sig1
+    fn2 = u0:1 sig2
+
+block0(v0: i64):
+    v1 = iconst.i64 1
+    v2 = func_addr.i64 fn0
+    v3 = iconst.i64 1
+    v4 = iadd_imm v2, 3
+    v5 = ishl_imm v1, 1  ; v1 = 1
+    v6 = iconst.i64 3
+    v7 = call fn1(v6)  ; v6 = 3
+    store aligned v4, v7
+    store aligned v3, v7+8  ; v3 = 1
+    store aligned v5, v7+16
+    v8 = iconst.i64 2
+    v9 = ishl_imm v8, 1  ; v8 = 2
+    v10 = iadd_imm v0, -8
+    store aligned v9, v10
+    v11 = iadd_imm v7, 1
+    stack_store v10, ss0
+    v12 = stack_addr.i64 ss0
+    v13 = call fn2(v11, v12)
+    v14 = stack_load.i64 ss0
+    return_call_indirect sig3, v13(v14)
+}
+
+
+[main__specialized]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 tail
+    sig1 = (i64) -> i64 apple_aarch64
+    sig2 = (i64, i64) -> i64 apple_aarch64
+    sig3 = (i64) -> i64 tail
+    fn0 = colocated u0:17 sig0
+    fn1 = u0:0 sig1
+    fn2 = u0:1 sig2
+
+block0(v0: i64):
+    v1 = iconst.i64 1
+    v2 = func_addr.i64 fn0
+    v3 = iconst.i64 1
+    v4 = iadd_imm v2, 3
+    v5 = ishl_imm v1, 1  ; v1 = 1
+    v6 = iconst.i64 3
+    v7 = call fn1(v6)  ; v6 = 3
+    store aligned v4, v7
+    store aligned v3, v7+8  ; v3 = 1
+    store aligned v5, v7+16
+    v8 = iconst.i64 2
+    v9 = ishl_imm v8, 1  ; v8 = 2
+    v10 = iadd_imm v0, -8
+    store aligned v9, v10
+    v11 = iadd_imm v7, 1
+    stack_store v10, ss0
+    v12 = stack_addr.i64 ss0
+    v13 = call fn2(v11, v12)
+    v14 = stack_load.i64 ss0
+    v15 = call_indirect sig3, v13(v14)
+    v16 = load.i64 v15
+    v17 = iadd_imm v15, 8
+    v18 = sshr_imm v16, 1
+    return v18
+}
+
+
+[main$__lambda_0__simple]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+
+block0(v0: i64):
+    v1 = load.i64 v0
+    v2 = load.i64 v0+8
+    v3 = sshr_imm v2, 1
+    v4 = sshr_imm v1, 1
+    v5 = iadd v3, v4
+    v6 = ishl_imm v5, 1
+    v7 = iadd_imm v0, 8
+    store v6, v7
+    return v7
+}
+
+
+[__main__]
+function u0:0() -> i64 fast {
+    sig0 = () -> i64 apple_aarch64
+    sig1 = (i64) -> i64 tail
+    fn0 = u0:2 sig0
+    fn1 = colocated u0:16 sig1
+
+block0:
+    v0 = call fn0()
+    v1 = call fn1(v0)
+    return v1
+}
+
+
+Result
+========
+3

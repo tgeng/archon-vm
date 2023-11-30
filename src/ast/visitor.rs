@@ -37,6 +37,7 @@ pub trait Visitor {
             CTerm::Let { .. } => self.visit_let(c_term),
             CTerm::Def { .. } => self.visit_def(c_term),
             CTerm::CaseInt { .. } => self.visit_case_int(c_term),
+            CTerm::Lambda { .. } => self.visit_lambda(c_term),
             CTerm::MemGet { .. } => self.visit_mem_get(c_term),
             CTerm::MemSet { .. } => self.visit_mem_set(c_term),
             CTerm::PrimitiveCall { .. } => self.visit_primitive_call(c_term),
@@ -83,6 +84,13 @@ pub trait Visitor {
         if let Some(default_branch) = default_branch {
             self.visit_c_term(default_branch);
         }
+    }
+
+    fn visit_lambda(&mut self, c_term: &CTerm) {
+        let CTerm::Lambda { args, body } = c_term else { unreachable!() };
+        args.iter().for_each(|(arg, _)| self.add_binding(*arg));
+        self.visit_c_term(body);
+        args.iter().for_each(|(arg, _)| self.remove_binding(*arg));
     }
 
     fn visit_mem_get(&mut self, c_term: &CTerm) {

@@ -1,0 +1,3 @@
+let a = 1
+let f = thunk \x:int => x + a
+force f 2

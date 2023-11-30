@@ -1,0 +1,3 @@
+def f g x y => force g x y
+
+f (\a b => a + b) 1 2

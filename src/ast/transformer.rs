@@ -30,6 +30,7 @@ pub trait Transformer {
     }
 
     fn transform_c_term(&mut self, c_term: &mut CTerm) {
+        println!("{:?}", c_term);
         match c_term {
             CTerm::Redex { .. } => self.transform_redex(c_term),
             CTerm::Return { .. } => self.transform_return(c_term),
@@ -37,6 +38,7 @@ pub trait Transformer {
             CTerm::Let { .. } => self.transform_let(c_term),
             CTerm::Def { .. } => self.transform_def(c_term),
             CTerm::CaseInt { .. } => self.transform_case_int(c_term),
+            CTerm::Lambda { .. } => self.transform_lambda(c_term),
             CTerm::MemGet { .. } => self.transform_mem_get(c_term),
             CTerm::MemSet { .. } => self.transform_mem_set(c_term),
             CTerm::PrimitiveCall { .. } => self.transform_primitive_call(c_term),
@@ -84,6 +86,14 @@ pub trait Transformer {
         if let Some(default_branch) = default_branch {
             self.transform_c_term(default_branch);
         }
+    }
+
+    fn transform_lambda(&mut self, c_term: &mut CTerm) {
+        let CTerm::Lambda { args, body } = c_term else { unreachable!() };
+        let old_args = args.clone();
+        args.iter_mut().for_each(|(arg, _)| *arg = self.add_binding(*arg));
+        self.transform_c_term(body);
+        old_args.iter().for_each(|(arg, _)| self.remove_binding(*arg));
     }
 
     fn transform_mem_get(&mut self, c_term: &mut CTerm) {

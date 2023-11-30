@@ -82,21 +82,24 @@ Defs {
                             t: Thunk {
                                 computation: Lambda {
                                     arg_names: [],
-                                    body: Redex {
-                                        function: Identifier {
-                                            name: "f",
+                                    body: Lambda {
+                                        arg_names: [],
+                                        body: Redex {
+                                            function: Identifier {
+                                                name: "f",
+                                            },
+                                            args: [
+                                                Identifier {
+                                                    name: "d",
+                                                },
+                                                Identifier {
+                                                    name: "a",
+                                                },
+                                                Identifier {
+                                                    name: "b",
+                                                },
+                                            ],
                                         },
-                                        args: [
-                                            Identifier {
-                                                name: "d",
-                                            },
-                                            Identifier {
-                                                name: "a",
-                                            },
-                                            Identifier {
-                                                name: "b",
-                                            },
-                                        ],
                                     },
                                 },
                             },
@@ -152,45 +155,6 @@ Defs {
 Defs
 ========
 [
-    (
-        "__lambda_0",
-        FunctionDefinition {
-            args: [
-                (
-                    0,
-                    Uniform,
-                ),
-                (
-                    1,
-                    Uniform,
-                ),
-                (
-                    2,
-                    Uniform,
-                ),
-            ],
-            body: Redex {
-                function: Def {
-                    name: "f",
-                    may_have_complex_effects: false,
-                },
-                args: [
-                    Var {
-                        index: 2,
-                    },
-                    Var {
-                        index: 0,
-                    },
-                    Var {
-                        index: 1,
-                    },
-                ],
-            },
-            c_type: Default,
-            var_bound: 3,
-            may_be_simple: true,
-        },
-    ),
     (
         "f",
         FunctionDefinition {
@@ -285,18 +249,18 @@ Defs
                                     value: Thunk {
                                         t: Redex {
                                             function: Def {
-                                                name: "__lambda_0",
+                                                name: "f",
                                                 may_have_complex_effects: false,
                                             },
                                             args: [
+                                                Var {
+                                                    index: 3,
+                                                },
                                                 Var {
                                                     index: 0,
                                                 },
                                                 Var {
                                                     index: 1,
-                                                },
-                                                Var {
-                                                    index: 3,
                                                 },
                                             ],
                                         },
@@ -308,7 +272,7 @@ Defs
                                         value: Thunk {
                                             t: Redex {
                                                 function: Def {
-                                                    name: "main$__thunk_0",
+                                                    name: "main$__lambda_0",
                                                     may_have_complex_effects: true,
                                                 },
                                                 args: [],
@@ -361,7 +325,7 @@ Defs
         },
     ),
     (
-        "main$__thunk_0",
+        "main$__lambda_0",
         FunctionDefinition {
             args: [],
             body: Let {
@@ -392,27 +356,6 @@ Defs
 
 CLIR
 ========
-[__lambda_0__simple]
-function u0:0(i64) -> i64 tail {
-    ss0 = explicit_slot 8
-    sig0 = (i64, i64, i64, i64) -> i64 tail
-    fn0 = colocated u0:17 sig0
-
-block0(v0: i64):
-    v1 = load.i64 v0
-    v2 = load.i64 v0+8
-    v3 = load.i64 v0+16
-    v4 = sshr_imm v3, 1
-    v5 = sshr_imm v1, 1
-    v6 = sshr_imm v2, 1
-    v7 = call fn0(v0, v4, v5, v6)
-    v8 = ishl_imm v7, 1
-    v9 = iadd_imm v0, 16
-    store v8, v9
-    return v9
-}
-
-
 [f__simple]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
@@ -456,7 +399,7 @@ function u0:0(i64) -> i64 tail {
     sig6 = (i64) -> i64 tail
     fn0 = colocated u0:15 sig0
     fn1 = u0:0 sig1
-    fn2 = colocated u0:20 sig2
+    fn2 = colocated u0:19 sig2
     fn3 = u0:1 sig3
     fn4 = u0:1 sig5
 
@@ -468,9 +411,9 @@ block0(v0: i64):
     v5 = func_addr.i64 fn0
     v6 = iconst.i64 3
     v7 = iadd_imm v5, 3
-    v8 = ishl_imm v1, 1  ; v1 = 0
-    v9 = ishl_imm v2, 1  ; v2 = 1
-    v10 = ishl_imm v4, 1  ; v4 = 3
+    v8 = ishl_imm v4, 1  ; v4 = 3
+    v9 = ishl_imm v1, 1  ; v1 = 0
+    v10 = ishl_imm v2, 1  ; v2 = 1
     v11 = iconst.i64 5
     v12 = call fn1(v11)  ; v11 = 5
     store aligned v7, v12
@@ -517,7 +460,7 @@ function u0:0(i64) -> i64 tail {
     sig6 = (i64) -> i64 tail
     fn0 = colocated u0:15 sig0
     fn1 = u0:0 sig1
-    fn2 = colocated u0:20 sig2
+    fn2 = colocated u0:19 sig2
     fn3 = u0:1 sig3
     fn4 = u0:1 sig5
 
@@ -529,9 +472,9 @@ block0(v0: i64):
     v5 = func_addr.i64 fn0
     v6 = iconst.i64 3
     v7 = iadd_imm v5, 3
-    v8 = ishl_imm v1, 1  ; v1 = 0
-    v9 = ishl_imm v2, 1  ; v2 = 1
-    v10 = ishl_imm v4, 1  ; v4 = 3
+    v8 = ishl_imm v4, 1  ; v4 = 3
+    v9 = ishl_imm v1, 1  ; v1 = 0
+    v10 = ishl_imm v2, 1  ; v2 = 1
     v11 = iconst.i64 5
     v12 = call fn1(v11)  ; v11 = 5
     store aligned v7, v12
@@ -563,7 +506,7 @@ block0(v0: i64):
 }
 
 
-[main$__thunk_0__simple]
+[main$__lambda_0__simple]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
 
@@ -583,7 +526,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:19 sig1
+    fn1 = colocated u0:18 sig1
 
 block0:
     v0 = call fn0()

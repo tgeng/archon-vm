@@ -49,15 +49,18 @@ impl Transpiler {
                 Self::squash_computations(CTerm::Return { value: VTerm::Struct { values: transpiled_values } }, transpiled_computations)
             }
             FTerm::Lambda { arg_names, body } => {
-                let lambda_name = self.new_lambda_name(context.enclosing_def_name);
-                self.transpile_impl(FTerm::Defs {
-                    defs: vec![(lambda_name.to_string(), Def {
-                        args: arg_names.clone(),
-                        body: body.clone(),
-                        c_type: CType::Default,
-                    })],
-                    body: Some(Box::new(FTerm::Identifier { name: lambda_name })),
-                }, context)
+                let mut var_map = context.var_map.clone();
+                let args: Vec<_> = arg_names.iter().map(|(name, v_type)| {
+                    let index = self.new_local_index();
+                    var_map.insert(name.clone(), index);
+                    (index, *v_type)
+                }).collect();
+                let transpiled_body = self.transpile_impl(*body, &Context {
+                    enclosing_def_name: context.enclosing_def_name,
+                    def_map: context.def_map,
+                    var_map: &var_map,
+                });
+                CTerm::Lambda { args, body: Box::new(transpiled_body) }
             }
             FTerm::Redex { function, args } => {
                 let (transpiled_args, transpiled_computations) = self.transpile_values(args, context);

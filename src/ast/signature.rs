@@ -44,7 +44,7 @@ impl Signature {
     }
 
     pub fn optimize(&mut self) {
-        self.normalize_redex();
+        self.reduce_redundancy();
         self.specialize_calls();
         self.lift_thunks();
         // TODO: add a pass that collapse immediate force thunk pairs
@@ -52,8 +52,8 @@ impl Signature {
         // TODO: lift all handler components (input, transform, handler ops, param ops).
     }
 
-    fn normalize_redex(&mut self) {
-        let mut normalizer = RedexNormalizer {};
+    fn reduce_redundancy(&mut self) {
+        let mut normalizer = RedundancyRemover {};
         self.defs.iter_mut().for_each(|(_, FunctionDefinition { body, .. })| {
             normalizer.transform_c_term(body);
         });
@@ -86,7 +86,7 @@ impl Signature {
             for (i, ty) in args {
                 local_var_types[*i] = *ty;
             }
-            let lifter = ThunkLifter { def_name: name, thunk_counter: 0, new_defs: &mut new_defs, local_var_types };
+            let lifter = LambdaLifter { def_name: name, counter: 0, new_defs: &mut new_defs, local_var_types };
             let mut thunk_lifter = lifter;
             thunk_lifter.transform_c_term(body);
         });
@@ -153,13 +153,14 @@ impl Transformer for DistinctVarRenamer {
     }
 }
 
-struct RedexNormalizer {}
+struct RedundancyRemover {}
 
-impl Transformer for RedexNormalizer {
+impl Transformer for RedundancyRemover {
     fn transform_redex(&mut self, c_term: &mut CTerm) {
         match c_term {
             CTerm::Redex { function, args } => {
                 self.transform_c_term(function);
+                args.iter_mut().for_each(|arg| self.transform_v_term(arg));
                 if args.is_empty() {
                     let mut placeholder = CTerm::Return { value: VTerm::Int { value: 1 } };
                     std::mem::swap(&mut placeholder, function);
@@ -186,6 +187,22 @@ impl Transformer for RedexNormalizer {
             _ => unreachable!(),
         }
     }
+
+    fn transform_lambda(&mut self, c_term: &mut CTerm) {
+        let CTerm::Lambda { args, box body } = c_term else { unreachable!() };
+        self.transform_c_term(body);
+        if let CTerm::Lambda { args: sub_args, body: box sub_body } = body {
+            args.extend(sub_args.iter().copied());
+            let mut placeholder = CTerm::Return { value: VTerm::Int { value: 0 } };
+            std::mem::swap(&mut placeholder, sub_body);
+            *body = placeholder
+        }
+        if args.is_empty() {
+            let mut placeholder = CTerm::Return { value: VTerm::Int { value: 0 } };
+            std::mem::swap(&mut placeholder, body);
+            *c_term = placeholder;
+        }
+    }
 }
 
 struct CallSpecializer<'a> {
@@ -198,6 +215,8 @@ struct CallSpecializer<'a> {
 impl<'a> Transformer for CallSpecializer<'a> {
     fn transform_redex(&mut self, c_term: &mut CTerm) {
         let CTerm::Redex { box function, args } = c_term else { unreachable!() };
+        self.transform_c_term(function);
+        args.iter_mut().for_each(|arg| self.transform_v_term(arg));
         let CTerm::Def { name, may_have_complex_effects: has_handler_effects } = function else { return; };
         if let Some((name, PrimitiveFunction { arg_types, return_type, .. })) = PRIMITIVE_FUNCTIONS.get_entry(name) {
             match arg_types.len().cmp(&args.len()) {
@@ -233,48 +252,72 @@ impl<'a> Transformer for CallSpecializer<'a> {
     }
 }
 
-struct ThunkLifter<'a> {
+struct LambdaLifter<'a> {
     def_name: &'a str,
-    thunk_counter: usize,
+    counter: usize,
     new_defs: &'a mut Vec<(String, FunctionDefinition)>,
     local_var_types: &'a mut [VType],
 }
 
-impl<'a> ThunkLifter<'a> {
-    fn replace_thunk(&mut self, free_vars: Vec<usize>, thunk: &mut CTerm) {
-        let thunk_def_name = format!("{}$__thunk_{}", self.def_name, self.thunk_counter);
-        self.thunk_counter += 1;
+impl<'a> LambdaLifter<'a> {
+    fn create_new_redex(&mut self, free_vars: &Vec<usize>) -> (String, CTerm) {
+        let thunk_def_name = format!("{}$__lambda_{}", self.def_name, self.counter);
+        self.counter += 1;
 
         let mut redex =
             CTerm::Redex {
                 function: Box::new(CTerm::Def { name: thunk_def_name.clone(), may_have_complex_effects: true }),
                 args: free_vars.iter().map(|i| VTerm::Var { index: *i }).collect(),
             };
-        std::mem::swap(thunk, &mut redex);
+        (thunk_def_name, redex)
+    }
+
+    fn create_new_def(&mut self, name: String, free_vars: Vec<usize>, args: &[(usize, VType)], body: CTerm) {
         let var_bound = *free_vars.iter().max().unwrap_or(&0);
         let function_definition = FunctionDefinition {
-            args: free_vars.into_iter().map(|v| (v, self.local_var_types[v])).collect(),
-            body: redex,
+            args: free_vars.into_iter().map(|v| (v, self.local_var_types[v])).chain(args.iter().copied()).collect(),
+            body,
             c_type: CType::Default,
             var_bound,
             // All thunks are treated as effectful to simplify compilation.
             // TODO: make this false after cps translation is done
             may_be_simple: true,
         };
-        self.new_defs.push((thunk_def_name, function_definition));
+        self.new_defs.push((name, function_definition));
     }
 }
 
-impl<'a> Transformer for ThunkLifter<'a> {
+impl<'a> Transformer for LambdaLifter<'a> {
     fn transform_thunk(&mut self, v_term: &mut VTerm) {
-        if let VTerm::Thunk { t: box CTerm::Redex { function: box CTerm::Def { .. }, .. } | box CTerm::Def { .. }, .. } = v_term {
+        let VTerm::Thunk { t: box c_term } = v_term else { unreachable!() };
+        self.transform_c_term(c_term);
+
+        if let CTerm::Redex { function: box CTerm::Def { .. }, .. } | CTerm::Def { .. } = c_term {
             // There is no need to lift the thunk if it's already a simple function call.
             return;
         }
-        let mut free_vars: Vec<_> = v_term.free_vars().into_iter().collect();
+
+        let mut free_vars: Vec<_> = c_term.free_vars().into_iter().collect();
         free_vars.sort();
 
-        let VTerm::Thunk { t } = v_term else { unreachable!() };
-        self.replace_thunk(free_vars, t);
+        let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars);
+        std::mem::swap(c_term, &mut redex);
+        self.create_new_def(thunk_def_name, free_vars, &[], redex);
+    }
+
+    fn transform_lambda(&mut self, c_term: &mut CTerm) {
+        let mut free_vars: Vec<_> = c_term.free_vars().iter().copied().collect();
+        free_vars.sort();
+
+        let CTerm::Lambda { args, body: box body } = c_term else { unreachable!() };
+        self.transform_c_term(body);
+
+        let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars);
+        let args = args.clone();
+        std::mem::swap(c_term, &mut redex);
+
+        let CTerm::Lambda { body: box body, .. } = redex else { unreachable!() };
+
+        self.create_new_def(thunk_def_name, free_vars, &args, body);
     }
 }
