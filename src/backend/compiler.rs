@@ -10,6 +10,7 @@ use crate::ast::term::{CType};
 use strum::IntoEnumIterator;
 use enum_map::{EnumMap};
 use crate::backend::common::{BuiltinFunction, create_cps_impl_signature, create_cps_signature, FunctionFlavor, HasType};
+use crate::backend::cps_function_translator::{CpsFunctionTranslator};
 use crate::backend::simple_function_translator::SimpleFunctionTranslator;
 
 /// The basic JIT class.
@@ -108,17 +109,27 @@ impl<M: Module> Compiler<M> {
     }
 
     pub fn compile(&mut self, defs: &[(String, FunctionDefinition)], clir: &mut Option<&mut Vec<(String, String)>>) {
-        let mut specialzied_function_signatures = HashMap::new();
+        let mut specialized_function_signatures = HashMap::new();
         let mut local_function_arg_types = HashMap::new();
         for (name, function_definition) in defs.iter() {
             local_function_arg_types.insert(
                 name.clone(),
                 (function_definition.args.iter().map(|(_, v_type)| *v_type).collect::<Vec<_>>(), function_definition.c_type),
             );
+
+            let cps_name = FunctionFlavor::Cps.decorate_name(name);
+            let function = self.module.declare_function(&cps_name, Linkage::Local, &self.uniform_cps_func_signature).unwrap();
+            self.local_functions.insert(cps_name, function);
+
+            let cps_impl_name = FunctionFlavor::CpsImpl.decorate_name(name);
+            let function = self.module.declare_function(&cps_impl_name, Linkage::Local, &self.uniform_cps_impl_func_signature).unwrap();
+            self.local_functions.insert(cps_impl_name, function);
+
             if function_definition.may_be_simple {
                 // Simple
                 let simple_name = FunctionFlavor::Simple.decorate_name(name);
-                self.local_functions.insert(simple_name, self.module.declare_function(name, Linkage::Local, &self.uniform_func_signature).unwrap());
+                let function = self.module.declare_function(&simple_name, Linkage::Local, &self.uniform_func_signature).unwrap();
+                self.local_functions.insert(simple_name, function);
 
                 // Specializable
                 if let CType::SpecializedF(v_type) = function_definition.c_type {
@@ -133,19 +144,23 @@ impl<M: Module> Compiler<M> {
                     sig.returns.push(AbiParam::new(v_type.get_type()));
                     let specialized_name = FunctionFlavor::Specialized.decorate_name(name);
                     self.local_functions.insert(specialized_name.clone(), self.module.declare_function(&specialized_name, Linkage::Local, &sig).unwrap());
-                    specialzied_function_signatures.insert(name, sig);
+                    specialized_function_signatures.insert(name, sig);
                 }
             }
         }
 
         for (name, function_definition) in defs.iter() {
+            // CPS
+            CpsFunctionTranslator::compile_cps_function(name, self, function_definition, &local_function_arg_types, clir);
+
+
             if function_definition.may_be_simple {
                 // simple
                 SimpleFunctionTranslator::compile_simple_function(name, self, function_definition, &local_function_arg_types, clir);
 
                 // specialized
                 if function_definition.is_specializable() {
-                    let sig = specialzied_function_signatures.get(name).unwrap();
+                    let sig = specialized_function_signatures.get(name).unwrap();
                     SimpleFunctionTranslator::compile_specialized_function(name, self, sig.clone(), function_definition, &local_function_arg_types, clir);
                 }
             }

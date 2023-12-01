@@ -119,6 +119,27 @@ Defs
 
 CLIR
 ========
+[f]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64, i64) -> i64 tail
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = load.i64 v0+8
+    v4 = sshr_imm v2, 1
+    v5 = sshr_imm v3, 1
+    v6 = iadd v4, v5
+    v7 = ishl_imm v6, 1
+    v8 = iadd_imm v0, 8
+    store v7, v8
+    v9 = load.i64 v1+8
+    v10 = iadd v0, v9
+    v11 = load.i64 v1
+    return_call_indirect sig0, v11(v10, v1, v8)
+}
+
+
 [f__simple]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
@@ -136,11 +157,30 @@ block0(v0: i64):
 }
 
 
+[main]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 tail
+    fn0 = colocated u0:17 sig0
+
+block0(v0: i64, v1: i64):
+    v2 = iconst.i64 1
+    v3 = ishl_imm v2, 1  ; v2 = 1
+    v4 = iconst.i64 2
+    v5 = ishl_imm v4, 1  ; v4 = 2
+    v6 = iadd_imm v0, -8
+    store aligned v5, v6
+    v7 = iadd_imm v6, -8
+    store aligned v3, v7
+    return_call fn0(v7)
+}
+
+
 [main__simple]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 tail
-    fn0 = colocated u0:15 sig0
+    fn0 = colocated u0:17 sig0
 
 block0(v0: i64):
     v1 = iconst.i64 1
@@ -159,7 +199,7 @@ block0(v0: i64):
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 tail
-    fn0 = colocated u0:15 sig0
+    fn0 = colocated u0:17 sig0
 
 block0(v0: i64):
     v1 = iconst.i64 1
@@ -183,7 +223,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:17 sig1
+    fn1 = colocated u0:21 sig1
 
 block0:
     v0 = call fn0()

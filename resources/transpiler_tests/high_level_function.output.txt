@@ -441,6 +441,27 @@ Defs
 
 CLIR
 ========
+[add]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64, i64) -> i64 tail
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = load.i64 v0+8
+    v4 = sshr_imm v2, 1
+    v5 = sshr_imm v3, 1
+    v6 = iadd v4, v5
+    v7 = ishl_imm v6, 1
+    v8 = iadd_imm v0, 8
+    store v7, v8
+    v9 = load.i64 v1+8
+    v10 = iadd v0, v9
+    v11 = load.i64 v1
+    return_call_indirect sig0, v11(v10, v1, v8)
+}
+
+
 [add__simple]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
@@ -468,14 +489,124 @@ block0(v0: i64, v1: i64, v2: i64):
 }
 
 
+[fold__cps_impl]
+function u0:0(i64, i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64) -> i64 apple_aarch64
+    sig1 = (i64, i64) -> i64 tail
+    sig2 = () -> i64 apple_aarch64
+    sig3 = (i64) -> i64 tail
+    sig4 = (i64, i64, i64) -> i64 apple_aarch64
+    sig5 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:1 sig0
+    fn1 = colocated u0:12 sig2
+    fn2 = colocated u0:21 sig3
+    fn3 = %Memmove sig4
+
+block0(v0: i64, v1: i64, v2: i64):
+    v3 = load.i64 v1+24
+    v4 = iadd_imm v1, 32
+    v5 = load.i64 v2
+    v6 = iadd_imm v2, 8
+    brif v3, block1, block1
+
+block1:
+    v7 = load.i64 v0+32
+    v8 = load.i64 v0
+    v9 = sshr_imm v7, 1
+    v10 = sshr_imm v8, 1
+    v11 = icmp slt v9, v10
+    v12 = uextend.i32 v11
+    br_table v12, block4, [block3, block2]
+
+block2:
+    v14 = load.i64 v0+8
+    v15 = load.i64 v0+32
+    v16 = iadd_imm v14, -1
+    v17 = sshr_imm v15, 1
+    v18 = ishl_imm v17, 3
+    v19 = iadd v16, v18
+    v20 = load.i64 v19
+    v21 = load.i64 v0+16
+    v22 = iadd_imm.i64 v6, -8
+    store aligned v20, v22
+    v23 = iadd_imm v22, -8
+    store aligned v21, v23
+    v24 = load.i64 v0+24
+    stack_store v23, ss0
+    v25 = stack_addr.i64 ss0
+    v26 = call fn0(v24, v25)
+    v27 = stack_load.i64 ss0
+    v28 = call fn1()
+    v29 = call_indirect sig1, v26(v27, v28)
+    v30 = load.i64 v29
+    v31 = iadd_imm v29, 8
+    v32 = iconst.i64 1
+    v33 = sshr_imm v15, 1
+    v34 = iadd v33, v32  ; v32 = 1
+    v35 = load.i64 v0
+    v36 = ishl_imm v34, 1
+    v37 = iadd_imm v31, -8
+    store aligned v36, v37
+    v38 = iadd_imm v37, -8
+    store aligned v24, v38
+    v39 = iadd_imm v38, -8
+    store aligned v30, v39
+    v40 = iadd_imm v39, -8
+    store aligned v14, v40
+    v41 = iadd_imm v40, -8
+    store aligned v35, v41
+    v42 = iadd_imm v41, 40
+    v43 = isub.i64 v0, v41
+    v44 = call fn3(v42, v41, v43)
+    return_call fn2(v42)
+
+block3:
+    v45 = load.i64 v0+16
+    v46 = sshr_imm v45, 1
+    jump block5(v46)
+
+block4:
+    trap unreachable
+
+block5(v13: i64):
+    v47 = ishl_imm v13, 1
+    v48 = iadd_imm.i64 v0, 32
+    store v47, v48
+    v49 = load.i64 v1+16
+    v50 = load.i64 v49+8
+    v51 = iadd.i64 v0, v50
+    v52 = load.i64 v49
+    return_call_indirect sig5, v52(v51, v49, v48)
+}
+
+
+[fold]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+    fn1 = colocated u0:20 sig1
+
+block0(v0: i64, v1: i64):
+    v2 = iconst.i64 64
+    v3 = call fn0(v2)  ; v2 = 64
+    v4 = iadd_imm v0, -8
+    return_call fn1(v0, v3, v4)
+}
+
+
 [fold__simple]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 apple_aarch64
-    sig1 = (i64) -> i64 tail
-    sig2 = (i64, i64, i64, i64, i64, i64) -> i64 tail
+    sig1 = (i64, i64) -> i64 tail
+    sig2 = () -> i64 apple_aarch64
+    sig3 = (i64, i64, i64, i64, i64, i64) -> i64 tail
     fn0 = u0:1 sig0
-    fn1 = colocated u0:18 sig2
+    fn1 = colocated u0:12 sig2
+    fn2 = colocated u0:22 sig3
 
 block0(v0: i64):
     v1 = load.i64 v0
@@ -507,25 +638,26 @@ block2:
     v19 = stack_addr.i64 ss0
     v20 = call fn0(v4, v19)
     v21 = stack_load.i64 ss0
-    v22 = call_indirect sig1, v20(v21)
-    v23 = load.i64 v22
-    v24 = iadd_imm v22, 8
-    v25 = iconst.i64 1
-    v26 = sshr_imm.i64 v5, 1
-    v27 = iadd v26, v25  ; v25 = 1
-    v28 = sshr_imm.i64 v1, 1
-    v29 = sshr_imm v23, 1
-    v30 = call fn1(v24, v28, v2, v29, v4, v27)
-    jump block1(v30)
+    v22 = call fn1()
+    v23 = call_indirect sig1, v20(v21, v22)
+    v24 = load.i64 v23
+    v25 = iadd_imm v23, 8
+    v26 = iconst.i64 1
+    v27 = sshr_imm.i64 v5, 1
+    v28 = iadd v27, v26  ; v26 = 1
+    v29 = sshr_imm.i64 v1, 1
+    v30 = sshr_imm v24, 1
+    v31 = call fn2(v25, v29, v2, v30, v4, v28)
+    jump block1(v31)
 
 block4:
     trap unreachable
 
 block1(v9: i64):
-    v31 = ishl_imm v9, 1
-    v32 = iadd_imm.i64 v0, 32
-    store v31, v32
-    return v32
+    v32 = ishl_imm v9, 1
+    v33 = iadd_imm.i64 v0, 32
+    store v32, v33
+    return v33
 }
 
 
@@ -533,10 +665,12 @@ block1(v9: i64):
 function u0:0(i64, i64, i64, i64, i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 apple_aarch64
-    sig1 = (i64) -> i64 tail
-    sig2 = (i64, i64, i64, i64, i64, i64) -> i64 tail
+    sig1 = (i64, i64) -> i64 tail
+    sig2 = () -> i64 apple_aarch64
+    sig3 = (i64, i64, i64, i64, i64, i64) -> i64 tail
     fn0 = u0:1 sig0
-    fn1 = colocated u0:18 sig2
+    fn1 = colocated u0:12 sig2
+    fn2 = colocated u0:22 sig3
 
 block0(v0: i64, v1: i64, v2: i64, v3: i64, v4: i64, v5: i64):
     v6 = icmp slt v5, v1
@@ -560,13 +694,14 @@ block2:
     v16 = stack_addr.i64 ss0
     v17 = call fn0(v4, v16)
     v18 = stack_load.i64 ss0
-    v19 = call_indirect sig1, v17(v18)
-    v20 = load.i64 v19
-    v21 = iadd_imm v19, 8
-    v22 = iconst.i64 1
-    v23 = iadd.i64 v5, v22  ; v22 = 1
-    v24 = sshr_imm v20, 1
-    return_call fn1(v21, v1, v2, v24, v4, v23)
+    v19 = call fn1()
+    v20 = call_indirect sig1, v17(v18, v19)
+    v21 = load.i64 v20
+    v22 = iadd_imm v20, 8
+    v23 = iconst.i64 1
+    v24 = iadd.i64 v5, v23  ; v23 = 1
+    v25 = sshr_imm v21, 1
+    return_call fn2(v22, v1, v2, v25, v4, v24)
 
 block4:
     trap unreachable
@@ -576,15 +711,55 @@ block1(v7: i64):
 }
 
 
+[main]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64, i64) -> i64 tail
+    sig2 = (i64, i64, i64, i64, i64, i64) -> i64 tail
+    sig3 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+    fn1 = colocated u0:15 sig1
+    fn2 = colocated u0:22 sig2
+
+block0(v0: i64, v1: i64):
+    v2 = iconst.i64 3
+    v3 = iconst.i64 1
+    v4 = ishl_imm v3, 1  ; v3 = 1
+    v5 = iconst.i64 2
+    v6 = ishl_imm v5, 1  ; v5 = 2
+    v7 = iconst.i64 3
+    v8 = ishl_imm v7, 1  ; v7 = 3
+    v9 = iconst.i64 3
+    v10 = call fn0(v9)  ; v9 = 3
+    store aligned v4, v10
+    store aligned v6, v10+8
+    store aligned v8, v10+16
+    v11 = iadd_imm v10, 1
+    v12 = iconst.i64 10
+    v13 = func_addr.i64 fn1
+    v14 = iadd_imm v13, 3
+    v15 = iconst.i64 0
+    v16 = call fn2(v0, v2, v11, v12, v14, v15)  ; v2 = 3, v12 = 10, v15 = 0
+    v17 = ishl_imm v16, 1
+    v18 = iadd_imm v0, -8
+    store v17, v18
+    v19 = load.i64 v1+8
+    v20 = iadd v0, v19
+    v21 = load.i64 v1
+    return_call_indirect sig3, v21(v20, v1, v18)
+}
+
+
 [main__simple]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 apple_aarch64
-    sig1 = (i64) -> i64 tail
+    sig1 = (i64, i64) -> i64 tail
     sig2 = (i64, i64, i64, i64, i64, i64) -> i64 tail
     fn0 = u0:0 sig0
     fn1 = colocated u0:15 sig1
-    fn2 = colocated u0:18 sig2
+    fn2 = colocated u0:22 sig2
 
 block0(v0: i64):
     v1 = iconst.i64 3
@@ -616,11 +791,11 @@ block0(v0: i64):
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 apple_aarch64
-    sig1 = (i64) -> i64 tail
+    sig1 = (i64, i64) -> i64 tail
     sig2 = (i64, i64, i64, i64, i64, i64) -> i64 tail
     fn0 = u0:0 sig0
     fn1 = colocated u0:15 sig1
-    fn2 = colocated u0:18 sig2
+    fn2 = colocated u0:22 sig2
 
 block0(v0: i64):
     v1 = iconst.i64 3
@@ -649,7 +824,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:20 sig1
+    fn1 = colocated u0:26 sig1
 
 block0:
     v0 = call fn0()

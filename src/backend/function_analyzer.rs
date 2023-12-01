@@ -1,9 +1,14 @@
 use std::collections::HashMap;
 use crate::ast::term::CTerm;
 
+#[derive(Debug)]
 pub struct FunctionAnalyzer {
     pub(crate) count: usize,
+    /// The key is the block id of the case block, the value is a tuple of (branch block ids,
+    /// default block id, joining block id).
     pub(crate) case_blocks: HashMap<usize, (Vec<usize>, usize, usize)>,
+    // TODO: track the number of complex effectful calls and use that to determine if complex
+    //  CPS transformation is needed.
 }
 
 impl FunctionAnalyzer {
@@ -23,21 +28,21 @@ impl FunctionAnalyzer {
             }
             CTerm::Def { may_have_complex_effects: true, .. } if !is_tail => self.count += 1,
             CTerm::CaseInt { branches, default_branch, .. } => {
-                let current_block_id = self.count;
+                let current_block_id = self.count - 1;
                 let mut branch_block_ids = Vec::new();
                 for (_, branch) in branches {
-                    self.count += 1;
                     branch_block_ids.push(self.count);
+                    self.count += 1;
                     self.analyze(branch, is_tail);
                 }
-                self.count += 1;
                 let default_block_id = self.count;
+                self.count += 1;
                 match default_branch {
                     None => {}
                     Some(default_branch) => self.analyze(default_branch, is_tail),
                 }
-                self.count += 1;
                 let joining_block_id = self.count;
+                self.count += 1;
                 self.case_blocks.insert(current_block_id, (branch_block_ids, default_block_id, joining_block_id));
             }
             CTerm::OperationCall { simple: false, .. } if !is_tail => self.count += 1,

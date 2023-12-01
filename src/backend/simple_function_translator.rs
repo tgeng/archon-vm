@@ -5,7 +5,6 @@ use cranelift::frontend::Switch;
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, I32, I64};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
-use cranelift_native::builder;
 use crate::ast::term::{CTerm, VTerm, VType, SpecializedType, PType, CType};
 use enum_map::{EnumMap};
 use VType::{Specialized, Uniform};
@@ -28,6 +27,7 @@ pub struct SimpleFunctionTranslator<'a, M: Module> {
     pub num_args: usize,
     pub uniform_func_signature: Signature,
     pub uniform_cps_func_signature: Signature,
+    pub uniform_cps_impl_func_signature: Signature,
     pub tip_address_slot: StackSlot,
     pub local_function_arg_types: &'a HashMap<String, (Vec<VType>, CType)>,
     pub is_specialized: bool,
@@ -208,6 +208,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             num_args: function_definition.args.len(),
             uniform_func_signature: compiler.uniform_func_signature.clone(),
             uniform_cps_func_signature: compiler.uniform_cps_func_signature.clone(),
+            uniform_cps_impl_func_signature: compiler.uniform_cps_impl_func_signature.clone(),
             tip_address_slot,
             local_function_arg_types,
             is_specialized,
@@ -258,24 +259,20 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             CTerm::Force { thunk, .. } => {
                 let func_pointer = self.process_thunk(thunk);
 
-                let sig_ref = self.function_builder.import_signature(self.uniform_func_signature.clone());
-                // TODO: we need to construct a trivial continuation that returns the result.
-                //  Specially handle zero is tough because such special logic will need to appear
-                //  in a lot of places.
-                // let trivial_continuation = self.function_builder.ins().iconst(I64, 0);
+                let sig_ref = self.function_builder.import_signature(self.uniform_cps_func_signature.clone());
+                let inst = self.call_builtin_func(BuiltinFunction::GetTrivialContinuation, &[]);
+                let trivial_continuation = self.function_builder.inst_results(inst)[0];
                 if is_tail && !self.is_specialized {
                     let base_address = self.copy_tail_call_args_and_get_new_base();
                     self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
                         base_address,
-                        // TODO: uncomment this when cps translation is done
-                        // trivial_continuation ,
+                        trivial_continuation,
                     ]);
                     None
                 } else {
                     let inst = self.function_builder.ins().call_indirect(sig_ref, func_pointer, &[
                         self.tip_address,
-                        // TODO: uncomment this when cps translation is done
-                        // trivial_continuation ,
+                        trivial_continuation,
                     ]);
                     self.extract_return_value(inst)
                 }
@@ -492,8 +489,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                     CTerm::Def { name, .. } => (name, empty_args),
                     _ => unreachable!("thunk lifting should have guaranteed this")
                 };
-                // TODO: replace with Cps flavor here.
-                let (func_ref, _) = self.get_local_function(name, FunctionFlavor::Simple);
+                let (func_ref, _) = self.get_local_function(name, FunctionFlavor::Cps);
                 let func_pointer = self.function_builder.ins().func_addr(I64, func_ref);
                 let func_pointer = Some((func_pointer, Specialized(PrimitivePtr)));
                 if args.is_empty() {
@@ -651,6 +647,8 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         if let Some(clir) = clir {
             clir.push((name.to_owned(), format!("{}", ctx.func.display())));
         }
-        module.define_function(func_id, ctx).unwrap();
+        module.define_function(func_id, ctx).unwrap_or_else(|e| {
+            panic!("failed to define function {}: {:#?}\nDetails: {}", name, e, ctx.func.display());
+        });
     }
 }

@@ -10,7 +10,31 @@ use crate::ast::term::SpecializedType::Integer;
 use crate::ast::term::VType::Uniform;
 use crate::backend::common::{BuiltinFunction, FunctionFlavor, HasType, TypedReturnValue};
 use crate::backend::compiler::Compiler;
+use crate::backend::function_analyzer::FunctionAnalyzer;
 use crate::backend::simple_function_translator::SimpleFunctionTranslator;
+
+pub struct CpsFunctionTranslator {}
+
+impl CpsFunctionTranslator {
+    pub(crate) fn compile_cps_function<M: Module>(
+        name: &str,
+        compiler: &mut Compiler<M>,
+        function_definition: &FunctionDefinition,
+        local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>,
+        clir: &mut Option<&mut Vec<(String, String)>>,
+    ) {
+        let mut function_analyzer = FunctionAnalyzer::new();
+        function_analyzer.analyze(&function_definition.body, true);
+        let num_blocks = function_analyzer.count;
+        let case_blocks = function_analyzer.case_blocks;
+        if num_blocks == 1 {
+            SimpleCpsFunctionTranslator::compile_cps_function(name, compiler, function_definition, local_function_arg_types, clir);
+        } else {
+            let cps_impl_func_id = ComplexCpsFunctionTranslator::compile_cps_impl_function(name, compiler, function_definition, local_function_arg_types, num_blocks, case_blocks, clir);
+            ComplexCpsFunctionTranslator::compile_cps_function(name, compiler, function_definition, local_function_arg_types, cps_impl_func_id, clir);
+        }
+    }
+}
 
 /// The translated native function takes the following arguments:
 /// - the base address on the argument stack
@@ -22,7 +46,7 @@ use crate::backend::simple_function_translator::SimpleFunctionTranslator;
 ///   [SimpleFunctionTranslator] and then calls the last effectful function as a tail call.
 /// - if this function has calls multiple effectful functions, then it creates a continuation
 ///   object and calls the CPS implementation function.
-pub struct SimpleCpsFunctionTranslator<'a, M: Module> {
+struct SimpleCpsFunctionTranslator<'a, M: Module> {
     function_translator: SimpleFunctionTranslator<'a, M>,
     continuation: Value,
 }
@@ -42,7 +66,7 @@ impl<'a, M: Module> DerefMut for SimpleCpsFunctionTranslator<'a, M> {
 }
 
 impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
-    pub fn compile_cps_function(
+    fn compile_cps_function(
         name: &str,
         compiler: &mut Compiler<M>,
         function_definition: &FunctionDefinition,
@@ -62,6 +86,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                 invoke_next_continuation_in_the_end(&mut translator, return_value_address, continuation);
             }
         }
+        translator.function_translator.function_builder.finalize();
 
         let cps_name = FunctionFlavor::Cps.decorate_name(name);
         let func_id = compiler.module.declare_function(&cps_name, Linkage::Local, &compiler.uniform_cps_func_signature).unwrap();
@@ -177,7 +202,7 @@ impl<'a, M: Module> DerefMut for ComplexCpsFunctionTranslator<'a, M> {
 }
 
 impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
-    pub fn compile_cps_function(
+    fn compile_cps_function(
         name: &str,
         compiler: &mut Compiler<M>,
         function_definition: &FunctionDefinition,
@@ -215,7 +240,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         SimpleFunctionTranslator::define_function(&mut compiler.module, &mut compiler.ctx, &cps_name, *func_id, clir);
     }
 
-    pub fn compile_cps_impl_function(
+    fn compile_cps_impl_function(
         name: &str,
         compiler: &mut Compiler<M>,
         function_definition: &FunctionDefinition,
@@ -294,12 +319,24 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         // create the switch table for jumping to the right block based on the state
         let mut blocks = Vec::new();
         let mut switch = Switch::new();
+
+        // skip case blocks because these blocks won't suspend.
+        let mut skipped_block_ids = HashSet::new();
+        case_blocks.values().for_each(|(branch_block_ids, default_block_id, joining_block_id)| {
+            skipped_block_ids.extend(branch_block_ids);
+            skipped_block_ids.insert(*default_block_id);
+            skipped_block_ids.insert(*joining_block_id);
+        });
         for i in 0..num_blocks {
             let block = function_translator.function_builder.create_block();
             blocks.push(block);
-            switch.set_entry(i as u128, block);
+            if !skipped_block_ids.contains(&i) {
+                switch.set_entry(i as u128, block);
+            }
         }
         let first_block = blocks[0];
+        // The state number cannot be outside of the range of the switch table so the default block
+        // is unreachable. Hence we just arbitrarily set it to the first block.
         switch.emit(&mut function_translator.function_builder, state, first_block);
         function_translator.function_builder.seal_block(first_block);
         function_translator.function_builder.switch_to_block(first_block);
@@ -534,7 +571,7 @@ fn invoke_next_continuation_in_the_end<M: Module>(translator: &mut SimpleFunctio
     let next_continuation_impl = translator.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 0);
 
     // call the next continuation
-    let signature = translator.uniform_cps_func_signature.clone();
+    let signature = translator.uniform_cps_impl_func_signature.clone();
     let sig_ref = translator.function_builder.import_signature(signature);
     translator.function_builder.ins().return_call_indirect(sig_ref, next_continuation_impl, &[next_base_address, next_continuation, return_address]);
 }

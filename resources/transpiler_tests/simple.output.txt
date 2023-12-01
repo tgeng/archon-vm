@@ -29,6 +29,23 @@ Defs
 
 CLIR
 ========
+[main]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64, i64) -> i64 tail
+
+block0(v0: i64, v1: i64):
+    v2 = iconst.i64 123
+    v3 = ishl_imm v2, 1  ; v2 = 123
+    v4 = iadd_imm v0, -8
+    store v3, v4
+    v5 = load.i64 v1+8
+    v6 = iadd v0, v5
+    v7 = load.i64 v1
+    return_call_indirect sig0, v7(v6, v1, v4)
+}
+
+
 [main__simple]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
@@ -57,7 +74,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:16 sig1
+    fn1 = colocated u0:18 sig1
 
 block0:
     v0 = call fn0()

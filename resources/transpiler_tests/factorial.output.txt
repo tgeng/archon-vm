@@ -197,11 +197,78 @@ Defs
 
 CLIR
 ========
+[factorial__cps_impl]
+function u0:0(i64, i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 tail
+    sig1 = (i64, i64, i64) -> i64 tail
+    fn0 = colocated u0:17 sig0
+
+block0(v0: i64, v1: i64, v2: i64):
+    v3 = load.i64 v1+24
+    v4 = iadd_imm v1, 32
+    v5 = load.i64 v2
+    v6 = iadd_imm v2, 8
+    brif v3, block1, block1
+
+block1:
+    v7 = load.i64 v0
+    v8 = sshr_imm v7, 1
+    brif v8, block3, block2
+
+block2:
+    v10 = iconst.i64 1
+    jump block4(v10)  ; v10 = 1
+
+block3:
+    v11 = load.i64 v0
+    v12 = iconst.i64 1
+    v13 = sshr_imm v11, 1
+    v14 = isub v13, v12  ; v12 = 1
+    v15 = ishl_imm v14, 1
+    v16 = iadd_imm.i64 v6, -8
+    store aligned v15, v16
+    v17 = call fn0(v16)
+    v18 = load.i64 v17
+    v19 = iadd_imm v17, 8
+    v20 = sshr_imm v11, 1
+    v21 = sshr_imm v18, 1
+    v22 = imul v20, v21
+    jump block4(v22)
+
+block4(v9: i64):
+    v23 = ishl_imm v9, 1
+    v24 = iadd_imm.i64 v0, 0
+    store v23, v24
+    v25 = load.i64 v1+16
+    v26 = load.i64 v25+8
+    v27 = iadd.i64 v0, v26
+    v28 = load.i64 v25
+    return_call_indirect sig1, v28(v27, v25, v24)
+}
+
+
+[factorial]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+    fn1 = colocated u0:16 sig1
+
+block0(v0: i64, v1: i64):
+    v2 = iconst.i64 48
+    v3 = call fn0(v2)  ; v2 = 48
+    v4 = iadd_imm v0, -8
+    return_call fn1(v0, v3, v4)
+}
+
+
 [factorial__simple]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 tail
-    fn0 = colocated u0:16 sig0
+    fn0 = colocated u0:18 sig0
 
 block0(v0: i64):
     v1 = load.i64 v0
@@ -233,7 +300,7 @@ block1(v3: i64):
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 tail
-    fn0 = colocated u0:16 sig0
+    fn0 = colocated u0:18 sig0
 
 block0(v0: i64, v1: i64):
     brif v1, block3, block2
@@ -254,11 +321,31 @@ block1(v2: i64):
 }
 
 
+[main]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64) -> i64 tail
+    sig1 = (i64, i64, i64) -> i64 tail
+    fn0 = colocated u0:18 sig0
+
+block0(v0: i64, v1: i64):
+    v2 = iconst.i64 5
+    v3 = call fn0(v0, v2)  ; v2 = 5
+    v4 = ishl_imm v3, 1
+    v5 = iadd_imm v0, -8
+    store v4, v5
+    v6 = load.i64 v1+8
+    v7 = iadd v0, v6
+    v8 = load.i64 v1
+    return_call_indirect sig1, v8(v7, v1, v5)
+}
+
+
 [main__simple]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 tail
-    fn0 = colocated u0:16 sig0
+    fn0 = colocated u0:18 sig0
 
 block0(v0: i64):
     v1 = iconst.i64 5
@@ -274,7 +361,7 @@ block0(v0: i64):
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 tail
-    fn0 = colocated u0:16 sig0
+    fn0 = colocated u0:18 sig0
 
 block0(v0: i64):
     v1 = iconst.i64 5
@@ -287,7 +374,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:18 sig1
+    fn1 = colocated u0:22 sig1
 
 block0:
     v0 = call fn0()

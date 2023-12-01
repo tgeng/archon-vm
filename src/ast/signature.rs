@@ -295,8 +295,7 @@ impl<'a> LambdaLifter<'a> {
             c_type: CType::Default,
             var_bound,
             // All thunks are treated as effectful to simplify compilation.
-            // TODO: make this false after cps translation is done
-            may_be_simple: true,
+            may_be_simple: false,
         };
         self.new_defs.push((name, function_definition));
     }

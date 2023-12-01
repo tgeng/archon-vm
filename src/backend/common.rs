@@ -156,6 +156,7 @@ impl BuiltinFunction {
     }
 
 
+    // TODO: replace this with a constant value to avoid allocations.
     fn generate_trivial_continuation_impl<M: Module>(module: &mut M, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
         let sig = create_cps_impl_signature(module);
         let func_id = module.declare_function("__runtime_get_trivial_continuation_impl", Linkage::Local, &sig).unwrap();
@@ -178,9 +179,6 @@ impl BuiltinFunction {
 
     fn generate_trivial_continuation_helper<M: Module>(module: &mut M, impl_func_id: FuncId, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
         let mut sig = module.make_signature();
-        // the frame height, which is the number of arguments passed to the function accepting the
-        // returned continuation object.
-        sig.params.push(AbiParam::new(I64));
         // The pointer to the created continuation object.
         sig.returns.push(AbiParam::new(I64));
         let func_id = module.declare_function(BuiltinFunction::GetTrivialContinuation.func_name(), Linkage::Local, &sig).unwrap();
@@ -193,7 +191,9 @@ impl BuiltinFunction {
 
         let alloc_func_id = BuiltinFunction::Alloc.declare(module);
         let alloc_func_ref = module.declare_func_in_func(alloc_func_id, builder.func);
-        // We only need the first two words for the trivial continuation.
+        // We only need the first two words for the trivial continuation. The height is only
+        // allocated so that it can be written to. Its value does not matter because trivial
+        // continuation does not care about base address as it doesn't have any arguments.
         let continuation_size = builder.ins().iconst(I64, 2);
         let inst = builder.ins().call(alloc_func_ref, &[continuation_size]);
         let continuation_ptr = builder.inst_results(inst)[0];
@@ -203,8 +203,8 @@ impl BuiltinFunction {
         let impl_func_ptr = builder.ins().func_addr(I64, impl_func_ref);
         builder.ins().store(MemFlags::new(), impl_func_ptr, continuation_ptr, 0);
 
-        // second word is the frame height, which should be the given parameter
-        let frame_height = builder.block_params(entry_block)[0];
+        // second word is the frame height, whose value does not matter.
+        let frame_height = builder.ins().iconst(I64, 0);
         builder.ins().store(MemFlags::new(), frame_height, continuation_ptr, 8);
 
         // return the pointer to the continuation object
