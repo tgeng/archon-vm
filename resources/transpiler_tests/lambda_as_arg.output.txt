@@ -153,7 +153,7 @@ Defs
                     Integer,
                 ),
             ),
-            var_bound: 2,
+            var_bound: 0,
             may_be_simple: true,
         },
     ),

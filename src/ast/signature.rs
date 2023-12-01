@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::cmp::{min, Ordering};
 use std::collections::{HashMap};
 use crate::ast::free_var::HasFreeVar;
 use crate::ast::primitive_functions::{PRIMITIVE_FUNCTIONS, PrimitiveFunction};
@@ -48,8 +48,9 @@ impl Signature {
         self.specialize_calls();
         self.rename_local_vars();
         self.process_handler_transforms();
-        // TODO: add a pass that collapse immediate force thunk pairs
+        self.reduce_immediate_redexes();
         self.lift_lambdas();
+        self.rename_local_vars();
     }
 
     fn reduce_redundancy(&mut self) {
@@ -83,6 +84,14 @@ impl Signature {
         self.defs.iter_mut().for_each(|(_, FunctionDefinition { body, var_bound, .. })| {
             let mut processor = HandlerTransformProcessor { next_new_var_index: *var_bound + 1 };
             processor.transform_c_term(body);
+        });
+    }
+
+    /// Assume all local variables are distinct. Also this transformation preserves this property.
+    fn reduce_immediate_redexes(&mut self) {
+        let mut reducer = RedexReducer {};
+        self.defs.iter_mut().for_each(|(_, FunctionDefinition { body, .. })| {
+            reducer.transform_c_term(body);
         });
     }
 
@@ -355,5 +364,49 @@ impl Transformer for HandlerTransformProcessor {
             }),
         };
         *transform = replacement;
+    }
+}
+
+struct RedexReducer {}
+
+impl Transformer for RedexReducer {
+    fn transform_redex(&mut self, c_term: &mut CTerm) {
+        self.transform_redex_default(c_term);
+        let CTerm::Redex { box function, args } = c_term else { unreachable!() };
+        let CTerm::Lambda { args: lambda_args, body: box lambda_body } = function else { return; };
+        let num_args = min(args.len(), lambda_args.len());
+        let matching_args = args.drain(..num_args).collect::<Vec<_>>();
+        let matching_lambda_args = lambda_args.drain(..num_args).map(|(index, _)| index).collect::<Vec<_>>();
+        let mut substitutor = Substitutor { bindings: HashMap::from_iter(matching_lambda_args.into_iter().zip(matching_args)) };
+        substitutor.transform_c_term(lambda_body);
+        RedundancyRemover {}.transform_c_term(c_term);
+        // Call the reducer again to reduce the new redex. This is terminating because any loops
+        // can only be introduced through recursive calls, which are not reduced by this.
+        self.transform_c_term(c_term);
+    }
+
+    fn transform_force(&mut self, c_term: &mut CTerm) {
+        self.transform_force_default(c_term);
+        let CTerm::Force { thunk, .. } = c_term else { unreachable!() };
+        let VTerm::Thunk { box t } = thunk else { return; };
+        let mut placeholder = CTerm::PopHandler;
+        std::mem::swap(t, &mut placeholder);
+        *c_term = placeholder;
+        // Call the reducer again to reduce the new redex. This is terminating because any loops
+        // can only be introduced through recursive calls, which are not reduced by this.
+        self.transform_c_term(c_term);
+    }
+}
+
+struct Substitutor {
+    bindings: HashMap<usize, VTerm>,
+}
+
+impl Transformer for Substitutor {
+    fn transform_var(&mut self, v_term: &mut VTerm) {
+        let VTerm::Var { index } = v_term else { unreachable!() };
+        if let Some(replacement) = self.bindings.get(index) {
+            *v_term = replacement.clone();
+        }
     }
 }

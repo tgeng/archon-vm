@@ -65,6 +65,10 @@ pub trait Transformer {
     }
 
     fn transform_force(&mut self, c_term: &mut CTerm) {
+        self.transform_force_default(c_term);
+    }
+
+    fn transform_force_default(&mut self, c_term: &mut CTerm) {
         let CTerm::Force { thunk, .. } = c_term else { unreachable!() };
         self.transform_v_term(thunk);
     }

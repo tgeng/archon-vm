@@ -1,0 +1,1 @@
+force (thunk \x y => x + y) 1 2

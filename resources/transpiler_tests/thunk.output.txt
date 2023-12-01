@@ -279,7 +279,7 @@ Defs
                                             },
                                         },
                                     },
-                                    bound_index: 6,
+                                    bound_index: 5,
                                     body: Let {
                                         t: Force {
                                             thunk: Var {
@@ -287,23 +287,23 @@ Defs
                                             },
                                             may_have_complex_effects: false,
                                         },
-                                        bound_index: 7,
+                                        bound_index: 6,
                                         body: Let {
                                             t: Force {
                                                 thunk: Var {
-                                                    index: 6,
+                                                    index: 5,
                                                 },
                                                 may_have_complex_effects: false,
                                             },
-                                            bound_index: 8,
+                                            bound_index: 7,
                                             body: PrimitiveCall {
                                                 name: "_int_add",
                                                 args: [
                                                     Var {
-                                                        index: 7,
+                                                        index: 6,
                                                     },
                                                     Var {
-                                                        index: 8,
+                                                        index: 7,
                                                     },
                                                 ],
                                             },
@@ -320,7 +320,7 @@ Defs
                     Integer,
                 ),
             ),
-            var_bound: 9,
+            var_bound: 8,
             may_be_simple: true,
         },
     ),

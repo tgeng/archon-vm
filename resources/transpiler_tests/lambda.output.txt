@@ -77,11 +77,11 @@ Defs
                             },
                         },
                     },
-                    bound_index: 2,
+                    bound_index: 1,
                     body: Redex {
                         function: Force {
                             thunk: Var {
-                                index: 2,
+                                index: 1,
                             },
                             may_have_complex_effects: false,
                         },
@@ -98,7 +98,7 @@ Defs
                     Integer,
                 ),
             ),
-            var_bound: 3,
+            var_bound: 2,
             may_be_simple: true,
         },
     ),
