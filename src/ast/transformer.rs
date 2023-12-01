@@ -30,7 +30,6 @@ pub trait Transformer {
     }
 
     fn transform_c_term(&mut self, c_term: &mut CTerm) {
-        println!("{:?}", c_term);
         match c_term {
             CTerm::Redex { .. } => self.transform_redex(c_term),
             CTerm::Return { .. } => self.transform_return(c_term),
@@ -51,6 +50,10 @@ pub trait Transformer {
     }
 
     fn transform_redex(&mut self, c_term: &mut CTerm) {
+        self.transform_redex_default(c_term);
+    }
+
+    fn transform_redex_default(&mut self, c_term: &mut CTerm) {
         let CTerm::Redex { function, args } = c_term else { unreachable!() };
         self.transform_c_term(function);
         args.iter_mut().for_each(|arg| self.transform_v_term(arg));
@@ -89,6 +92,10 @@ pub trait Transformer {
     }
 
     fn transform_lambda(&mut self, c_term: &mut CTerm) {
+        self.transform_lambda_default(c_term);
+    }
+
+    fn transform_lambda_default(&mut self, c_term: &mut CTerm) {
         let CTerm::Lambda { args, body } = c_term else { unreachable!() };
         let old_args = args.clone();
         args.iter_mut().for_each(|(arg, _)| *arg = self.add_binding(*arg));
@@ -121,6 +128,12 @@ pub trait Transformer {
     }
 
     fn transform_handler(&mut self, c_term: &mut CTerm) {
+        self.transform_handler_default(c_term);
+    }
+
+    // Handling handler is convoluted so we create this helper function to avoid re-implementing
+    // this in each transformer.
+    fn transform_handler_default(&mut self, c_term: &mut CTerm) {
         let CTerm::Handler {
             parameter,
             box parameter_disposer,

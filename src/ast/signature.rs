@@ -46,7 +46,7 @@ impl Signature {
     pub fn optimize(&mut self) {
         self.reduce_redundancy();
         self.specialize_calls();
-        self.lift_thunks();
+        self.lift_lambdas();
         // TODO: add a pass that collapse immediate force thunk pairs
         // TODO: implement a pass that uses special constructs when lifting handler transform components
         // TODO: lift all handler components (input, transform, handler ops, param ops).
@@ -78,7 +78,7 @@ impl Signature {
         self.insert_new_defs(new_defs);
     }
 
-    fn lift_thunks(&mut self) {
+    fn lift_lambdas(&mut self) {
         self.rename_local_vars();
         let mut new_defs: Vec<(String, FunctionDefinition)> = Vec::new();
         self.defs.iter_mut().for_each(|(name, FunctionDefinition { args, body, var_bound, .. })| {
@@ -157,10 +157,9 @@ struct RedundancyRemover {}
 
 impl Transformer for RedundancyRemover {
     fn transform_redex(&mut self, c_term: &mut CTerm) {
+        self.transform_redex_default(c_term);
         match c_term {
             CTerm::Redex { function, args } => {
-                self.transform_c_term(function);
-                args.iter_mut().for_each(|arg| self.transform_v_term(arg));
                 if args.is_empty() {
                     let mut placeholder = CTerm::Return { value: VTerm::Int { value: 1 } };
                     std::mem::swap(&mut placeholder, function);
@@ -189,8 +188,8 @@ impl Transformer for RedundancyRemover {
     }
 
     fn transform_lambda(&mut self, c_term: &mut CTerm) {
+        self.transform_lambda_default(c_term);
         let CTerm::Lambda { args, box body } = c_term else { unreachable!() };
-        self.transform_c_term(body);
         if let CTerm::Lambda { args: sub_args, body: box sub_body } = body {
             args.extend(sub_args.iter().copied());
             let mut placeholder = CTerm::Return { value: VTerm::Int { value: 0 } };
@@ -214,9 +213,8 @@ struct CallSpecializer<'a> {
 
 impl<'a> Transformer for CallSpecializer<'a> {
     fn transform_redex(&mut self, c_term: &mut CTerm) {
+        self.transform_redex_default(c_term);
         let CTerm::Redex { box function, args } = c_term else { unreachable!() };
-        self.transform_c_term(function);
-        args.iter_mut().for_each(|arg| self.transform_v_term(arg));
         let CTerm::Def { name, may_have_complex_effects: has_handler_effects } = function else { return; };
         if let Some((name, PrimitiveFunction { arg_types, return_type, .. })) = PRIMITIVE_FUNCTIONS.get_entry(name) {
             match arg_types.len().cmp(&args.len()) {
@@ -306,11 +304,11 @@ impl<'a> Transformer for LambdaLifter<'a> {
     }
 
     fn transform_lambda(&mut self, c_term: &mut CTerm) {
+        self.transform_lambda_default(c_term);
         let mut free_vars: Vec<_> = c_term.free_vars().iter().copied().collect();
         free_vars.sort();
 
         let CTerm::Lambda { args, body: box body } = c_term else { unreachable!() };
-        self.transform_c_term(body);
 
         let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars);
         let args = args.clone();
@@ -319,5 +317,18 @@ impl<'a> Transformer for LambdaLifter<'a> {
         let CTerm::Lambda { body: box body, .. } = redex else { unreachable!() };
 
         self.create_new_def(thunk_def_name, free_vars, &args, body);
+    }
+
+    fn transform_handler(&mut self, c_term: &mut CTerm) {
+        self.transform_handler_default(c_term);
+        let CTerm::Handler {
+            parameter_disposer: box (parameter_disposer_arg, parameter_disposer_body),
+            parameter_replicator: box (parameter_replicator_arg, parameter_replicator_body),
+            transform: box (transform_parameter, transform_input, transform_body),
+            complex_handlers,
+            simple_handlers,
+            box input,
+            ..
+        } = c_term else { unreachable!() };
     }
 }
