@@ -121,7 +121,6 @@ pub unsafe fn runtime_prepare_complex_operation(
         }
     }).collect();
 
-    // TODO: create a normal thunk here instead.
     let captured_continuation = runtime_alloc((std::mem::size_of::<CapturedContinuation>()) / 8) as *mut CapturedContinuation;
 
     *captured_continuation = CapturedContinuation {

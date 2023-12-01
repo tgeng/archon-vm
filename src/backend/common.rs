@@ -330,6 +330,7 @@ impl BuiltinFunction {
         builder.ins().store(MemFlags::new(), captured_continuation, thunk_ptr, 16);
 
         // replace the pointer to the captured continuation object with the pointer to the thunk
+        let thunk_ptr = builder.ins().iadd_imm(thunk_ptr, 0b11); // tag it as a SPtr
         builder.ins().store(MemFlags::new(), thunk_ptr, captured_continuation_ptr, 0);
         builder.ins().return_(&[]);
         builder.finalize();

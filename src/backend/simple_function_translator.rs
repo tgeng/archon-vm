@@ -5,6 +5,7 @@ use cranelift::frontend::Switch;
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, I32, I64};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
+use cranelift_native::builder;
 use crate::ast::term::{CTerm, VTerm, VType, SpecializedType, PType, CType};
 use enum_map::{EnumMap};
 use VType::{Specialized, Uniform};
@@ -387,8 +388,19 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             }
             CTerm::Handler { .. } => todo!(),
             CTerm::LongJump { .. } => todo!(),
-            CTerm::PopHandler => todo!(),
-            CTerm::GetLastResult => todo!(),
+            CTerm::PopHandler => {
+                // It's assumed that this would only appear in an entry block.
+                let inst = self.call_builtin_func(BuiltinFunction::PopHandler, &[self.tip_address]);
+                let result = self.function_builder.inst_results(inst)[0];
+                Some((result, Uniform))
+            }
+            CTerm::GetLastResult => {
+                // It's assumed that this would only appear in an entry block.
+                let entry_block = self.function_builder.current_block().unwrap();
+                let last_result_ptr = self.function_builder.block_params(entry_block)[2];
+                let last_result = self.function_builder.ins().load(I64, MemFlags::new(), last_result_ptr, 0);
+                Some((last_result, Uniform))
+            }
         }
     }
 

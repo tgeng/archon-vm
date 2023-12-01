@@ -275,11 +275,11 @@ struct LambdaLifter<'a> {
 }
 
 impl<'a> LambdaLifter<'a> {
-    fn create_new_redex(&mut self, free_vars: &Vec<usize>) -> (String, CTerm) {
+    fn create_new_redex(&mut self, free_vars: &[usize]) -> (String, CTerm) {
         let thunk_def_name = format!("{}$__lambda_{}", self.def_name, self.counter);
         self.counter += 1;
 
-        let mut redex =
+        let redex =
             CTerm::Redex {
                 function: Box::new(CTerm::Def { name: thunk_def_name.clone(), may_have_complex_effects: true }),
                 args: free_vars.iter().map(|i| VTerm::Var { index: *i }).collect(),
