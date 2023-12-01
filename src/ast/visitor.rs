@@ -128,41 +128,16 @@ pub trait Visitor {
             box input
         } = c_term else { unreachable!() };
         self.visit_v_term(parameter);
-
-        let (parameter_disposer_bound_index, parameter_disposer) = parameter_disposer;
-        self.add_binding(*parameter_disposer_bound_index);
         self.visit_c_term(parameter_disposer);
-        self.remove_binding(*parameter_disposer_bound_index);
-
-        let (parameter_replicator_bound_index, parameter_replicator) = parameter_replicator;
-        self.add_binding(*parameter_replicator_bound_index);
         self.visit_c_term(parameter_replicator);
-        self.remove_binding(*parameter_replicator_bound_index);
-
-        let (transform_parameter_bound_index, transform_input_bound_index, transform) = transform;
-        self.add_binding(*transform_parameter_bound_index);
-        self.add_binding(*transform_input_bound_index);
         self.visit_c_term(transform);
-        self.remove_binding(*transform_input_bound_index);
-        self.remove_binding(*transform_parameter_bound_index);
-
-        for (eff, parameter_bound_index, args_bound_index, continuation_bound_index, handler) in complex_handlers.iter() {
+        for (eff, handler) in complex_handlers.iter() {
             self.visit_v_term(eff);
-            self.add_binding(*parameter_bound_index);
-            args_bound_index.iter().for_each(|arg| self.add_binding(*arg));
-            self.add_binding(*continuation_bound_index);
             self.visit_c_term(handler);
-            self.remove_binding(*continuation_bound_index);
-            args_bound_index.iter().for_each(|arg| self.remove_binding(*arg));
-            self.remove_binding(*parameter_bound_index);
         }
-        for (eff, parameter_bound_index, args_bound_index, handler) in simple_handlers.iter() {
+        for (eff, handler) in simple_handlers.iter() {
             self.visit_v_term(eff);
-            self.add_binding(*parameter_bound_index);
-            args_bound_index.iter().for_each(|arg| self.add_binding(*arg));
             self.visit_c_term(handler);
-            args_bound_index.iter().for_each(|arg| self.remove_binding(*arg));
-            self.remove_binding(*parameter_bound_index);
         }
         self.visit_c_term(input);
     }

@@ -144,51 +144,16 @@ pub trait Transformer {
             box input
         } = c_term else { unreachable!() };
         self.transform_v_term(parameter);
-
-        let (parameter_disposer_bound_index, parameter_disposer) = parameter_disposer;
-        let old_parameter_disposer_bound_index = *parameter_disposer_bound_index;
-        *parameter_disposer_bound_index = self.add_binding(*parameter_disposer_bound_index);
         self.transform_c_term(parameter_disposer);
-        self.remove_binding(old_parameter_disposer_bound_index);
-
-        let (parameter_replicator_bound_index, parameter_replicator) = parameter_replicator;
-        let old_parameter_replicator_bound_index = *parameter_replicator_bound_index;
-        *parameter_replicator_bound_index = self.add_binding(*parameter_replicator_bound_index);
         self.transform_c_term(parameter_replicator);
-        self.remove_binding(old_parameter_replicator_bound_index);
-
-        let (transform_parameter_bound_index, transform_input_bound_index, transform) = transform;
-        let old_transform_parameter_bound_index = *transform_parameter_bound_index;
-        *transform_parameter_bound_index = self.add_binding(*transform_parameter_bound_index);
-        let old_transform_input_bound_index = *transform_input_bound_index;
-        *transform_input_bound_index = self.add_binding(*transform_input_bound_index);
         self.transform_c_term(transform);
-        self.remove_binding(old_transform_input_bound_index);
-        self.remove_binding(old_transform_parameter_bound_index);
-
-        for (eff, parameter_bound_index, args_bound_index, continuation_bound_index, handler) in complex_handlers.iter_mut() {
+        for (eff, handler) in complex_handlers.iter_mut() {
             self.transform_v_term(eff);
-            let old_parameter_bound_index = *parameter_bound_index;
-            *parameter_bound_index = self.add_binding(*parameter_bound_index);
-            let old_args_bound_index = args_bound_index.clone();
-            args_bound_index.iter_mut().for_each(|arg| *arg = self.add_binding(*arg));
-            let old_continuation_bound_index = *continuation_bound_index;
-            self.add_binding(*continuation_bound_index);
             self.transform_c_term(handler);
-            self.remove_binding(old_continuation_bound_index);
-            old_args_bound_index.iter().for_each(|arg| self.remove_binding(*arg));
-            self.remove_binding(old_parameter_bound_index);
         }
-
-        for (eff, parameter_bound_index, args_bound_index, handler) in simple_handlers.iter_mut() {
+        for (eff, handler) in simple_handlers.iter_mut() {
             self.transform_v_term(eff);
-            let old_parameter_bound_index = *parameter_bound_index;
-            *parameter_bound_index = self.add_binding(*parameter_bound_index);
-            let old_args_bound_index = args_bound_index.clone();
-            args_bound_index.iter_mut().for_each(|arg| *arg = self.add_binding(*arg));
             self.transform_c_term(handler);
-            old_args_bound_index.iter().for_each(|arg| self.remove_binding(*arg));
-            self.remove_binding(old_parameter_bound_index);
         }
         self.transform_c_term(input);
     }

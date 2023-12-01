@@ -98,15 +98,15 @@ pub enum CTerm {
     Handler {
         parameter: VTerm,
         /// parameter -> 0
-        parameter_disposer: Box<(usize, CTerm)>,
+        parameter_disposer: Box<CTerm>,
         /// parameter -> (parameter, parameter)
-        parameter_replicator: Box<(usize, CTerm)>,
+        parameter_replicator: Box<CTerm>,
         /// (parameter, input) -> output
-        transform: Box<(usize, usize, CTerm)>,
-        /// each handler: (effect, parameter index, operation arg indexes...,  continuation index) -> output
-        complex_handlers: Vec<(VTerm, usize, Vec<usize>, usize, CTerm)>,
-        /// each handler: (effect, parameter index, operation_arg indexes...) -> output
-        simple_handlers: Vec<(VTerm, usize, Vec<usize>, CTerm)>,
+        transform: Box<CTerm>,
+        /// each handler: (effect, lambda: (parameter index, operation arg indexes...,  continuation index) -> output)
+        complex_handlers: Vec<(VTerm, CTerm)>,
+        /// each handler: (effect, lambda: (parameter index, operation_arg indexes...) -> output)
+        simple_handlers: Vec<(VTerm, CTerm)>,
         input: Box<CTerm>,
     },
 

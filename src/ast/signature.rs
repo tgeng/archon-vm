@@ -46,10 +46,9 @@ impl Signature {
     pub fn optimize(&mut self) {
         self.reduce_redundancy();
         self.specialize_calls();
+        // TODO: implement a pass that uses special constructs when lifting handler transform components
         self.lift_lambdas();
         // TODO: add a pass that collapse immediate force thunk pairs
-        // TODO: implement a pass that uses special constructs when lifting handler transform components
-        // TODO: lift all handler components (input, transform, handler ops, param ops).
     }
 
     fn reduce_redundancy(&mut self) {
@@ -308,27 +307,14 @@ impl<'a> Transformer for LambdaLifter<'a> {
         let mut free_vars: Vec<_> = c_term.free_vars().iter().copied().collect();
         free_vars.sort();
 
-        let CTerm::Lambda { args, body: box body } = c_term else { unreachable!() };
+        let CTerm::Lambda { args, .. } = c_term else { unreachable!() };
 
         let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars);
         let args = args.clone();
         std::mem::swap(c_term, &mut redex);
 
-        let CTerm::Lambda { body: box body, .. } = redex else { unreachable!() };
+        let CTerm::Lambda { box body, .. } = redex else { unreachable!() };
 
         self.create_new_def(thunk_def_name, free_vars, &args, body);
-    }
-
-    fn transform_handler(&mut self, c_term: &mut CTerm) {
-        self.transform_handler_default(c_term);
-        let CTerm::Handler {
-            parameter_disposer: box (parameter_disposer_arg, parameter_disposer_body),
-            parameter_replicator: box (parameter_replicator_arg, parameter_replicator_body),
-            transform: box (transform_parameter, transform_input, transform_body),
-            complex_handlers,
-            simple_handlers,
-            box input,
-            ..
-        } = c_term else { unreachable!() };
     }
 }
