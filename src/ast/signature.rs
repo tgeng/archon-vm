@@ -46,9 +46,10 @@ impl Signature {
     pub fn optimize(&mut self) {
         self.reduce_redundancy();
         self.specialize_calls();
-        // TODO: implement a pass that uses special constructs when lifting handler transform components
-        self.lift_lambdas();
+        self.rename_local_vars();
+        self.process_handler_transforms();
         // TODO: add a pass that collapse immediate force thunk pairs
+        self.lift_lambdas();
     }
 
     fn reduce_redundancy(&mut self) {
@@ -77,8 +78,16 @@ impl Signature {
         self.insert_new_defs(new_defs);
     }
 
+    /// Assume all local variables are distinct. Also this transformation preserves this property.
+    fn process_handler_transforms(&mut self) {
+        self.defs.iter_mut().for_each(|(_, FunctionDefinition { body, var_bound, .. })| {
+            let mut processor = HandlerTransformProcessor { next_new_var_index: *var_bound + 1 };
+            processor.transform_c_term(body);
+        });
+    }
+
+    /// Assume all local variables are distinct. Also this transformation preserves this property.
     fn lift_lambdas(&mut self) {
-        self.rename_local_vars();
         let mut new_defs: Vec<(String, FunctionDefinition)> = Vec::new();
         self.defs.iter_mut().for_each(|(name, FunctionDefinition { args, body, var_bound, .. })| {
             let local_var_types = &mut vec![VType::Uniform; *var_bound];
@@ -316,5 +325,35 @@ impl<'a> Transformer for LambdaLifter<'a> {
         let CTerm::Lambda { box body, .. } = redex else { unreachable!() };
 
         self.create_new_def(thunk_def_name, free_vars, &args, body);
+    }
+}
+
+struct HandlerTransformProcessor {
+    next_new_var_index: usize,
+}
+
+impl Transformer for HandlerTransformProcessor {
+    fn transform_handler(&mut self, c_term: &mut CTerm) {
+        self.transform_handler_default(c_term);
+        let CTerm::Handler { box transform, .. } = c_term else { unreachable!() };
+        let param_index = self.next_new_var_index;
+        self.next_new_var_index += 1;
+        let result_index = self.next_new_var_index;
+        self.next_new_var_index += 1;
+        let mut placeholder = CTerm::PopHandler;
+        std::mem::swap(transform, &mut placeholder);
+        let replacement = CTerm::Let {
+            t: Box::new(CTerm::PopHandler),
+            bound_index: param_index,
+            body: Box::new(CTerm::Let {
+                t: Box::new(CTerm::GetLastResult),
+                bound_index: result_index,
+                body: Box::new(CTerm::Redex {
+                    function: Box::new(placeholder),
+                    args: vec![VTerm::Var { index: param_index }, VTerm::Var { index: result_index }],
+                }),
+            }),
+        };
+        *transform = replacement;
     }
 }
