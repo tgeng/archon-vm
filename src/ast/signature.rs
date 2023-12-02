@@ -48,7 +48,7 @@ impl Signature {
         self.reduce_redundancy();
         self.specialize_calls();
         self.rename_local_vars();
-        self.process_handler_transforms();
+        self.process_handler();
         self.reduce_immediate_redexes();
         self.lift_lambdas();
         self.rename_local_vars();
@@ -81,9 +81,9 @@ impl Signature {
     }
 
     /// Assume all local variables are distinct. Also this transformation preserves this property.
-    fn process_handler_transforms(&mut self) {
+    fn process_handler(&mut self) {
         self.defs.iter_mut().for_each(|(_, FunctionDefinition { body, var_bound, .. })| {
-            let mut processor = HandlerTransformProcessor { next_new_var_index: *var_bound + 1 };
+            let mut processor = HandlerProcessor { next_new_var_index: *var_bound + 1 };
             processor.transform_c_term(body);
         });
     }
@@ -347,31 +347,33 @@ impl<'a> Transformer for LambdaLifter<'a> {
     }
 }
 
-struct HandlerTransformProcessor {
+struct HandlerProcessor {
     next_new_var_index: usize,
 }
 
-impl Transformer for HandlerTransformProcessor {
+impl Transformer for HandlerProcessor {
     fn transform_handler(&mut self, c_term: &mut CTerm) {
         self.transform_handler_default(c_term);
-        let CTerm::Handler { box transform, .. } = c_term else { unreachable!() };
+        let CTerm::Handler { transform, .. } = c_term else { unreachable!() };
         let param_index = self.next_new_var_index;
         self.next_new_var_index += 1;
         let result_index = self.next_new_var_index;
         self.next_new_var_index += 1;
-        let mut placeholder = CTerm::PopHandler;
+        let mut placeholder = VTerm::Int { value: 0 };
         std::mem::swap(transform, &mut placeholder);
-        let replacement = CTerm::Let {
-            t: Box::new(CTerm::PopHandler),
-            bound_index: param_index,
-            body: Box::new(CTerm::Let {
-                t: Box::new(CTerm::GetLastResult),
-                bound_index: result_index,
-                body: Box::new(CTerm::Redex {
-                    function: Box::new(placeholder),
-                    args: vec![VTerm::Var { index: param_index }, VTerm::Var { index: result_index }],
+        let replacement = VTerm::Thunk {
+            t: Box::new(CTerm::Let {
+                t: Box::new(CTerm::PopHandler),
+                bound_index: param_index,
+                body: Box::new(CTerm::Let {
+                    t: Box::new(CTerm::GetLastResult),
+                    bound_index: result_index,
+                    body: Box::new(CTerm::Redex {
+                        function: Box::new(CTerm::Force { thunk: placeholder, may_have_complex_effects: true }),
+                        args: vec![VTerm::Var { index: param_index }, VTerm::Var { index: result_index }],
+                    }),
                 }),
-            }),
+            })
         };
         *transform = replacement;
     }

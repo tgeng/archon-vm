@@ -140,24 +140,24 @@ pub trait Transformer {
     fn transform_handler_default(&mut self, c_term: &mut CTerm) {
         let CTerm::Handler {
             parameter,
-            box parameter_disposer,
-            box parameter_replicator,
-            box transform,
+            parameter_disposer,
+            parameter_replicator,
+            transform,
             complex_handlers,
             simple_handlers,
             box input
         } = c_term else { unreachable!() };
         self.transform_v_term(parameter);
-        self.transform_c_term(parameter_disposer);
-        self.transform_c_term(parameter_replicator);
-        self.transform_c_term(transform);
+        self.transform_v_term(parameter_disposer);
+        self.transform_v_term(parameter_replicator);
+        self.transform_v_term(transform);
         for (eff, handler) in complex_handlers.iter_mut() {
             self.transform_v_term(eff);
-            self.transform_c_term(handler);
+            self.transform_v_term(handler);
         }
         for (eff, handler) in simple_handlers.iter_mut() {
             self.transform_v_term(eff);
-            self.transform_c_term(handler);
+            self.transform_v_term(handler);
         }
         self.transform_c_term(input);
     }

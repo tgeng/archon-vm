@@ -97,16 +97,16 @@ pub enum CTerm {
     OperationCall { eff: VTerm, args: Vec<VTerm>, simple: bool },
     Handler {
         parameter: VTerm,
-        /// parameter -> 0
-        parameter_disposer: Box<CTerm>,
-        /// parameter -> (parameter, parameter)
-        parameter_replicator: Box<CTerm>,
-        /// (parameter, input) -> output
-        transform: Box<CTerm>,
-        /// each handler: (effect, lambda: (parameter index, operation arg indexes...,  continuation index) -> output)
-        complex_handlers: Vec<(VTerm, CTerm)>,
-        /// each handler: (effect, lambda: (parameter index, operation_arg indexes...) -> output)
-        simple_handlers: Vec<(VTerm, CTerm)>,
+        /// thunk of lambda: parameter -> 0
+        parameter_disposer: VTerm,
+        /// thunk of lambda: parameter -> (parameter, parameter)
+        parameter_replicator: VTerm,
+        /// thunk of lambda: (parameter, input) -> output
+        transform: VTerm,
+        /// each handler: (effect, thunk of lambda: (parameter index, operation arg indexes...,  continuation index) -> output)
+        complex_handlers: Vec<(VTerm, VTerm)>,
+        /// each handler: (effect, thunk of lambda: (parameter index, operation_arg indexes...) -> output)
+        simple_handlers: Vec<(VTerm, VTerm)>,
         input: Box<CTerm>,
     },
 

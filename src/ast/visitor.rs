@@ -120,24 +120,24 @@ pub trait Visitor {
     fn visit_handler(&mut self, c_term: &CTerm) {
         let CTerm::Handler {
             parameter,
-            box parameter_disposer,
-            box parameter_replicator,
-            box transform,
+            parameter_disposer,
+            parameter_replicator,
+            transform,
             complex_handlers,
             simple_handlers,
             box input
         } = c_term else { unreachable!() };
         self.visit_v_term(parameter);
-        self.visit_c_term(parameter_disposer);
-        self.visit_c_term(parameter_replicator);
-        self.visit_c_term(transform);
+        self.visit_v_term(parameter_disposer);
+        self.visit_v_term(parameter_replicator);
+        self.visit_v_term(transform);
         for (eff, handler) in complex_handlers.iter() {
             self.visit_v_term(eff);
-            self.visit_c_term(handler);
+            self.visit_v_term(handler);
         }
         for (eff, handler) in simple_handlers.iter() {
             self.visit_v_term(eff);
-            self.visit_c_term(handler);
+            self.visit_v_term(handler);
         }
         self.visit_c_term(input);
     }

@@ -473,8 +473,15 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                     self.advance_for_complex_effect()
                 }
             }
-            CTerm::Handler { .. } => todo!(),
-            CTerm::LongJump { .. } => todo!(),
+            CTerm::Handler {
+                parameter,
+                parameter_disposer,
+                parameter_replicator,
+                transform,
+                complex_handlers,
+                simple_handlers,
+                input,
+            } => todo!(),
             _ => self.translate_c_term(c_term, is_tail),
         }
     }
