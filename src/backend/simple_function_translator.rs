@@ -303,7 +303,10 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                     CType::SpecializedF(vty) => vty,
                 };
                 let result_value_type = result_v_type.get_type();
+                // return value
                 self.function_builder.append_block_param(joining_block, result_value_type);
+                // tip address
+                self.function_builder.append_block_param(joining_block, I64);
 
                 // Create branch blocks
                 let mut branch_blocks = HashMap::new();
@@ -324,11 +327,14 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 switch.emit(&mut self.function_builder, t_value, default_block);
 
                 // Fill branch blocks
+                let start_tip_address = self.tip_address;
                 for (value, branch_block) in branch_blocks.into_iter() {
+                    self.tip_address = start_tip_address;
                     let branch = branch_map.get(&value).unwrap();
                     self.create_branch_block(branch_block, is_tail, joining_block, result_v_type, Some(branch));
                 }
 
+                self.tip_address = start_tip_address;
                 self.create_branch_block(default_block, is_tail, joining_block, result_v_type, match default_branch {
                     None => None,
                     Some(box branch) => Some(branch),
@@ -337,6 +343,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 // Switch to joining block for future code generation
                 self.function_builder.seal_all_blocks();
                 self.function_builder.switch_to_block(joining_block);
+                self.tip_address = self.function_builder.block_params(joining_block)[1];
                 Some((self.function_builder.block_params(joining_block)[0], *result_v_type))
             }
             CTerm::Lambda { .. } => unreachable!("lambda should have been lifted away"),
@@ -420,7 +427,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         self.push_args(arg_values);
     }
 
-    fn create_branch_block(&mut self, branch_block: Block, is_tail: bool, next_block: Block, result_v_type: &VType, branch: Option<&CTerm>) {
+    fn create_branch_block(&mut self, branch_block: Block, is_tail: bool, joining_block: Block, result_v_type: &VType, branch: Option<&CTerm>) {
         self.function_builder.switch_to_block(branch_block);
         let typed_return_value = match branch {
             None => {
@@ -435,7 +442,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             }
             Some(..) => {
                 let value = self.adapt_type(typed_return_value, result_v_type);
-                self.function_builder.ins().jump(next_block, &[value]);
+                self.function_builder.ins().jump(joining_block, &[value, self.tip_address]);
             }
         }
     }

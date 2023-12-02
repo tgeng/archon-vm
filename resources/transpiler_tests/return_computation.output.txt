@@ -125,7 +125,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "f",
-                    may_have_complex_effects: false,
+                    may_have_complex_effects: true,
                 },
                 args: [
                     Int {
@@ -146,7 +146,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "g",
-                    may_have_complex_effects: false,
+                    may_have_complex_effects: true,
                 },
                 args: [
                     Int {

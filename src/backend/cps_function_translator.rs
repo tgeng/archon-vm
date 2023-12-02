@@ -175,9 +175,9 @@ struct ComplexCpsFunctionTranslator<'a, M: Module> {
     function_translator: SimpleFunctionTranslator<'a, M>,
     /// The pointer to the current continuation.
     continuation: Value,
-    /// The last result passed to the continuation. This is also the value needed to execute the
-    /// next step.
-    last_result: Value,
+    /// The pointer to the last result passed to the continuation. This is also the value needed to
+    /// execute the next step.
+    last_result_ptr: Value,
     /// The number of arguments of the current function.
     argument_count: usize,
     /// The ID of the current block. Initially it's zero, which means the first block right after
@@ -319,7 +319,6 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         function_translator.local_var_ptr = function_translator.function_builder.ins().iadd_imm(continuation, 32);
 
         // set the tip address according to the last result pointer.
-        let last_result = function_translator.function_builder.ins().load(I64, MemFlags::new(), last_result_ptr, 0);
         function_translator.tip_address = function_translator.function_builder.ins().iadd_imm(last_result_ptr, 8);
 
         let argument_count = function_definition.args.len();
@@ -352,7 +351,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         Self {
             function_translator,
             continuation,
-            last_result,
+            last_result_ptr,
             argument_count,
             current_block_id: 0,
             blocks,
@@ -372,7 +371,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
 
                 let signature = self.uniform_cps_func_signature.clone();
                 let sig_ref = self.function_builder.import_signature(signature);
-                let r = if is_tail {
+                if is_tail {
                     let (new_base_address, next_continuation) = self.adjust_next_continuation_frame_height(self.continuation);
                     self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
                         new_base_address, next_continuation,
@@ -386,10 +385,8 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                         tip_address,
                         continuation,
                     ]);
-                    Some((self.last_result, Uniform))
-                };
-                self.advance();
-                r
+                    self.advance_for_complex_effect()
+                }
             }
             CTerm::Let { box t, bound_index, box body } => {
                 let t_value = self.translate_c_term_cps_impl(t, false);
@@ -399,7 +396,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
             }
             CTerm::Def { name, may_have_complex_effects: true } => {
                 let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
-                let r = if is_tail {
+                if is_tail {
                     let (new_base_address, next_continuation) = self.adjust_next_continuation_frame_height(self.continuation);
                     self.function_builder.ins().return_call(func_ref, &[new_base_address, next_continuation]);
                     None
@@ -407,10 +404,8 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                     self.pack_up_continuation();
                     let args = [self.tip_address, self.continuation];
                     self.function_builder.ins().return_call(func_ref, &args);
-                    Some((self.last_result, Uniform))
-                };
-                self.advance();
-                r
+                    self.advance_for_complex_effect()
+                }
             }
             CTerm::CaseInt { t, result_type, branches, default_branch } => {
                 let (branch_block_ids, default_block_id, joining_block_id) = &self.case_blocks[&self.current_block_id].clone();
@@ -432,27 +427,32 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                     CType::Default => &Uniform,
                     CType::SpecializedF(vty) => vty,
                 };
-                let result_value_type = result_v_type.get_type();
-                self.function_builder.append_block_param(joining_block, result_value_type);
+                // return value
+                self.function_builder.append_block_param(joining_block, result_v_type.get_type());
+                // tip address
+                self.function_builder.append_block_param(joining_block, I64);
 
                 // Fill branch blocks
+                let start_tip_address = self.tip_address;
                 for ((_, c_term), (block_id, branch_block)) in branch_body_and_blocks.into_iter() {
-                    self.advance();
+                    self.advance_for_case();
                     assert_eq!(self.current_block_id, block_id);
+                    self.tip_address = start_tip_address;
                     self.create_branch_block(branch_block, is_tail, joining_block, result_v_type, Some(c_term));
                 }
 
-                self.advance();
+                self.advance_for_case();
                 assert_eq!(self.current_block_id, *default_block_id);
+                self.tip_address = start_tip_address;
                 self.create_branch_block(default_block, is_tail, joining_block, result_v_type, match default_branch {
                     None => None,
                     Some(box branch) => Some(branch),
                 });
 
                 // Switch to joining block for future code generation
-                self.current_block_id = *joining_block_id;
-                self.function_builder.seal_block(joining_block);
-                self.function_builder.switch_to_block(joining_block);
+                self.advance_for_case();
+                assert_eq!(self.current_block_id, *joining_block_id);
+                self.tip_address = self.function_builder.block_params(joining_block)[1];
                 Some((self.function_builder.block_params(joining_block)[0], *result_v_type))
             }
             CTerm::OperationCall { eff, args, simple: false } => {
@@ -467,11 +467,10 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 };
 
                 self.handle_complex_operation_call(eff_value, new_base_address, continuation);
-                self.advance();
                 if is_tail {
                     None
                 } else {
-                    Some((self.last_result, Uniform))
+                    self.advance_for_complex_effect()
                 }
             }
             CTerm::Handler { .. } => todo!(),
@@ -502,7 +501,8 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
             }
             Some(..) => {
                 let value = self.adapt_type(typed_return_value, result_v_type);
-                self.function_builder.ins().jump(joining_block, &[value]);
+                let tip_address = self.tip_address;
+                self.function_builder.ins().jump(joining_block, &[value, tip_address]);
             }
         }
     }
@@ -531,11 +531,23 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         }
     }
 
-    fn advance(&mut self) {
+    fn advance_for_complex_effect(&mut self) -> TypedReturnValue {
+        self.touched_vars_in_current_session.clear();
         // Clear up local vars so next block can reload them from the continuation object.
         for v in self.local_vars.iter_mut() {
             *v = None
         }
+        self.current_block_id += 1;
+        let next_block = self.blocks[self.current_block_id];
+        self.function_builder.seal_block(next_block);
+        self.function_builder.switch_to_block(next_block);
+        let last_result_ptr = self.last_result_ptr;
+        self.tip_address = self.function_builder.ins().iadd_imm(last_result_ptr, 8);
+        let last_result = self.function_builder.ins().load(I64, MemFlags::new(), last_result_ptr, 0);
+        Some((last_result, Uniform))
+    }
+
+    fn advance_for_case(&mut self) {
         self.current_block_id += 1;
         let next_block = self.blocks[self.current_block_id];
         self.function_builder.seal_block(next_block);

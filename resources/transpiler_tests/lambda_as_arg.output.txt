@@ -105,7 +105,7 @@ Defs
                     thunk: Var {
                         index: 0,
                     },
-                    may_have_complex_effects: false,
+                    may_have_complex_effects: true,
                 },
                 args: [
                     Var {
@@ -129,7 +129,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "f",
-                    may_have_complex_effects: false,
+                    may_have_complex_effects: true,
                 },
                 args: [
                     Thunk {

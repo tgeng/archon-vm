@@ -83,7 +83,7 @@ Defs
                             thunk: Var {
                                 index: 1,
                             },
-                            may_have_complex_effects: false,
+                            may_have_complex_effects: true,
                         },
                         args: [
                             Int {

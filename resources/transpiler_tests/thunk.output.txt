@@ -251,7 +251,7 @@ Defs
                                         t: Redex {
                                             function: Def {
                                                 name: "f",
-                                                may_have_complex_effects: false,
+                                                may_have_complex_effects: true,
                                             },
                                             args: [
                                                 Var {
@@ -286,7 +286,7 @@ Defs
                                             thunk: Var {
                                                 index: 4,
                                             },
-                                            may_have_complex_effects: false,
+                                            may_have_complex_effects: true,
                                         },
                                         bound_index: 6,
                                         body: Let {
@@ -294,7 +294,7 @@ Defs
                                                 thunk: Var {
                                                     index: 5,
                                                 },
-                                                may_have_complex_effects: false,
+                                                may_have_complex_effects: true,
                                             },
                                             bound_index: 7,
                                             body: PrimitiveCall {

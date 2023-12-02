@@ -136,7 +136,7 @@ Defs
                             body: Redex {
                                 function: Def {
                                     name: "factorial",
-                                    may_have_complex_effects: false,
+                                    may_have_complex_effects: true,
                                 },
                                 args: [
                                     Var {
@@ -177,7 +177,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "factorial",
-                    may_have_complex_effects: false,
+                    may_have_complex_effects: true,
                 },
                 args: [
                     Int {
@@ -199,39 +199,81 @@ Defs
 
 CLIR
 ========
-[factorial__cps]
-function u0:0(i64, i64) -> i64 tail {
+[factorial__cps_impl]
+function u0:0(i64, i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 tail
     sig1 = (i64, i64, i64) -> i64 tail
-    fn0 = colocated u0:18 sig0
+    fn0 = colocated u0:15 sig0
 
-block0(v0: i64, v1: i64):
-    v2 = load.i64 v0
-    v3 = sshr_imm v2, 1
-    brif v3, block3, block2
+block0(v0: i64, v1: i64, v2: i64):
+    v3 = load.i64 v1+24
+    v4 = iadd_imm v1, 32
+    v5 = iadd_imm v2, 8
+    v6 = icmp_imm eq v3, 3
+    brif v6, block4, block6
+
+block6:
+    brif.i64 v3, block1, block1
+
+block1:
+    v7 = load.i64 v0
+    v8 = sshr_imm v7, 1
+    brif v8, block3, block2
 
 block2:
-    v5 = iconst.i64 1
-    jump block1(v5)  ; v5 = 1
+    v11 = iconst.i64 1
+    jump block5(v11, v5)  ; v11 = 1
 
 block3:
-    v6 = iconst.i64 1
-    v7 = sshr_imm.i64 v2, 1
-    v8 = isub v7, v6  ; v6 = 1
-    v9 = call fn0(v0, v8)
-    v10 = sshr_imm.i64 v2, 1
-    v11 = imul v10, v9
-    jump block1(v11)
+    v12 = iconst.i64 1
+    v13 = sshr_imm.i64 v7, 1
+    v14 = isub v13, v12  ; v12 = 1
+    v15 = ishl_imm v14, 1
+    v16 = iadd_imm.i64 v5, -8
+    store aligned v15, v16
+    v17 = isub v16, v0
+    store v17, v1+16
+    v18 = iconst.i64 3
+    store v18, v1+24  ; v18 = 3
+    v19 = ishl_imm v14, 1
+    store v19, v4+8
+    return_call fn0(v16, v1)
 
-block1(v4: i64):
-    v12 = ishl_imm v4, 1
-    v13 = iadd_imm.i64 v0, 0
-    store v12, v13
-    v14 = load.i64 v1+8
-    v15 = iadd.i64 v0, v14
-    v16 = load.i64 v1
-    return_call_indirect sig1, v16(v15, v1, v13)
+block4:
+    v20 = iadd_imm.i64 v2, 8
+    v21 = load.i64 v2
+    v22 = load.i64 v0
+    v23 = sshr_imm v22, 1
+    v24 = sshr_imm v21, 1
+    v25 = imul v23, v24
+    jump block5(v25, v20)
+
+block5(v9: i64, v10: i64):
+    v26 = ishl_imm v9, 1
+    v27 = iadd_imm.i64 v0, 0
+    store v26, v27
+    v28 = load.i64 v1+16
+    v29 = load.i64 v28+8
+    v30 = iadd.i64 v0, v29
+    v31 = load.i64 v28
+    return_call_indirect sig1, v31(v30, v28, v27)
+}
+
+
+[factorial__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+    fn1 = colocated u0:16 sig1
+
+block0(v0: i64, v1: i64):
+    v2 = iconst.i64 48
+    v3 = call fn0(v2)  ; v2 = 48
+    v4 = iadd_imm v0, -8
+    return_call fn1(v0, v3, v4)
 }
 
 
@@ -247,23 +289,23 @@ block0(v0: i64):
     brif v2, block3, block2
 
 block2:
-    v4 = iconst.i64 1
-    jump block1(v4)  ; v4 = 1
+    v5 = iconst.i64 1
+    jump block1(v5, v0)  ; v5 = 1
 
 block3:
-    v5 = iconst.i64 1
-    v6 = sshr_imm.i64 v1, 1
-    v7 = isub v6, v5  ; v5 = 1
-    v8 = call fn0(v0, v7)
-    v9 = sshr_imm.i64 v1, 1
-    v10 = imul v9, v8
-    jump block1(v10)
+    v6 = iconst.i64 1
+    v7 = sshr_imm.i64 v1, 1
+    v8 = isub v7, v6  ; v6 = 1
+    v9 = call fn0(v0, v8)
+    v10 = sshr_imm.i64 v1, 1
+    v11 = imul v10, v9
+    jump block1(v11, v0)
 
-block1(v3: i64):
-    v11 = ishl_imm v3, 1
-    v12 = iadd_imm.i64 v0, 0
-    store v11, v12
-    return v12
+block1(v3: i64, v4: i64):
+    v12 = ishl_imm v3, 1
+    v13 = iadd_imm.i64 v0, 0
+    store v12, v13
+    return v13
 }
 
 
@@ -277,17 +319,17 @@ block0(v0: i64, v1: i64):
     brif v1, block3, block2
 
 block2:
-    v3 = iconst.i64 1
-    jump block1(v3)  ; v3 = 1
+    v4 = iconst.i64 1
+    jump block1(v4, v0)  ; v4 = 1
 
 block3:
-    v4 = iconst.i64 1
-    v5 = isub.i64 v1, v4  ; v4 = 1
-    v6 = call fn0(v0, v5)
-    v7 = imul.i64 v1, v6
-    jump block1(v7)
+    v5 = iconst.i64 1
+    v6 = isub.i64 v1, v5  ; v5 = 1
+    v7 = call fn0(v0, v6)
+    v8 = imul.i64 v1, v7
+    jump block1(v8, v0)
 
-block1(v2: i64):
+block1(v2: i64, v3: i64):
     return v2
 }
 
