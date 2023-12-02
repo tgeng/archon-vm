@@ -48,7 +48,7 @@ impl CpsFunctionTranslator {
 ///   object and calls the CPS implementation function.
 struct SimpleCpsFunctionTranslator<'a, M: Module> {
     function_translator: SimpleFunctionTranslator<'a, M>,
-    continuation: Value,
+    next_continuation: Value,
 }
 
 impl<'a, M: Module> Deref for SimpleCpsFunctionTranslator<'a, M> {
@@ -82,7 +82,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                     typed_return_value,
                     function_definition.args.len(),
                 );
-                let continuation = translator.continuation;
+                let continuation = translator.next_continuation;
                 invoke_next_continuation_in_the_end(&mut translator, return_value_address, continuation);
             }
         }
@@ -123,7 +123,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
 
         Self {
             function_translator,
-            continuation,
+            next_continuation: continuation,
         }
     }
 
@@ -135,7 +135,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
 
                 let signature = self.uniform_cps_func_signature.clone();
                 let sig_ref = self.function_builder.import_signature(signature);
-                let continuation = self.continuation;
+                let continuation = self.next_continuation;
                 let new_base_address = compute_cps_tail_call_base_address(self, continuation);
                 self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
                     new_base_address, continuation,
@@ -144,12 +144,20 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
             }
             CTerm::Def { name, may_have_complex_effects: true } if is_tail => {
                 let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
-                let continuation = self.continuation;
+                let continuation = self.next_continuation;
                 let new_base_address = compute_cps_tail_call_base_address(self, continuation);
                 self.function_builder.ins().return_call(func_ref, &[new_base_address, continuation]);
                 None
             }
-            CTerm::OperationCall { eff, args, simple: false } if is_tail => todo!(),
+            CTerm::OperationCall { eff, args, simple: false } if is_tail => {
+                let eff_value = self.translate_v_term(eff);
+                let eff_value = self.convert_to_uniform(eff_value);
+                self.push_arg_v_terms(args);
+                let next_continuation = self.next_continuation;
+                let new_base_address = compute_cps_tail_call_base_address(self, next_continuation);
+                self.handle_complex_operation_call(eff_value, new_base_address, next_continuation);
+                None
+            }
             _ => self.translate_c_term(c_term, is_tail),
         }
     }
@@ -457,19 +465,8 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                     self.pack_up_continuation();
                     (self.tip_address, self.continuation)
                 };
-                let inst = self.call_builtin_func(BuiltinFunction::PrepareComplexOperation, &[eff_value, new_base_address, continuation]);
-                let result_ptr = self.function_builder.inst_results(inst)[0];
-                let handler_impl = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 0);
-                let handler_base_address = self.function_builder.ins().iadd_imm(result_ptr, 8);
-                let handler_continuation = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 16);
-                let captured_continuation_ptr = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 24);
 
-                self.call_builtin_func(BuiltinFunction::ConvertCapturedContinuationToThunk, &[captured_continuation_ptr]);
-
-                let signature = self.uniform_cps_func_signature.clone();
-                let sig_ref = self.function_builder.import_signature(signature);
-
-                self.function_builder.ins().return_call_indirect(sig_ref, handler_impl, &[handler_base_address, handler_continuation]);
+                self.handle_complex_operation_call(eff_value, new_base_address, continuation);
                 self.advance();
                 if is_tail {
                     None
