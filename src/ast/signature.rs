@@ -16,6 +16,7 @@ pub struct FunctionDefinition {
     /// This function may be simple (after specialization). In this case a simple version of the
     /// function is generated for faster calls.
     pub may_be_simple: bool,
+    pub may_be_complex: bool,
 }
 
 impl FunctionDefinition {
@@ -64,8 +65,8 @@ impl Signature {
     fn specialize_calls(&mut self) {
         let mut new_defs: Vec<(String, FunctionDefinition)> = Vec::new();
         let specializable_functions: HashMap<_, _> = self.defs.iter()
-            .filter_map(|(name, FunctionDefinition { args, body, c_type, var_bound, may_be_simple })| {
-                if let CType::SpecializedF(_) = c_type {
+            .filter_map(|(name, FunctionDefinition { args, body, c_type, var_bound, may_be_simple, .. })| {
+                if let CType::SpecializedF(_) = c_type && *may_be_simple {
                     Some((name.clone(), args.len()))
                 } else {
                     None
@@ -111,14 +112,22 @@ impl Signature {
     }
 
     fn insert_new_defs(&mut self, new_defs: Vec<(String, FunctionDefinition)>) {
-        for (name, FunctionDefinition { mut args, mut body, c_type, var_bound: mut max_arg_size, mut may_be_simple }) in new_defs.into_iter() {
-            Self::rename_local_vars_in_def(&mut args, &mut body, &mut max_arg_size);
+        for (name, FunctionDefinition {
+            mut args,
+            mut body,
+            c_type,
+            mut var_bound,
+            may_be_simple,
+            may_be_complex
+        }) in new_defs.into_iter() {
+            Self::rename_local_vars_in_def(&mut args, &mut body, &mut var_bound);
             self.insert(name, FunctionDefinition {
                 args,
                 body,
                 c_type,
-                var_bound: max_arg_size,
+                var_bound,
                 may_be_simple,
+                may_be_complex,
             })
         }
     }
@@ -128,13 +137,13 @@ impl Signature {
             Self::rename_local_vars_in_def(args, body, max_arg_size);
         });
     }
-    fn rename_local_vars_in_def(args: &mut [(usize, VType)], body: &mut CTerm, max_arg_size: &mut usize) {
+    fn rename_local_vars_in_def(args: &mut [(usize, VType)], body: &mut CTerm, var_bound: &mut usize) {
         let mut renamer = DistinctVarRenamer { bindings: HashMap::new(), counter: 0 };
         for (i, _) in args.iter_mut() {
             *i = renamer.add_binding(*i);
         }
         renamer.transform_c_term(body);
-        *max_arg_size = renamer.counter;
+        *var_bound = renamer.counter;
     }
 }
 
@@ -249,6 +258,7 @@ impl<'a> Transformer for CallSpecializer<'a> {
                         c_type: CType::SpecializedF(*return_type),
                         var_bound: arg_types.len(),
                         may_be_simple: true,
+                        may_be_complex: false,
                     }))
                 }
                 Ordering::Equal => {
@@ -296,6 +306,7 @@ impl<'a> LambdaLifter<'a> {
             var_bound,
             // All thunks are treated as effectful to simplify compilation.
             may_be_simple: false,
+            may_be_complex: true,
         };
         self.new_defs.push((name, function_definition));
     }

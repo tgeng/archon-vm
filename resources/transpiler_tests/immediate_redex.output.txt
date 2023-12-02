@@ -65,31 +65,13 @@ Defs
             ),
             var_bound: 0,
             may_be_simple: true,
+            may_be_complex: false,
         },
     ),
 ]
 
 CLIR
 ========
-[main__cps]
-function u0:0(i64, i64) -> i64 tail {
-    ss0 = explicit_slot 8
-    sig0 = (i64, i64, i64) -> i64 tail
-
-block0(v0: i64, v1: i64):
-    v2 = iconst.i64 1
-    v3 = iconst.i64 2
-    v4 = iadd v2, v3  ; v2 = 1, v3 = 2
-    v5 = ishl_imm v4, 1
-    v6 = iadd_imm v0, -8
-    store v5, v6
-    v7 = load.i64 v1+8
-    v8 = iadd v0, v7
-    v9 = load.i64 v1
-    return_call_indirect sig0, v9(v8, v1, v6)
-}
-
-
 [main__simple]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
@@ -122,7 +104,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:18 sig1
+    fn1 = colocated u0:16 sig1
 
 block0:
     v0 = call fn0()

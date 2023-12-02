@@ -33,6 +33,7 @@ impl Transpiler {
             c_type: CType::SpecializedF(VType::Specialized(SpecializedType::Integer)),
             var_bound: 0,
             may_be_simple: true,
+            may_be_complex: false,
         });
     }
 
@@ -152,7 +153,17 @@ impl Transpiler {
                     });
                     let mut free_var_strings: Vec<String> = free_vars.iter().map(|s| s.to_string()).collect();
                     free_var_strings.extend(def.args.into_iter().map(|(v, _)| v));
-                    self.signature.defs.insert(name.clone(), FunctionDefinition { args: bound_indexes, body: def_body, c_type: def.c_type, var_bound: self.local_counter, may_be_simple: true });
+                    self.signature.defs.insert(
+                        name.clone(),
+                        FunctionDefinition {
+                            args: bound_indexes,
+                            body: def_body,
+                            c_type: def.c_type,
+                            var_bound: self.local_counter,
+                            may_be_simple: true,
+                            may_be_complex: true,
+                        },
+                    );
                 });
                 match body {
                     None => CTerm::Return { value: VTerm::Struct { values: Vec::new() } },

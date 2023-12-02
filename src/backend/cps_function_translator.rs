@@ -143,7 +143,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                 None
             }
             CTerm::Def { name, may_have_complex_effects: true } if is_tail => {
-                let (func_ref, _) = self.get_local_function(name, FunctionFlavor::Cps);
+                let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
                 let continuation = self.continuation;
                 let new_base_address = compute_cps_tail_call_base_address(self, continuation);
                 self.function_builder.ins().return_call(func_ref, &[new_base_address, continuation]);
@@ -390,7 +390,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 self.translate_c_term_cps_impl(body, is_tail)
             }
             CTerm::Def { name, may_have_complex_effects: true } => {
-                let (func_ref, _) = self.get_local_function(name, FunctionFlavor::Cps);
+                let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
                 let r = if is_tail {
                     let (new_base_address, next_continuation) = self.adjust_next_continuation_frame_height(self.continuation);
                     self.function_builder.ins().return_call(func_ref, &[new_base_address, next_continuation]);

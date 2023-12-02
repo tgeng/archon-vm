@@ -117,13 +117,15 @@ impl<M: Module> Compiler<M> {
                 (function_definition.args.iter().map(|(_, v_type)| *v_type).collect::<Vec<_>>(), function_definition.c_type),
             );
 
-            let cps_name = FunctionFlavor::Cps.decorate_name(name);
-            let function = self.module.declare_function(&cps_name, Linkage::Local, &self.uniform_cps_func_signature).unwrap();
-            self.local_functions.insert(cps_name, function);
+            if function_definition.may_be_complex {
+                let cps_name = FunctionFlavor::Cps.decorate_name(name);
+                let function = self.module.declare_function(&cps_name, Linkage::Local, &self.uniform_cps_func_signature).unwrap();
+                self.local_functions.insert(cps_name, function);
 
-            let cps_impl_name = FunctionFlavor::CpsImpl.decorate_name(name);
-            let function = self.module.declare_function(&cps_impl_name, Linkage::Local, &self.uniform_cps_impl_func_signature).unwrap();
-            self.local_functions.insert(cps_impl_name, function);
+                let cps_impl_name = FunctionFlavor::CpsImpl.decorate_name(name);
+                let function = self.module.declare_function(&cps_impl_name, Linkage::Local, &self.uniform_cps_impl_func_signature).unwrap();
+                self.local_functions.insert(cps_impl_name, function);
+            }
 
             if function_definition.may_be_simple {
                 // Simple
@@ -150,9 +152,10 @@ impl<M: Module> Compiler<M> {
         }
 
         for (name, function_definition) in defs.iter() {
-            // CPS
-            CpsFunctionTranslator::compile_cps_function(name, self, function_definition, &local_function_arg_types, clir);
-
+            if function_definition.may_be_complex {
+                // CPS
+                CpsFunctionTranslator::compile_cps_function(name, self, function_definition, &local_function_arg_types, clir);
+            }
 
             if function_definition.may_be_simple {
                 // simple

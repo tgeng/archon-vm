@@ -240,9 +240,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                                 }
                                 ))
                             .collect::<Vec<_>>();
-                        let (func_ref, flavor) = self.get_local_function(&name, FunctionFlavor::Specialized);
-                        // The fact that this function is invoked here means it must be simple.
-                        assert_eq!(flavor, FunctionFlavor::Specialized);
+                        let func_ref = self.get_local_function(&name, FunctionFlavor::Specialized);
                         if is_tail && self.is_specialized {
                             self.function_builder.ins().return_call(func_ref, &all_args);
                             return None;
@@ -283,9 +281,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 self.translate_c_term(body, is_tail)
             }
             CTerm::Def { name, .. } => {
-                let (func_ref, flavor) = self.get_local_function(name, FunctionFlavor::Simple);
-                // The fact that this function is invoked here means it must be simple.
-                assert_eq!(flavor, FunctionFlavor::Simple);
+                let func_ref = self.get_local_function(name, FunctionFlavor::Simple);
                 if is_tail && !self.is_specialized {
                     let base_address = self.copy_tail_call_args_and_get_new_base();
                     self.function_builder.ins().return_call(func_ref, &[base_address]);
@@ -489,7 +485,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                     CTerm::Def { name, .. } => (name, empty_args),
                     _ => unreachable!("thunk lifting should have guaranteed this")
                 };
-                let (func_ref, _) = self.get_local_function(name, FunctionFlavor::Cps);
+                let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
                 let func_pointer = self.function_builder.ins().func_addr(I64, func_ref);
                 let func_pointer = Some((func_pointer, Specialized(PrimitivePtr)));
                 if args.is_empty() {
@@ -535,13 +531,10 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         }
     }
 
-    pub fn get_local_function(&mut self, name: &str, flavor: FunctionFlavor) -> (FuncRef, FunctionFlavor) {
+    pub fn get_local_function(&mut self, name: &str, flavor: FunctionFlavor) -> FuncRef {
         let desired_func_name = flavor.decorate_name(name);
-        let (func_id, flavor) = match self.local_functions.get(&desired_func_name) {
-            None => (self.local_functions.get(&FunctionFlavor::Cps.decorate_name(name)).unwrap(), FunctionFlavor::Cps),
-            Some(func_id) => (func_id, flavor),
-        };
-        (self.module.declare_func_in_func(*func_id, self.function_builder.func), flavor)
+        let func_id = self.local_functions.get(&desired_func_name).unwrap();
+        self.module.declare_func_in_func(*func_id, self.function_builder.func)
     }
 
     fn create_struct(&mut self, values: Vec<Value>) -> Value {

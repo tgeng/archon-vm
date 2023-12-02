@@ -78,6 +78,7 @@ Defs
             c_type: Default,
             var_bound: 2,
             may_be_simple: true,
+            may_be_complex: true,
         },
     ),
     (
@@ -113,6 +114,7 @@ Defs
             ),
             var_bound: 1,
             may_be_simple: true,
+            may_be_complex: false,
         },
     ),
 ]
@@ -154,25 +156,6 @@ block0(v0: i64):
     v7 = iadd_imm v0, 8
     store v6, v7
     return v7
-}
-
-
-[main__cps]
-function u0:0(i64, i64) -> i64 tail {
-    ss0 = explicit_slot 8
-    sig0 = (i64) -> i64 tail
-    fn0 = colocated u0:17 sig0
-
-block0(v0: i64, v1: i64):
-    v2 = iconst.i64 1
-    v3 = ishl_imm v2, 1  ; v2 = 1
-    v4 = iconst.i64 2
-    v5 = ishl_imm v4, 1  ; v4 = 2
-    v6 = iadd_imm v0, -8
-    store aligned v5, v6
-    v7 = iadd_imm v6, -8
-    store aligned v3, v7
-    return_call fn0(v7)
 }
 
 
@@ -223,7 +206,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:21 sig1
+    fn1 = colocated u0:19 sig1
 
 block0:
     v0 = call fn0()
