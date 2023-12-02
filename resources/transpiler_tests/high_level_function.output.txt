@@ -441,7 +441,7 @@ Defs
 
 CLIR
 ========
-[add]
+[add__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64, i64) -> i64 tail
@@ -581,7 +581,7 @@ block5(v13: i64):
 }
 
 
-[fold]
+[fold__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 apple_aarch64
@@ -711,7 +711,7 @@ block1(v7: i64):
 }
 
 
-[main]
+[main__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 apple_aarch64

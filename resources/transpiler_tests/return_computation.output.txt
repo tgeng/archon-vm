@@ -165,7 +165,7 @@ Defs
 
 CLIR
 ========
-[f]
+[f__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64, i64) -> i64 tail
@@ -213,7 +213,7 @@ block0(v0: i64, v1: i64, v2: i64):
 }
 
 
-[g]
+[g__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 tail
@@ -243,7 +243,7 @@ block0(v0: i64):
 }
 
 
-[main]
+[main__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 tail

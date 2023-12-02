@@ -361,7 +361,7 @@ pub enum FunctionFlavor {
 impl FunctionFlavor {
     pub fn decorate_name(&self, function_name: &str) -> String {
         match self {
-            FunctionFlavor::Cps => function_name.to_owned(),
+            FunctionFlavor::Cps => format!("{}__cps", function_name),
             FunctionFlavor::CpsImpl => format!("{}__cps_impl", function_name),
             FunctionFlavor::Simple => format!("{}__simple", function_name),
             FunctionFlavor::Specialized => format!("{}__specialized", function_name),
