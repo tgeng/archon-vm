@@ -27,11 +27,11 @@ impl CpsFunctionTranslator {
         function_analyzer.analyze(&function_definition.body, true);
         let num_blocks = function_analyzer.count;
         let case_blocks = function_analyzer.case_blocks;
-        if num_blocks == 1 {
-            SimpleCpsFunctionTranslator::compile_cps_function(name, compiler, function_definition, local_function_arg_types, clir);
-        } else {
+        if function_analyzer.has_non_tail_complex_effects {
             let cps_impl_func_id = ComplexCpsFunctionTranslator::compile_cps_impl_function(name, compiler, function_definition, local_function_arg_types, num_blocks, case_blocks, clir);
             ComplexCpsFunctionTranslator::compile_cps_function(name, compiler, function_definition, local_function_arg_types, cps_impl_func_id, clir);
+        } else {
+            SimpleCpsFunctionTranslator::compile_cps_function(name, compiler, function_definition, local_function_arg_types, clir);
         }
     }
 }

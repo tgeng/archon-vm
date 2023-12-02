@@ -7,8 +7,7 @@ pub struct FunctionAnalyzer {
     /// The key is the block id of the case block, the value is a tuple of (branch block ids,
     /// default block id, joining block id).
     pub(crate) case_blocks: HashMap<usize, (Vec<usize>, usize, usize)>,
-    // TODO: track the number of complex effectful calls and use that to determine if complex
-    //  CPS transformation is needed.
+    pub(crate) has_non_tail_complex_effects: bool,
 }
 
 impl FunctionAnalyzer {
@@ -16,17 +15,24 @@ impl FunctionAnalyzer {
         Self {
             count: 1,
             case_blocks: HashMap::new(),
+            has_non_tail_complex_effects: false,
         }
     }
     pub(crate) fn analyze(&mut self, c_term: &CTerm, is_tail: bool) {
         match c_term {
             CTerm::Redex { function, .. } => self.analyze(function, is_tail),
-            CTerm::Force { may_have_complex_effects: true, .. } if !is_tail => self.count += 1,
+            CTerm::Force { may_have_complex_effects: true, .. } if !is_tail => {
+                self.count += 1;
+                self.has_non_tail_complex_effects = true;
+            }
             CTerm::Let { t, body, .. } => {
                 self.analyze(t, false);
                 self.analyze(body, is_tail);
             }
-            CTerm::Def { may_have_complex_effects: true, .. } if !is_tail => self.count += 1,
+            CTerm::Def { may_have_complex_effects: true, .. } if !is_tail => {
+                self.count += 1;
+                self.has_non_tail_complex_effects = true;
+            }
             CTerm::CaseInt { branches, default_branch, .. } => {
                 let current_block_id = self.count - 1;
                 let mut branch_block_ids = Vec::new();
@@ -45,7 +51,10 @@ impl FunctionAnalyzer {
                 self.count += 1;
                 self.case_blocks.insert(current_block_id, (branch_block_ids, default_block_id, joining_block_id));
             }
-            CTerm::OperationCall { simple: false, .. } if !is_tail => self.count += 1,
+            CTerm::OperationCall { simple: false, .. } if !is_tail => {
+                self.count += 1;
+                self.has_non_tail_complex_effects = true;
+            }
             _ => {}
         }
     }

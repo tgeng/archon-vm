@@ -492,111 +492,71 @@ block0(v0: i64, v1: i64, v2: i64):
 }
 
 
-[fold__cps_impl]
-function u0:0(i64, i64, i64) -> i64 tail {
+[fold__cps]
+function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 apple_aarch64
     sig1 = (i64, i64) -> i64 tail
     sig2 = () -> i64 apple_aarch64
-    sig3 = (i64) -> i64 tail
-    sig4 = (i64, i64, i64) -> i64 apple_aarch64
-    sig5 = (i64, i64, i64) -> i64 tail
+    sig3 = (i64, i64, i64, i64, i64, i64) -> i64 tail
+    sig4 = (i64, i64, i64) -> i64 tail
     fn0 = u0:1 sig0
     fn1 = colocated u0:12 sig2
-    fn2 = colocated u0:21 sig3
-    fn3 = %Memmove sig4
+    fn2 = colocated u0:22 sig3
 
-block0(v0: i64, v1: i64, v2: i64):
-    v3 = load.i64 v1+24
-    v4 = iadd_imm v1, 32
-    v5 = load.i64 v2
-    v6 = iadd_imm v2, 8
-    brif v3, block1, block1
-
-block1:
-    v7 = load.i64 v0+32
-    v8 = load.i64 v0
-    v9 = sshr_imm v7, 1
-    v10 = sshr_imm v8, 1
-    v11 = icmp slt v9, v10
-    v12 = uextend.i32 v11
-    br_table v12, block4, [block3, block2]
-
-block2:
-    v14 = load.i64 v0+8
-    v15 = load.i64 v0+32
-    v16 = iadd_imm v14, -1
-    v17 = sshr_imm v15, 1
-    v18 = ishl_imm v17, 3
-    v19 = iadd v16, v18
-    v20 = load.i64 v19
-    v21 = load.i64 v0+16
-    v22 = iadd_imm.i64 v6, -8
-    store aligned v20, v22
-    v23 = iadd_imm v22, -8
-    store aligned v21, v23
-    v24 = load.i64 v0+24
-    stack_store v23, ss0
-    v25 = stack_addr.i64 ss0
-    v26 = call fn0(v24, v25)
-    v27 = stack_load.i64 ss0
-    v28 = call fn1()
-    v29 = call_indirect sig1, v26(v27, v28)
-    v30 = load.i64 v29
-    v31 = iadd_imm v29, 8
-    v32 = iconst.i64 1
-    v33 = sshr_imm v15, 1
-    v34 = iadd v33, v32  ; v32 = 1
-    v35 = load.i64 v0
-    v36 = ishl_imm v34, 1
-    v37 = iadd_imm v31, -8
-    store aligned v36, v37
-    v38 = iadd_imm v37, -8
-    store aligned v24, v38
-    v39 = iadd_imm v38, -8
-    store aligned v30, v39
-    v40 = iadd_imm v39, -8
-    store aligned v14, v40
-    v41 = iadd_imm v40, -8
-    store aligned v35, v41
-    v42 = iadd_imm v41, 40
-    v43 = isub.i64 v0, v41
-    v44 = call fn3(v42, v41, v43)
-    return_call fn2(v42)
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = load.i64 v0+8
+    v4 = load.i64 v0+16
+    v5 = load.i64 v0+24
+    v6 = load.i64 v0+32
+    v7 = sshr_imm v6, 1
+    v8 = sshr_imm v2, 1
+    v9 = icmp slt v7, v8
+    v11 = uextend.i32 v9
+    br_table v11, block4, [block3, block2]
 
 block3:
-    v45 = load.i64 v0+16
-    v46 = sshr_imm v45, 1
-    jump block5(v46)
+    v12 = sshr_imm.i64 v4, 1
+    jump block1(v12)
+
+block2:
+    v13 = iadd_imm.i64 v3, -1
+    v14 = sshr_imm.i64 v6, 1
+    v15 = ishl_imm v14, 3
+    v16 = iadd v13, v15
+    v17 = load.i64 v16
+    v18 = iadd_imm.i64 v0, -8
+    store aligned v17, v18
+    v19 = iadd_imm v18, -8
+    store.i64 aligned v4, v19
+    stack_store v19, ss0
+    v20 = stack_addr.i64 ss0
+    v21 = call fn0(v5, v20)
+    v22 = stack_load.i64 ss0
+    v23 = call fn1()
+    v24 = call_indirect sig1, v21(v22, v23)
+    v25 = load.i64 v24
+    v26 = iadd_imm v24, 8
+    v27 = iconst.i64 1
+    v28 = sshr_imm.i64 v6, 1
+    v29 = iadd v28, v27  ; v27 = 1
+    v30 = sshr_imm.i64 v2, 1
+    v31 = sshr_imm v25, 1
+    v32 = call fn2(v26, v30, v3, v31, v5, v29)
+    jump block1(v32)
 
 block4:
     trap unreachable
 
-block5(v13: i64):
-    v47 = ishl_imm v13, 1
-    v48 = iadd_imm.i64 v0, 32
-    store v47, v48
-    v49 = load.i64 v1+16
-    v50 = load.i64 v49+8
-    v51 = iadd.i64 v0, v50
-    v52 = load.i64 v49
-    return_call_indirect sig5, v52(v51, v49, v48)
-}
-
-
-[fold__cps]
-function u0:0(i64, i64) -> i64 tail {
-    ss0 = explicit_slot 8
-    sig0 = (i64) -> i64 apple_aarch64
-    sig1 = (i64, i64, i64) -> i64 tail
-    fn0 = u0:0 sig0
-    fn1 = colocated u0:20 sig1
-
-block0(v0: i64, v1: i64):
-    v2 = iconst.i64 64
-    v3 = call fn0(v2)  ; v2 = 64
-    v4 = iadd_imm v0, -8
-    return_call fn1(v0, v3, v4)
+block1(v10: i64):
+    v33 = ishl_imm v10, 1
+    v34 = iadd_imm.i64 v0, 32
+    store v33, v34
+    v35 = load.i64 v1+8
+    v36 = iadd.i64 v0, v35
+    v37 = load.i64 v1
+    return_call_indirect sig4, v37(v36, v1, v34)
 }
 
 
