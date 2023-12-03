@@ -125,7 +125,7 @@ pub trait Visitor {
             transform,
             complex_handlers,
             simple_handlers,
-            box input
+            input
         } = c_term else { unreachable!() };
         self.visit_v_term(parameter);
         self.visit_v_term(parameter_disposer);
@@ -139,7 +139,7 @@ pub trait Visitor {
             self.visit_v_term(eff);
             self.visit_v_term(handler);
         }
-        self.visit_c_term(input);
+        self.visit_v_term(input);
     }
 
     fn visit_long_return(&mut self, c_term: &CTerm) {

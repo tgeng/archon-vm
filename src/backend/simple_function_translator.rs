@@ -386,7 +386,27 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let result = self.function_builder.inst_results(inst)[0];
                 Some((result, Uniform))
             }
-            CTerm::Handler { .. } => todo!(),
+            CTerm::Handler {
+                parameter,
+                parameter_disposer,
+                parameter_replicator,
+                transform,
+                complex_handlers,
+                simple_handlers,
+                input
+            } => {
+                let parameter_typed_value = self.translate_v_term(parameter);
+                let parameter_value = self.convert_to_uniform(parameter_typed_value);
+                let parameter_disposer_typed_value = self.translate_v_term(parameter_disposer);
+                let parameter_disposer_value = self.convert_to_uniform(parameter_disposer_typed_value);
+                let parameter_replicator_typed_value = self.translate_v_term(parameter_replicator);
+                let parameter_replicator_value = self.convert_to_uniform(parameter_replicator_typed_value);
+                let transform_typed_value = self.translate_v_term(transform);
+                let transform_value = self.convert_to_uniform(transform_typed_value);
+                let input_typed_value = self.translate_v_term(input);
+                let input_value = self.convert_to_uniform(input_typed_value);
+                todo!()
+            }
             CTerm::LongJump { .. } => todo!(),
             CTerm::PopHandler => {
                 // It's assumed that this would only appear in an entry block.
@@ -411,12 +431,21 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         // function pointer.
         let thunk_value = self.convert_to_uniform(thunk_value);
 
-        self.function_builder.ins().stack_store(self.tip_address, self.tip_address_slot, 0);
-        let tip_address_ptr = self.function_builder.ins().stack_addr(I64, self.tip_address_slot, 0);
+        let tip_address_ptr = self.store_tip_address_to_stack();
         let inst = self.call_builtin_func(BuiltinFunction::ForceThunk, &[thunk_value, tip_address_ptr]);
         let func_pointer = self.function_builder.inst_results(inst)[0];
-        self.tip_address = self.function_builder.ins().stack_load(I64, self.tip_address_slot, 0);
+        self.load_tip_address_from_stack();
         func_pointer
+    }
+
+    fn load_tip_address_from_stack(&mut self) {
+        self.tip_address = self.function_builder.ins().stack_load(I64, self.tip_address_slot, 0);
+    }
+
+    fn store_tip_address_to_stack(&mut self) -> Value {
+        self.function_builder.ins().stack_store(self.tip_address, self.tip_address_slot, 0);
+        let tip_address_ptr = self.function_builder.ins().stack_addr(I64, self.tip_address_slot, 0);
+        tip_address_ptr
     }
 
     pub fn push_arg_v_terms(&mut self, args: &Vec<VTerm>) {

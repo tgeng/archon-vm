@@ -145,7 +145,7 @@ pub trait Transformer {
             transform,
             complex_handlers,
             simple_handlers,
-            box input
+            input
         } = c_term else { unreachable!() };
         self.transform_v_term(parameter);
         self.transform_v_term(parameter_disposer);
@@ -159,7 +159,7 @@ pub trait Transformer {
             self.transform_v_term(eff);
             self.transform_v_term(handler);
         }
-        self.transform_c_term(input);
+        self.transform_v_term(input);
     }
 
     fn transform_long_return(&mut self, c_term: &mut CTerm) {

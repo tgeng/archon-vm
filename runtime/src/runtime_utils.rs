@@ -195,19 +195,18 @@ fn find_matching_handler(eff: Eff, simple: bool) -> (usize, ThunkPtr, usize) {
 
 
 pub unsafe fn runtime_register_handler_and_get_transform_continuation(
-    caller_tip_address: *mut usize,
-    caller_continuation: &mut Continuation,
+    tip_address_ptr: *mut *mut usize,
+    next_continuation: &mut Continuation,
     parameter: Uniform,
     parameter_disposer: ThunkPtr,
     parameter_replicator: ThunkPtr,
     transform: ThunkPtr,
-    transform_num_args: usize,
     transform_var_bound: usize,
 ) -> *const Continuation {
     let transform_continuation = &mut *(runtime_alloc(4 + transform_var_bound) as *mut Continuation);
-    let mut tip_address = caller_tip_address;
-    transform_continuation.func = runtime_force_thunk(transform, &mut tip_address);
-    transform_continuation.next = caller_continuation;
+    let old_tip_address = *tip_address_ptr;
+    transform_continuation.func = runtime_force_thunk(transform, tip_address_ptr);
+    transform_continuation.next = next_continuation;
     transform_continuation.arg_stack_frame_height = 0;
     transform_continuation.state = 0;
 
@@ -219,10 +218,11 @@ pub unsafe fn runtime_register_handler_and_get_transform_continuation(
     // special constructs `PopHandler`, and `GetLastResult` rather than the argument stack. These
     // special constructs are created during signature optimization, which, in addition, also lifts
     // all the components of a handler.
-    caller_continuation.arg_stack_frame_height += ((tip_address as usize) - (caller_tip_address as usize) / 8);
+    let transform_num_args = ((*tip_address_ptr as usize) - (old_tip_address as usize)) / 8;
+    next_continuation.arg_stack_frame_height += transform_num_args;
 
     HANDLERS.with(|handlers| handlers.borrow_mut().push(HandlerEntry::Handler(Handler {
-        transform_base_address: tip_address,
+        transform_base_address: *tip_address_ptr,
         transform_continuation,
         transform_num_args,
         parameter,

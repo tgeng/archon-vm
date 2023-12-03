@@ -107,7 +107,10 @@ pub enum CTerm {
         complex_handlers: Vec<(VTerm, VTerm)>,
         /// each handler: (effect, thunk of lambda: (parameter index, operation_arg indexes...) -> output)
         simple_handlers: Vec<(VTerm, VTerm)>,
-        input: Box<CTerm>,
+        /// A thunk that returns some value. A thunk is used because this would leverage the thunk
+        /// lifting logic to lift this logic to a top level function, which is necessary to tuck in
+        /// the transform continuation between this input and the parent term of this handler.
+        input: VTerm,
     },
 
     // Internal operations used during optimization and code generation.
