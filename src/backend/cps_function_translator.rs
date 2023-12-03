@@ -530,7 +530,8 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
 
         // Store local vars
         let local_var_ptr = self.local_var_ptr;
-        let touched_vars: Vec<_> = self.touched_vars_in_current_session.iter().copied().collect();
+        let mut touched_vars: Vec<_> = self.touched_vars_in_current_session.iter().copied().collect();
+        touched_vars.sort();
         for index in touched_vars {
             let local_var = self.local_vars[index];
             let value = self.convert_to_uniform(local_var);

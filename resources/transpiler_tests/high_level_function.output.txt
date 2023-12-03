@@ -544,9 +544,9 @@ block2:
     store v28, v1+16
     v29 = iconst.i64 2
     store v29, v1+24  ; v29 = 2
-    store v20, v4+48
     v30 = ishl_imm.i8 v11, 1
     store v30, v4+40
+    store v20, v4+48
     return_call_indirect sig1, v26(v27, v1)
 
 block3:
