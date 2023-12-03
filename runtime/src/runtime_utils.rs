@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use crate::runtime::{Continuation, HandlerEntry, Handler, Uniform, ThunkPtr, Eff, Generic, CapturedContinuation};
+use crate::runtime::{Continuation, HandlerEntry, Handler, Uniform, ThunkPtr, Eff, Generic, CapturedContinuation, RawFuncPtr};
 use crate::types::{UniformPtr, UniformType};
 
 // TODO: use custom allocator that allocates through Boehm GC for vecs
@@ -56,8 +56,8 @@ pub unsafe fn runtime_alloc_stack() -> *mut usize {
 
 /// Returns the result of the operation in uniform representation
 /// TODO: add args
-pub unsafe fn runtime_handle_simple_operation(eff: usize, handler_call_base_address: *const usize) -> usize {
-    let (handler_index, handler_impl, num_args) = find_matching_handler(eff, true);
+pub unsafe fn runtime_handle_simple_operation(eff: usize, handler_call_base_address: *const usize, handler_num_args: usize) -> usize {
+    let (handler_index, handler_impl) = find_matching_handler(eff, true);
     todo!()
 }
 
@@ -76,8 +76,9 @@ pub unsafe fn runtime_prepare_complex_operation(
     eff: usize,
     handler_call_base_address: *const usize,
     tip_continuation: &mut Continuation,
+    handler_num_args: usize,
 ) -> *const usize {
-    let (handler_index, handler_impl, tip_operation_num_args) = find_matching_handler(eff, false);
+    let (handler_index, handler_impl) = find_matching_handler(eff, false);
     let handler_entry_fragment = HANDLERS.with(|handler| handler.borrow_mut().split_off(handler_index));
     let matching_handler = match handler_entry_fragment.first().unwrap() {
         HandlerEntry::Handler(handler) => handler,
@@ -88,33 +89,33 @@ pub unsafe fn runtime_prepare_complex_operation(
     // the handler because the captured continuation won't include them in the stack fragment. Later
     // when the captured continuation is resumed, the tip (tip - 8) of the argument stack will be
     // where the operation result is placed.
-    tip_continuation.arg_stack_frame_height -= tip_operation_num_args;
+    tip_continuation.arg_stack_frame_height -= handler_num_args;
 
     let matching_parameter = matching_handler.parameter;
     // Split the continuation chain at the matching handler.
-    let base_continuation = matching_handler.transform_continuation;
+    let base_continuation = matching_handler.transform_loader_continuation;
     let next_continuation = (*base_continuation).next;
     // Tie up the captured continuation end.
     (*base_continuation).next = std::ptr::null_mut::<Continuation>();
 
     // Update the next continuation to make it ready for calling the handler implementation
     // Plus 2 for handler parameter and reified continuation
-    (*next_continuation).arg_stack_frame_height += tip_operation_num_args + 2 - matching_handler.transform_num_args;
+    (*next_continuation).arg_stack_frame_height += handler_num_args + 2 - matching_handler.transform_loader_num_args;
 
     // Copy the stack fragment.
-    let stack_fragment_end = matching_handler.transform_base_address.add(matching_handler.transform_num_args);
-    let stack_fragment_start = handler_call_base_address.add(tip_operation_num_args);
+    let stack_fragment_end = matching_handler.transform_loader_base_address.add(matching_handler.transform_loader_num_args);
+    let stack_fragment_start = handler_call_base_address.add(handler_num_args);
     let stack_fragment_length = stack_fragment_end.offset_from(stack_fragment_start);
     assert!(stack_fragment_length >= 0);
     let stack_fragment: Vec<Generic> = std::slice::from_raw_parts(stack_fragment_start, stack_fragment_length as usize).to_vec();
 
     // Copy the handler fragment.
-    let base_offset = matching_handler.transform_base_address as usize;
+    let base_offset = matching_handler.transform_loader_base_address as usize;
     let handler_fragment: Vec<Handler<usize>> = handler_entry_fragment.into_iter().map(|handler_entry| {
         match handler_entry {
             HandlerEntry::Handler(handler) => {
                 let mut handler: Handler<usize> = std::mem::transmute(handler);
-                handler.transform_base_address -= base_offset;
+                handler.transform_loader_base_address -= base_offset;
                 handler
             }
             _ => panic!("Expect a handler entry")
@@ -140,7 +141,7 @@ pub unsafe fn runtime_prepare_complex_operation(
     new_tip_address = captured_continuation_ptr;
 
     // Then set up explicit handler arguments.
-    for i in (0..tip_operation_num_args).rev() {
+    for i in (0..handler_num_args).rev() {
         new_tip_address = new_tip_address.sub(1);
         new_tip_address.write(handler_call_base_address.add(i).read());
     }
@@ -170,20 +171,20 @@ pub unsafe fn runtime_pop_handler() -> Uniform {
     })
 }
 
-fn find_matching_handler(eff: Eff, simple: bool) -> (usize, ThunkPtr, usize) {
+fn find_matching_handler(eff: Eff, simple: bool) -> (usize, ThunkPtr) {
     HANDLERS.with(|handler| {
         for (i, e) in handler.borrow().iter().rev().enumerate() {
             if let HandlerEntry::Handler(handler) = e {
                 if simple {
-                    for (e, handler_impl, num_args) in &handler.simple_handler {
+                    for (e, handler_impl) in &handler.simple_handler {
                         if unsafe { compare_uniform(eff, *e) } {
-                            return (i, *handler_impl, *num_args);
+                            return (i, *handler_impl);
                         }
                     }
                 } else {
-                    for (e, handler_impl, num_args) in &handler.complex_handler {
+                    for (e, handler_impl) in &handler.complex_handler {
                         if unsafe { compare_uniform(eff, *e) } {
-                            return (i, *handler_impl, *num_args);
+                            return (i, *handler_impl);
                         }
                     }
                 }
@@ -201,57 +202,57 @@ pub unsafe fn runtime_register_handler_and_get_transform_continuation(
     parameter_disposer: ThunkPtr,
     parameter_replicator: ThunkPtr,
     transform: ThunkPtr,
-    transform_var_bound: usize,
-) -> *const Continuation {
-    let transform_continuation = &mut *(runtime_alloc(4 + transform_var_bound) as *mut Continuation);
-    let old_tip_address = *tip_address_ptr;
-    transform_continuation.func = runtime_force_thunk(transform, tip_address_ptr);
-    transform_continuation.next = next_continuation;
-    transform_continuation.arg_stack_frame_height = 0;
-    transform_continuation.state = 0;
+    transform_loader_cps_impl: RawFuncPtr,
+) -> *const Handler<*const usize> {
+    let transform_loader_continuation = &mut *(runtime_alloc(4) as *mut Continuation);
+    transform_loader_continuation.func = transform_loader_cps_impl;
+    transform_loader_continuation.next = next_continuation;
+    // The transform loader invokes the actual transform function by passing two arguments to it:
+    // - the handler parameter
+    // - the result of handler input
+    transform_loader_continuation.arg_stack_frame_height = 2;
+    transform_loader_continuation.state = 0;
 
-    // This is needed because by joining transform continuation with the caller continuation, we
-    // are essentially making the caller function call the transform function with the needed
-    // arguments. Hence the arg stack frame height of the caller continuation should be increased
-    // by the number of arguments needed by the transform function.
-    // Note that the parameter and result arguments of the transform function are obtained via
-    // special constructs `PopHandler`, and `GetLastResult` rather than the argument stack. These
-    // special constructs are created during signature optimization, which, in addition, also lifts
-    // all the components of a handler.
-    let transform_num_args = ((*tip_address_ptr as usize) - (old_tip_address as usize)) / 8;
-    next_continuation.arg_stack_frame_height += transform_num_args;
+    // This is needed because by joining transform loader continuation with the caller continuation,
+    // we are essentially making the caller function call the transform loader function with the
+    // needed arguments. Hence the arg stack frame height of the caller continuation should be
+    // increased by the number of arguments needed by the transform loader function.
+    // There is only one argument to the transform loader function, which is the thunk to the actual
+    // transform function.
+    let transform_loader_num_args = 1;
+    next_continuation.arg_stack_frame_height += transform_loader_num_args;
 
-    HANDLERS.with(|handlers| handlers.borrow_mut().push(HandlerEntry::Handler(Handler {
-        transform_base_address: *tip_address_ptr,
-        transform_continuation,
-        transform_num_args,
-        parameter,
-        parameter_disposer,
-        parameter_replicator,
-        // TODO: use custom allocator that allocates through Boehm GC for vecs
-        simple_handler: Vec::new(),
-        complex_handler: Vec::new(),
-    })));
-    transform_continuation
-}
+    // write the transform thunk to the stack
+    let new_tip_address = tip_address_ptr.read().add(1);
+    new_tip_address.add(1).write(transform as usize);
+    tip_address_ptr.write(new_tip_address);
 
-pub unsafe fn runtime_get_current_handler() -> *mut Handler<*const usize> {
     HANDLERS.with(|handlers| {
-        let mut handlers = handlers.borrow_mut();
-        let handler = handlers.last_mut().unwrap();
-        match handler {
-            HandlerEntry::Handler(handler) => handler as *mut Handler<*const usize>,
+        handlers.borrow_mut().push(HandlerEntry::Handler(Handler {
+            transform_loader_base_address: *tip_address_ptr,
+            transform_loader_continuation,
+            transform_loader_num_args,
+            parameter,
+            parameter_disposer,
+            parameter_replicator,
+            // TODO: use custom allocator that allocates through Boehm GC for vecs
+            simple_handler: Vec::new(),
+            complex_handler: Vec::new(),
+        }));
+        match handlers.borrow().last().unwrap()
+        {
+            HandlerEntry::Handler(handler) => handler as *const Handler<*const usize>,
             _ => panic!("Expect a handler entry")
         }
     })
 }
 
-pub fn runtime_add_simple_handler(handler: &mut Handler<*const usize>, eff: Eff, handler_impl: ThunkPtr, num_args: usize) {
-    handler.simple_handler.push((eff, handler_impl, num_args))
+pub fn runtime_add_simple_handler(handler: &mut Handler<*const usize>, eff: Eff, handler_impl: ThunkPtr) {
+    handler.simple_handler.push((eff, handler_impl))
 }
 
-pub fn runtime_add_complex_handler(handler: &mut Handler<*const usize>, eff: Eff, handler_impl: ThunkPtr, num_args: usize) {
-    handler.complex_handler.push((eff, handler_impl, num_args))
+pub fn runtime_add_complex_handler(handler: &mut Handler<*const usize>, eff: Eff, handler_impl: ThunkPtr) {
+    handler.complex_handler.push((eff, handler_impl))
 }
 
 /// Returns a pointer pointing to the following:
@@ -271,9 +272,9 @@ pub unsafe fn runtime_prepare_resume_continuation(
     // Chain the base of the captured continuation to the next continuation, where we need to add
     // all the arguments for the handler transform function to the argument stack. Hence we need to
     // update the stack frame height of the next continuation.
-    next_continuation.arg_stack_frame_height += base_handler.transform_num_args;
+    next_continuation.arg_stack_frame_height += base_handler.transform_loader_num_args;
 
-    let transform_base_address = base_address.add(base_handler.transform_num_args);
+    let transform_base_address = base_address.add(base_handler.transform_loader_num_args);
     for arg in captured_continuation.stack_fragment.iter().rev() {
         base_address = base_address.sub(1);
         base_address.write(*arg);
@@ -284,9 +285,9 @@ pub unsafe fn runtime_prepare_resume_continuation(
         let mut handlers = handlers.borrow_mut();
         for handler in captured_continuation.handler_fragment.into_iter() {
             handlers.push(HandlerEntry::Handler(Handler {
-                transform_base_address: transform_base_address.add(handler.transform_base_address),
-                transform_continuation: handler.transform_continuation,
-                transform_num_args: handler.transform_num_args,
+                transform_loader_base_address: transform_base_address.add(handler.transform_loader_base_address),
+                transform_loader_continuation: handler.transform_loader_continuation,
+                transform_loader_num_args: handler.transform_loader_num_args,
                 parameter: handler.parameter,
                 parameter_disposer: handler.parameter_disposer,
                 parameter_replicator: handler.parameter_replicator,

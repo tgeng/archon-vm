@@ -420,19 +420,19 @@ function u0:0(i64) -> i64 tail {
     sig0 = (i64, i64) -> i64 tail
     sig1 = (i64) -> i64 apple_aarch64
     sig2 = (i64, i64) -> i64 tail
-    sig3 = (i64, i64) -> i64 apple_aarch64
-    sig4 = (i64, i64) -> i64 tail
-    sig5 = () -> i64 apple_aarch64
-    sig6 = (i64, i64) -> i64 apple_aarch64
-    sig7 = (i64, i64) -> i64 tail
-    sig8 = () -> i64 apple_aarch64
+    sig3 = () -> i64 apple_aarch64
+    sig4 = (i64, i64) -> i64 apple_aarch64
+    sig5 = (i64, i64) -> i64 tail
+    sig6 = () -> i64 apple_aarch64
+    sig7 = (i64, i64) -> i64 apple_aarch64
+    sig8 = (i64, i64) -> i64 tail
     fn0 = colocated u0:15 sig0
     fn1 = u0:0 sig1
     fn2 = colocated u0:21 sig2
-    fn3 = u0:1 sig3
-    fn4 = colocated u0:12 sig5
-    fn5 = u0:1 sig6
-    fn6 = colocated u0:12 sig8
+    fn3 = colocated u0:11 sig3
+    fn4 = u0:1 sig4
+    fn5 = colocated u0:11 sig6
+    fn6 = u0:1 sig7
 
 block0(v0: i64):
     v1 = iconst.i64 0
@@ -453,22 +453,22 @@ block0(v0: i64):
     store aligned v9, v12+24
     store aligned v10, v12+32
     v13 = func_addr.i64 fn2
-    v14 = iadd_imm v12, 1
+    v14 = call fn3()
+    v15 = iadd_imm v12, 1
     stack_store v0, ss0
-    v15 = stack_addr.i64 ss0
-    v16 = call fn3(v14, v15)
-    v17 = stack_load.i64 ss0
-    v18 = call fn4()
-    v19 = call_indirect sig4, v16(v17, v18)
+    v16 = stack_addr.i64 ss0
+    v17 = call fn4(v15, v16)
+    v18 = stack_load.i64 ss0
+    v19 = call_indirect sig5, v17(v18, v14)
     v20 = load.i64 v19
     v21 = iadd_imm v19, 8
-    v22 = iadd_imm v13, 3
+    v22 = call fn5()
+    v23 = iadd_imm v13, 3
     stack_store v21, ss0
-    v23 = stack_addr.i64 ss0
-    v24 = call fn5(v22, v23)
-    v25 = stack_load.i64 ss0
-    v26 = call fn6()
-    v27 = call_indirect sig7, v24(v25, v26)
+    v24 = stack_addr.i64 ss0
+    v25 = call fn6(v23, v24)
+    v26 = stack_load.i64 ss0
+    v27 = call_indirect sig8, v25(v26, v22)
     v28 = load.i64 v27
     v29 = iadd_imm v27, 8
     v30 = sshr_imm v20, 1
@@ -487,19 +487,19 @@ function u0:0(i64) -> i64 tail {
     sig0 = (i64, i64) -> i64 tail
     sig1 = (i64) -> i64 apple_aarch64
     sig2 = (i64, i64) -> i64 tail
-    sig3 = (i64, i64) -> i64 apple_aarch64
-    sig4 = (i64, i64) -> i64 tail
-    sig5 = () -> i64 apple_aarch64
-    sig6 = (i64, i64) -> i64 apple_aarch64
-    sig7 = (i64, i64) -> i64 tail
-    sig8 = () -> i64 apple_aarch64
+    sig3 = () -> i64 apple_aarch64
+    sig4 = (i64, i64) -> i64 apple_aarch64
+    sig5 = (i64, i64) -> i64 tail
+    sig6 = () -> i64 apple_aarch64
+    sig7 = (i64, i64) -> i64 apple_aarch64
+    sig8 = (i64, i64) -> i64 tail
     fn0 = colocated u0:15 sig0
     fn1 = u0:0 sig1
     fn2 = colocated u0:21 sig2
-    fn3 = u0:1 sig3
-    fn4 = colocated u0:12 sig5
-    fn5 = u0:1 sig6
-    fn6 = colocated u0:12 sig8
+    fn3 = colocated u0:11 sig3
+    fn4 = u0:1 sig4
+    fn5 = colocated u0:11 sig6
+    fn6 = u0:1 sig7
 
 block0(v0: i64):
     v1 = iconst.i64 0
@@ -520,22 +520,22 @@ block0(v0: i64):
     store aligned v9, v12+24
     store aligned v10, v12+32
     v13 = func_addr.i64 fn2
-    v14 = iadd_imm v12, 1
+    v14 = call fn3()
+    v15 = iadd_imm v12, 1
     stack_store v0, ss0
-    v15 = stack_addr.i64 ss0
-    v16 = call fn3(v14, v15)
-    v17 = stack_load.i64 ss0
-    v18 = call fn4()
-    v19 = call_indirect sig4, v16(v17, v18)
+    v16 = stack_addr.i64 ss0
+    v17 = call fn4(v15, v16)
+    v18 = stack_load.i64 ss0
+    v19 = call_indirect sig5, v17(v18, v14)
     v20 = load.i64 v19
     v21 = iadd_imm v19, 8
-    v22 = iadd_imm v13, 3
+    v22 = call fn5()
+    v23 = iadd_imm v13, 3
     stack_store v21, ss0
-    v23 = stack_addr.i64 ss0
-    v24 = call fn5(v22, v23)
-    v25 = stack_load.i64 ss0
-    v26 = call fn6()
-    v27 = call_indirect sig7, v24(v25, v26)
+    v24 = stack_addr.i64 ss0
+    v25 = call fn6(v23, v24)
+    v26 = stack_load.i64 ss0
+    v27 = call_indirect sig8, v25(v26, v22)
     v28 = load.i64 v27
     v29 = iadd_imm v27, 8
     v30 = sshr_imm v20, 1

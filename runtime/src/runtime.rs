@@ -2,11 +2,15 @@
 pub type Generic = usize;
 /// Data in uniform representation. This is a tagged primitive or pointer.
 pub type Uniform = usize;
+/// A pointer to a thunk. The pointer itself must be in uniform representation in order to tell it
+/// apart from a raw function pointer.
 pub type ThunkPtr = *const usize;
+/// A raw function pointer without any uniform representation tags.
+pub type RawFuncPtr = *const usize;
 /// A pointer to a continuation implementation, which takes a corrresponding continuation and a
 /// result value and calls the next continuation in the end.
 pub type ContImplPtr = *const usize;
-/// A pointer to a struct consisting of the effect struct
+/// A value in uniform representation.
 pub type Eff = usize;
 
 
@@ -23,15 +27,16 @@ pub struct Continuation {
 }
 
 // TODO: use custom allocator that allocates through Boehm GC for vecs
+#[repr(C, align(8))]
 pub struct Handler<T> {
-    pub transform_base_address: T,
-    pub transform_continuation: *mut Continuation,
-    pub transform_num_args: usize,
+    pub transform_loader_continuation: *mut Continuation,
+    pub transform_loader_base_address: T,
+    pub transform_loader_num_args: usize,
     pub parameter: Uniform,
     pub parameter_disposer: ThunkPtr,
     pub parameter_replicator: ThunkPtr,
-    pub simple_handler: Vec<(Eff, ThunkPtr, usize)>,
-    pub complex_handler: Vec<(Eff, ThunkPtr, usize)>,
+    pub simple_handler: Vec<(Eff, ThunkPtr)>,
+    pub complex_handler: Vec<(Eff, ThunkPtr)>,
 }
 
 pub enum HandlerEntry {

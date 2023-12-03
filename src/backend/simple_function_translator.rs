@@ -7,9 +7,10 @@ use cranelift::prelude::types::{F32, I32, I64};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
 use crate::ast::term::{CTerm, VTerm, VType, SpecializedType, PType, CType};
 use enum_map::{EnumMap};
+use cbpv_runtime::runtime_utils::runtime_force_thunk;
 use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
-use crate::backend::common::{BuiltinFunction, FunctionFlavor, HasType, TypedReturnValue};
+use crate::backend::common::{BuiltinFunction, FunctionFlavor, HasType, TypedReturnValue, TypedValue};
 use crate::ast::primitive_functions::PRIMITIVE_FUNCTIONS;
 use crate::ast::signature::FunctionDefinition;
 use crate::backend::compiler::Compiler;
@@ -255,25 +256,9 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             }
             CTerm::Return { value } => self.translate_v_term(value),
             CTerm::Force { thunk, .. } => {
-                let func_pointer = self.process_thunk(thunk);
-
-                let sig_ref = self.function_builder.import_signature(self.uniform_cps_func_signature.clone());
                 let inst = self.call_builtin_func(BuiltinFunction::GetTrivialContinuation, &[]);
                 let trivial_continuation = self.function_builder.inst_results(inst)[0];
-                if is_tail && !self.is_specialized {
-                    let base_address = self.copy_tail_call_args_and_get_new_base();
-                    self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
-                        base_address,
-                        trivial_continuation,
-                    ]);
-                    None
-                } else {
-                    let inst = self.function_builder.ins().call_indirect(sig_ref, func_pointer, &[
-                        self.tip_address,
-                        trivial_continuation,
-                    ]);
-                    self.extract_return_value(inst)
-                }
+                self.invoke_thunk(is_tail, thunk, trivial_continuation)
             }
             CTerm::Let { box t, bound_index, box body } => {
                 let t_value = self.translate_c_term(t, false);
@@ -386,41 +371,94 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let result = self.function_builder.inst_results(inst)[0];
                 Some((result, Uniform))
             }
-            CTerm::Handler {
-                parameter,
-                parameter_disposer,
-                parameter_replicator,
-                transform,
-                complex_handlers,
-                simple_handlers,
-                input
-            } => {
-                let parameter_typed_value = self.translate_v_term(parameter);
-                let parameter_value = self.convert_to_uniform(parameter_typed_value);
-                let parameter_disposer_typed_value = self.translate_v_term(parameter_disposer);
-                let parameter_disposer_value = self.convert_to_uniform(parameter_disposer_typed_value);
-                let parameter_replicator_typed_value = self.translate_v_term(parameter_replicator);
-                let parameter_replicator_value = self.convert_to_uniform(parameter_replicator_typed_value);
-                let transform_typed_value = self.translate_v_term(transform);
-                let transform_value = self.convert_to_uniform(transform_typed_value);
-                let input_typed_value = self.translate_v_term(input);
-                let input_value = self.convert_to_uniform(input_typed_value);
-                todo!()
+            CTerm::Handler { .. } => {
+                let inst = self.call_builtin_func(BuiltinFunction::GetTrivialContinuation, &[]);
+                let next_continuation = self.function_builder.inst_results(inst)[0];
+
+                self.translate_handler(c_term, is_tail, next_continuation)
             }
             CTerm::LongJump { .. } => todo!(),
-            CTerm::PopHandler => {
-                // It's assumed that this would only appear in an entry block.
-                let inst = self.call_builtin_func(BuiltinFunction::PopHandler, &[self.tip_address]);
-                let result = self.function_builder.inst_results(inst)[0];
-                Some((result, Uniform))
-            }
-            CTerm::GetLastResult => {
-                // It's assumed that this would only appear in an entry block.
-                let entry_block = self.function_builder.current_block().unwrap();
-                let last_result_ptr = self.function_builder.block_params(entry_block)[2];
-                let last_result = self.function_builder.ins().load(I64, MemFlags::new(), last_result_ptr, 0);
-                Some((last_result, Uniform))
-            }
+        }
+    }
+
+    pub fn translate_handler(&mut self, handler_c_term: &CTerm, is_tail: bool, next_continuation: Value) -> TypedReturnValue {
+        let CTerm::Handler {
+            parameter,
+            parameter_disposer,
+            parameter_replicator,
+            transform,
+            complex_handlers,
+            simple_handlers,
+            input
+        } = handler_c_term else { unreachable!() };
+        let parameter_typed_value = self.translate_v_term(parameter);
+        let parameter_value = self.convert_to_uniform(parameter_typed_value);
+        let parameter_disposer_typed_value = self.translate_v_term(parameter_disposer);
+        let parameter_disposer_value = self.convert_to_uniform(parameter_disposer_typed_value);
+        let parameter_replicator_typed_value = self.translate_v_term(parameter_replicator);
+        let parameter_replicator_value = self.convert_to_uniform(parameter_replicator_typed_value);
+        let transform_typed_value = self.translate_v_term(transform);
+        let transform_value = self.convert_to_uniform(transform_typed_value);
+        let transform_loader_cps_impl_func_ref = self.module.declare_func_in_func(
+            self.builtin_functions[BuiltinFunction::TransformLoaderCpsImpl],
+            self.function_builder.func,
+        );
+        let transform_loader_cps_impl_func_ptr = self.function_builder.ins().func_addr(I64, transform_loader_cps_impl_func_ref);
+        let tip_address_ptr = self.store_tip_address_to_stack();
+        let inst = self.call_builtin_func(BuiltinFunction::RegisterHandlerAndGetTransformContinuation, &[
+            tip_address_ptr,
+            next_continuation,
+            parameter_value,
+            parameter_disposer_value,
+            parameter_replicator_value,
+            transform_value,
+            transform_loader_cps_impl_func_ptr,
+        ]);
+        let handler = self.function_builder.inst_results(inst)[0];
+        self.load_tip_address_from_stack();
+
+        // set up handlers
+        let add_simple_handler_func_ref = self.module.declare_func_in_func(
+            self.builtin_functions[BuiltinFunction::AddSimpleHandler],
+            self.function_builder.func);
+        self.add_handlers(add_simple_handler_func_ref, simple_handlers);
+        let add_complex_handler_func_ref = self.module.declare_func_in_func(
+            self.builtin_functions[BuiltinFunction::AddComplexHandler],
+            self.function_builder.func);
+        self.add_handlers(add_complex_handler_func_ref, complex_handlers);
+
+        // The transform loader continuation is the first value inside the handler struct.
+        let transform_loader_continuation = self.function_builder.ins().load(I64, MemFlags::new(), handler, 0);
+        self.invoke_thunk(is_tail, input, transform_loader_continuation)
+    }
+
+    fn add_handlers(&mut self, add_handler_func_ref: FuncRef, handlers: &Vec<(VTerm, VTerm)>) {
+        for (eff, handler) in handlers {
+            let eff_value = self.translate_v_term(eff);
+            let eff_value = self.convert_to_uniform(eff_value);
+            let handler_value = self.translate_v_term(handler);
+            let handler_value = self.convert_to_uniform(handler_value);
+            self.function_builder.ins().call(add_handler_func_ref, &[eff_value, handler_value]);
+        }
+    }
+
+    fn invoke_thunk(&mut self, is_tail: bool, thunk: &VTerm, next_continuation: Value) -> Option<TypedValue> {
+        let func_pointer = self.process_thunk(thunk);
+
+        let sig_ref = self.function_builder.import_signature(self.uniform_cps_func_signature.clone());
+        if is_tail && !self.is_specialized {
+            let base_address = self.copy_tail_call_args_and_get_new_base();
+            self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
+                base_address,
+                next_continuation,
+            ]);
+            None
+        } else {
+            let inst = self.function_builder.ins().call_indirect(sig_ref, func_pointer, &[
+                self.tip_address,
+                next_continuation,
+            ]);
+            self.extract_return_value(inst)
         }
     }
 
@@ -681,8 +719,9 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         });
     }
 
-    pub fn handle_complex_operation_call(&mut self, eff_value: Value, new_base_address: Value, continuation: Value) {
-        let inst = self.call_builtin_func(BuiltinFunction::PrepareComplexOperation, &[eff_value, new_base_address, continuation]);
+    pub fn handle_complex_operation_call(&mut self, eff_value: Value, new_base_address: Value, continuation: Value, num_args: usize) {
+        let num_args_value = self.function_builder.ins().iconst(I64, num_args as i64);
+        let inst = self.call_builtin_func(BuiltinFunction::PrepareComplexOperation, &[eff_value, new_base_address, continuation, num_args_value]);
         let result_ptr = self.function_builder.inst_results(inst)[0];
         let handler_impl = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 0);
         let handler_base_address = self.function_builder.ins().iadd_imm(result_ptr, 8);

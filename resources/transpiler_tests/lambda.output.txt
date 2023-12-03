@@ -144,13 +144,13 @@ function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 tail
     sig1 = (i64) -> i64 apple_aarch64
-    sig2 = (i64, i64) -> i64 apple_aarch64
-    sig3 = (i64, i64) -> i64 tail
-    sig4 = () -> i64 apple_aarch64
+    sig2 = () -> i64 apple_aarch64
+    sig3 = (i64, i64) -> i64 apple_aarch64
+    sig4 = (i64, i64) -> i64 tail
     fn0 = colocated u0:17 sig0
     fn1 = u0:0 sig1
-    fn2 = u0:1 sig2
-    fn3 = colocated u0:12 sig4
+    fn2 = colocated u0:11 sig2
+    fn3 = u0:1 sig3
 
 block0(v0: i64):
     v1 = iconst.i64 1
@@ -167,13 +167,13 @@ block0(v0: i64):
     v9 = ishl_imm v8, 1  ; v8 = 2
     v10 = iadd_imm v0, -8
     store aligned v9, v10
-    v11 = iadd_imm v7, 1
+    v11 = call fn2()
+    v12 = iadd_imm v7, 1
     stack_store v10, ss0
-    v12 = stack_addr.i64 ss0
-    v13 = call fn2(v11, v12)
-    v14 = stack_load.i64 ss0
-    v15 = call fn3()
-    return_call_indirect sig3, v13(v14, v15)
+    v13 = stack_addr.i64 ss0
+    v14 = call fn3(v12, v13)
+    v15 = stack_load.i64 ss0
+    return_call_indirect sig4, v14(v15, v11)
 }
 
 
@@ -182,13 +182,13 @@ function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 tail
     sig1 = (i64) -> i64 apple_aarch64
-    sig2 = (i64, i64) -> i64 apple_aarch64
-    sig3 = (i64, i64) -> i64 tail
-    sig4 = () -> i64 apple_aarch64
+    sig2 = () -> i64 apple_aarch64
+    sig3 = (i64, i64) -> i64 apple_aarch64
+    sig4 = (i64, i64) -> i64 tail
     fn0 = colocated u0:17 sig0
     fn1 = u0:0 sig1
-    fn2 = u0:1 sig2
-    fn3 = colocated u0:12 sig4
+    fn2 = colocated u0:11 sig2
+    fn3 = u0:1 sig3
 
 block0(v0: i64):
     v1 = iconst.i64 1
@@ -205,13 +205,13 @@ block0(v0: i64):
     v9 = ishl_imm v8, 1  ; v8 = 2
     v10 = iadd_imm v0, -8
     store aligned v9, v10
-    v11 = iadd_imm v7, 1
+    v11 = call fn2()
+    v12 = iadd_imm v7, 1
     stack_store v10, ss0
-    v12 = stack_addr.i64 ss0
-    v13 = call fn2(v11, v12)
-    v14 = stack_load.i64 ss0
-    v15 = call fn3()
-    v16 = call_indirect sig3, v13(v14, v15)
+    v13 = stack_addr.i64 ss0
+    v14 = call fn3(v12, v13)
+    v15 = stack_load.i64 ss0
+    v16 = call_indirect sig4, v14(v15, v11)
     v17 = load.i64 v16
     v18 = iadd_imm v16, 8
     v19 = sshr_imm v17, 1

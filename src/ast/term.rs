@@ -120,15 +120,4 @@ pub enum CTerm {
     /// used to implement simple exceptional effects, where a normal return means good call result
     /// and a long return means exceptional call result.
     LongJump { value: VTerm },
-
-    /// Special operation created during handler component lifting. This is only used inside helper
-    /// function created for handler transform component. This operation returns the handler
-    /// parameter.
-    PopHandler,
-
-    /// Special operation that gets the last result of the current continuation. This is only used
-    /// inside helper function created for handler transform component. The purpose is that with
-    /// this operation, the transform implementation can retrieve the input value in the very first
-    /// basic block.
-    GetLastResult,
 }

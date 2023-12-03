@@ -48,7 +48,6 @@ impl Signature {
         self.reduce_redundancy();
         self.specialize_calls();
         self.rename_local_vars();
-        self.process_handler();
         self.reduce_immediate_redexes();
         self.lift_lambdas();
         self.rename_local_vars();
@@ -78,14 +77,6 @@ impl Signature {
             specializer.transform_c_term(body);
         });
         self.insert_new_defs(new_defs);
-    }
-
-    /// Assume all local variables are distinct. Also this transformation preserves this property.
-    fn process_handler(&mut self) {
-        self.defs.iter_mut().for_each(|(_, FunctionDefinition { body, var_bound, .. })| {
-            let mut processor = HandlerProcessor { next_new_var_index: *var_bound + 1 };
-            processor.transform_c_term(body);
-        });
     }
 
     /// Assume all local variables are distinct. Also this transformation preserves this property.
@@ -347,38 +338,6 @@ impl<'a> Transformer for LambdaLifter<'a> {
     }
 }
 
-struct HandlerProcessor {
-    next_new_var_index: usize,
-}
-
-impl Transformer for HandlerProcessor {
-    fn transform_handler(&mut self, c_term: &mut CTerm) {
-        self.transform_handler_default(c_term);
-        let CTerm::Handler { transform, .. } = c_term else { unreachable!() };
-        let param_index = self.next_new_var_index;
-        self.next_new_var_index += 1;
-        let result_index = self.next_new_var_index;
-        self.next_new_var_index += 1;
-        let mut placeholder = VTerm::Int { value: 0 };
-        std::mem::swap(transform, &mut placeholder);
-        let replacement = VTerm::Thunk {
-            t: Box::new(CTerm::Let {
-                t: Box::new(CTerm::PopHandler),
-                bound_index: param_index,
-                body: Box::new(CTerm::Let {
-                    t: Box::new(CTerm::GetLastResult),
-                    bound_index: result_index,
-                    body: Box::new(CTerm::Redex {
-                        function: Box::new(CTerm::Force { thunk: placeholder, may_have_complex_effects: true }),
-                        args: vec![VTerm::Var { index: param_index }, VTerm::Var { index: result_index }],
-                    }),
-                }),
-            })
-        };
-        *transform = replacement;
-    }
-}
-
 struct RedexReducer {}
 
 impl Transformer for RedexReducer {
@@ -401,7 +360,8 @@ impl Transformer for RedexReducer {
         self.transform_force_default(c_term);
         let CTerm::Force { thunk, .. } = c_term else { unreachable!() };
         let VTerm::Thunk { box t } = thunk else { return; };
-        let mut placeholder = CTerm::PopHandler;
+        // The content of placeholder does not matter here
+        let mut placeholder = CTerm::Return { value: VTerm::Var { index: 0 } };
         std::mem::swap(t, &mut placeholder);
         *c_term = placeholder;
         // Call the reducer again to reduce the new redex. This is terminating because any loops

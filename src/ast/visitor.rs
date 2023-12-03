@@ -44,8 +44,6 @@ pub trait Visitor {
             CTerm::OperationCall { .. } => self.visit_operation_call(c_term),
             CTerm::Handler { .. } => self.visit_handler(c_term),
             CTerm::LongJump { .. } => self.visit_long_return(c_term),
-            CTerm::PopHandler => {}
-            CTerm::GetLastResult => {}
         }
     }
 

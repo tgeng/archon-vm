@@ -44,8 +44,6 @@ pub trait Transformer {
             CTerm::OperationCall { .. } => self.transform_operation_call(c_term),
             CTerm::Handler { .. } => self.transform_handler(c_term),
             CTerm::LongJump { .. } => self.transform_long_return(c_term),
-            CTerm::PopHandler => {}
-            CTerm::GetLastResult => {}
         }
     }
 
