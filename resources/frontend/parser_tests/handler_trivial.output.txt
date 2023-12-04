@@ -107,15 +107,18 @@ Handler {
             },
         ),
     ],
-    input: OperationCall {
-        eff: Str {
-            value: "foo",
-        },
-        args: [
-            Int {
-                value: 1,
+    input: Thunk {
+        computation: OperationCall {
+            eff: Str {
+                value: "foo",
             },
-        ],
-        complex: true,
+            args: [
+                Int {
+                    value: 1,
+                },
+            ],
+            complex: true,
+        },
+        may_have_complex_effects: true,
     },
 }

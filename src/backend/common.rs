@@ -1,7 +1,7 @@
 use cranelift::codegen::Context;
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
-use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_handle_simple_operation, runtime_prepare_complex_operation, runtime_pop_handler, runtime_register_handler_and_get_transform_continuation, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation};
+use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_handle_simple_operation, runtime_prepare_complex_operation, runtime_pop_handler, runtime_register_handler, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder};
@@ -99,7 +99,7 @@ impl BuiltinFunction {
             BuiltinFunction::HandleSimpleOperation => runtime_handle_simple_operation as *const u8,
             BuiltinFunction::PrepareComplexOperation => runtime_prepare_complex_operation as *const u8,
             BuiltinFunction::PopHandler => runtime_pop_handler as *const u8,
-            BuiltinFunction::RegisterHandlerAndGetTransformContinuation => runtime_register_handler_and_get_transform_continuation as *const u8,
+            BuiltinFunction::RegisterHandlerAndGetTransformContinuation => runtime_register_handler as *const u8,
             BuiltinFunction::AddSimpleHandler => runtime_add_simple_handler as *const u8,
             BuiltinFunction::AddComplexHandler => runtime_add_complex_handler as *const u8,
             BuiltinFunction::PrepareResumeContinuation => runtime_prepare_resume_continuation as *const u8,

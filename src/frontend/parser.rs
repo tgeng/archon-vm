@@ -756,12 +756,12 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
     context("handler_term", map(
         pair(
             scoped(tuple((
-                preceded(token("handler"), cut(opt(atom))),
+                preceded(token("handler"), pair(opt(token("!")), cut(opt(atom)))),
                 many0(preceded(newline, cut(handler_component))),
             ))),
             preceded(newline, f_term),
         ),
-        |((parameter, handler_components), input)| {
+        |(((effectful, parameter, ), handler_components), input)| {
             let mut handler = FTerm::Handler {
                 parameter: Box::new(parameter.unwrap_or(FTerm::Struct { values: vec![] })),
                 parameter_disposer: Box::new(FTerm::Lambda {
@@ -791,7 +791,7 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
                 }),
                 simple_handlers: vec![],
                 complex_handlers: vec![],
-                input: Box::new(input),
+                input: Box::new(FTerm::Thunk { computation: Box::new(input), may_have_complex_effects: effectful.is_some() }),
             };
             for handler_component in handler_components.into_iter() {
                 let FTerm::Handler {

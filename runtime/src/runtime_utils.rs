@@ -195,7 +195,7 @@ fn find_matching_handler(eff: Eff, simple: bool) -> (usize, ThunkPtr) {
 }
 
 
-pub unsafe fn runtime_register_handler_and_get_transform_continuation(
+pub unsafe fn runtime_register_handler(
     tip_address_ptr: *mut *mut usize,
     next_continuation: &mut Continuation,
     parameter: Uniform,
@@ -222,9 +222,10 @@ pub unsafe fn runtime_register_handler_and_get_transform_continuation(
     let transform_loader_num_args = 1;
     next_continuation.arg_stack_frame_height += transform_loader_num_args;
 
-    // write the transform thunk to the stack
-    let new_tip_address = tip_address_ptr.read().add(1);
-    new_tip_address.add(1).write(transform as usize);
+    // write the transform thunk to the stack because it's the single argument that is needed by
+    // the transform loader function.
+    let new_tip_address = tip_address_ptr.read().sub(1);
+    new_tip_address.write(transform as usize);
     tip_address_ptr.write(new_tip_address);
 
     HANDLERS.with(|handlers| {

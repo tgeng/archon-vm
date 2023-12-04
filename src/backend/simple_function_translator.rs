@@ -240,7 +240,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                                 }
                                 ))
                             .collect::<Vec<_>>();
-                        let func_ref = self.get_local_function(&name, FunctionFlavor::Specialized);
+                        let func_ref = self.get_local_function(name, FunctionFlavor::Specialized);
                         if is_tail && self.is_specialized {
                             self.function_builder.ins().return_call(func_ref, &all_args);
                             return None;
@@ -420,24 +420,24 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         let add_simple_handler_func_ref = self.module.declare_func_in_func(
             self.builtin_functions[BuiltinFunction::AddSimpleHandler],
             self.function_builder.func);
-        self.add_handlers(add_simple_handler_func_ref, simple_handlers);
+        self.add_handlers(handler, add_simple_handler_func_ref, simple_handlers);
         let add_complex_handler_func_ref = self.module.declare_func_in_func(
             self.builtin_functions[BuiltinFunction::AddComplexHandler],
             self.function_builder.func);
-        self.add_handlers(add_complex_handler_func_ref, complex_handlers);
+        self.add_handlers(handler, add_complex_handler_func_ref, complex_handlers);
 
         // The transform loader continuation is the first value inside the handler struct.
         let transform_loader_continuation = self.function_builder.ins().load(I64, MemFlags::new(), handler, 0);
         self.invoke_thunk(is_tail, input, transform_loader_continuation)
     }
 
-    fn add_handlers(&mut self, add_handler_func_ref: FuncRef, handlers: &Vec<(VTerm, VTerm)>) {
-        for (eff, handler) in handlers {
+    fn add_handlers(&mut self, handler: Value, add_handler_func_ref: FuncRef, handler_impls: &Vec<(VTerm, VTerm)>) {
+        for (eff, handler_impl) in handler_impls {
             let eff_value = self.translate_v_term(eff);
             let eff_value = self.convert_to_uniform(eff_value);
-            let handler_value = self.translate_v_term(handler);
-            let handler_value = self.convert_to_uniform(handler_value);
-            self.function_builder.ins().call(add_handler_func_ref, &[eff_value, handler_value]);
+            let handler_impl_value = self.translate_v_term(handler_impl);
+            let handler_impl_value = self.convert_to_uniform(handler_impl_value);
+            self.function_builder.ins().call(add_handler_func_ref, &[handler, eff_value, handler_impl_value]);
         }
     }
 
