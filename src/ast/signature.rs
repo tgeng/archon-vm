@@ -182,7 +182,8 @@ impl Signature {
     }
 }
 
-/// This visitor just marks functions that should be enabled
+// This visitor just marks functions that should be enabled recursively. It's not intended to be
+// callable outside of this file.
 impl Visitor for Signature {
     fn visit_thunk(&mut self, v_term: &VTerm) {
         let VTerm::Thunk { box t, .. } = v_term else { unreachable!() };
