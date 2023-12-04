@@ -7,7 +7,6 @@ use cranelift::prelude::types::{F32, I32, I64};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
 use crate::ast::term::{CTerm, VTerm, VType, SpecializedType, PType, CType};
 use enum_map::{EnumMap};
-use cbpv_runtime::runtime_utils::runtime_force_thunk;
 use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
 use crate::backend::common::{BuiltinFunction, FunctionFlavor, HasType, TypedReturnValue, TypedValue};
@@ -607,7 +606,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
 
     pub fn get_local_function(&mut self, name: &str, flavor: FunctionFlavor) -> FuncRef {
         let desired_func_name = flavor.decorate_name(name);
-        let func_id = self.local_functions.get(&desired_func_name).unwrap();
+        let func_id = self.local_functions.get(&desired_func_name).unwrap_or_else(|| panic!("Cannot get function '{}'", &desired_func_name));
         self.module.declare_func_in_func(*func_id, self.function_builder.func)
     }
 

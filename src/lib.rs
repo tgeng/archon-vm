@@ -3,6 +3,8 @@
 #![allow(dead_code)]
 #![feature(let_chains)]
 
+extern crate core;
+
 mod frontend;
 mod ast;
 mod backend;

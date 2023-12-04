@@ -132,22 +132,22 @@ impl<M: Module> Compiler<M> {
                 let simple_name = FunctionFlavor::Simple.decorate_name(name);
                 let function = self.module.declare_function(&simple_name, Linkage::Local, &self.uniform_func_signature).unwrap();
                 self.local_functions.insert(simple_name, function);
+            }
 
-                // Specializable
-                if let CType::SpecializedF(v_type) = function_definition.c_type {
-                    let mut sig = self.module.make_signature();
-                    sig.call_conv = CallConv::Tail;
-                    // The first argument is the base address of the parameter stack, which is useful
-                    // for calling non-specialized functions.
-                    sig.params.push(AbiParam::new(I64));
-                    for (_, v_type) in function_definition.args.iter() {
-                        sig.params.push(AbiParam::new(v_type.get_type()));
-                    }
-                    sig.returns.push(AbiParam::new(v_type.get_type()));
-                    let specialized_name = FunctionFlavor::Specialized.decorate_name(name);
-                    self.local_functions.insert(specialized_name.clone(), self.module.declare_function(&specialized_name, Linkage::Local, &sig).unwrap());
-                    specialized_function_signatures.insert(name, sig);
+            if function_definition.may_be_specialized {
+                let CType::SpecializedF(v_type) = function_definition.c_type else { unreachable!() };
+                let mut sig = self.module.make_signature();
+                sig.call_conv = CallConv::Tail;
+                // The first argument is the base address of the parameter stack, which is useful
+                // for calling non-specialized functions.
+                sig.params.push(AbiParam::new(I64));
+                for (_, v_type) in function_definition.args.iter() {
+                    sig.params.push(AbiParam::new(v_type.get_type()));
                 }
+                sig.returns.push(AbiParam::new(v_type.get_type()));
+                let specialized_name = FunctionFlavor::Specialized.decorate_name(name);
+                self.local_functions.insert(specialized_name.clone(), self.module.declare_function(&specialized_name, Linkage::Local, &sig).unwrap());
+                specialized_function_signatures.insert(name, sig);
             }
         }
 
@@ -160,12 +160,11 @@ impl<M: Module> Compiler<M> {
             if function_definition.may_be_simple {
                 // simple
                 SimpleFunctionTranslator::compile_simple_function(name, self, function_definition, &local_function_arg_types, clir);
-
-                // specialized
-                if function_definition.is_specializable() {
-                    let sig = specialized_function_signatures.get(name).unwrap();
-                    SimpleFunctionTranslator::compile_specialized_function(name, self, sig.clone(), function_definition, &local_function_arg_types, clir);
-                }
+            }
+            // specialized
+            if function_definition.may_be_specialized {
+                let sig = specialized_function_signatures.get(name).unwrap();
+                SimpleFunctionTranslator::compile_specialized_function(name, self, sig.clone(), function_definition, &local_function_arg_types, clir);
             }
         }
 

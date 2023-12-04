@@ -229,8 +229,9 @@ Defs
                 ),
             ),
             var_bound: 4,
-            may_be_simple: true,
+            may_be_simple: false,
             may_be_complex: true,
+            may_be_specialized: false,
         },
     ),
     (
@@ -344,8 +345,9 @@ Defs
                 ),
             ),
             var_bound: 8,
-            may_be_simple: true,
+            may_be_simple: false,
             may_be_complex: false,
+            may_be_specialized: true,
         },
     ),
     (
@@ -373,8 +375,9 @@ Defs
             },
             c_type: Default,
             var_bound: 1,
-            may_be_simple: true,
+            may_be_simple: false,
             may_be_complex: true,
+            may_be_specialized: false,
         },
     ),
 ]
@@ -405,104 +408,6 @@ block0(v0: i64, v1: i64):
 }
 
 
-[f__simple]
-function u0:0(i64) -> i64 tail {
-    ss0 = explicit_slot 8
-
-block0(v0: i64):
-    v1 = load.i64 v0
-    v2 = load.i64 v0+8
-    v3 = load.i64 v0+16
-    v4 = sshr_imm v1, 1
-    v5 = sshr_imm v2, 1
-    v6 = iadd v4, v5
-    v7 = sshr_imm v3, 1
-    v8 = iadd v6, v7
-    v9 = ishl_imm v8, 1
-    v10 = iadd_imm v0, 16
-    store v9, v10
-    return v10
-}
-
-
-[f__specialized]
-function u0:0(i64, i64, i64, i64) -> i64 tail {
-    ss0 = explicit_slot 8
-
-block0(v0: i64, v1: i64, v2: i64, v3: i64):
-    v4 = iadd v1, v2
-    v5 = iadd v4, v3
-    return v5
-}
-
-
-[main__simple]
-function u0:0(i64) -> i64 tail {
-    ss0 = explicit_slot 8
-    sig0 = (i64, i64) -> i64 tail
-    sig1 = (i64) -> i64 apple_aarch64
-    sig2 = (i64, i64) -> i64 tail
-    sig3 = () -> i64 apple_aarch64
-    sig4 = (i64, i64) -> i64 apple_aarch64
-    sig5 = (i64, i64) -> i64 tail
-    sig6 = () -> i64 apple_aarch64
-    sig7 = (i64, i64) -> i64 apple_aarch64
-    sig8 = (i64, i64) -> i64 tail
-    fn0 = colocated u0:15 sig0
-    fn1 = u0:0 sig1
-    fn2 = colocated u0:21 sig2
-    fn3 = colocated u0:11 sig3
-    fn4 = u0:1 sig4
-    fn5 = colocated u0:11 sig6
-    fn6 = u0:1 sig7
-
-block0(v0: i64):
-    v1 = iconst.i64 0
-    v2 = iconst.i64 1
-    v3 = iconst.i64 2
-    v4 = iconst.i64 3
-    v5 = func_addr.i64 fn0
-    v6 = iconst.i64 3
-    v7 = iadd_imm v5, 3
-    v8 = ishl_imm v4, 1  ; v4 = 3
-    v9 = ishl_imm v1, 1  ; v1 = 0
-    v10 = ishl_imm v2, 1  ; v2 = 1
-    v11 = iconst.i64 5
-    v12 = call fn1(v11)  ; v11 = 5
-    store aligned v7, v12
-    store aligned v6, v12+8  ; v6 = 3
-    store aligned v8, v12+16
-    store aligned v9, v12+24
-    store aligned v10, v12+32
-    v13 = func_addr.i64 fn2
-    v14 = call fn3()
-    v15 = iadd_imm v12, 1
-    stack_store v0, ss0
-    v16 = stack_addr.i64 ss0
-    v17 = call fn4(v15, v16)
-    v18 = stack_load.i64 ss0
-    v19 = call_indirect sig5, v17(v18, v14)
-    v20 = load.i64 v19
-    v21 = iadd_imm v19, 8
-    v22 = call fn5()
-    v23 = iadd_imm v13, 3
-    stack_store v21, ss0
-    v24 = stack_addr.i64 ss0
-    v25 = call fn6(v23, v24)
-    v26 = stack_load.i64 ss0
-    v27 = call_indirect sig8, v25(v26, v22)
-    v28 = load.i64 v27
-    v29 = iadd_imm v27, 8
-    v30 = sshr_imm v20, 1
-    v31 = sshr_imm v28, 1
-    v32 = iadd v30, v31
-    v33 = ishl_imm v32, 1
-    v34 = iadd_imm v0, -8
-    store v33, v34
-    return v34
-}
-
-
 [main__specialized]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
@@ -517,7 +422,7 @@ function u0:0(i64) -> i64 tail {
     sig8 = (i64, i64) -> i64 tail
     fn0 = colocated u0:15 sig0
     fn1 = u0:0 sig1
-    fn2 = colocated u0:21 sig2
+    fn2 = colocated u0:18 sig2
     fn3 = colocated u0:11 sig3
     fn4 = u0:1 sig4
     fn5 = colocated u0:11 sig6
@@ -586,27 +491,12 @@ block0(v0: i64, v1: i64):
 }
 
 
-[main$__lambda_0__simple]
-function u0:0(i64) -> i64 tail {
-    ss0 = explicit_slot 8
-
-block0(v0: i64):
-    v1 = iconst.i64 4
-    v2 = iconst.i64 5
-    v3 = iadd v1, v2  ; v1 = 4, v2 = 5
-    v4 = ishl_imm v3, 1
-    v5 = iadd_imm v0, -8
-    store v4, v5
-    return v5
-}
-
-
 [__main__]
 function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:20 sig1
+    fn1 = colocated u0:17 sig1
 
 block0:
     v0 = call fn0()

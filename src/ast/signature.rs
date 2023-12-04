@@ -4,6 +4,7 @@ use crate::ast::free_var::HasFreeVar;
 use crate::ast::primitive_functions::{PRIMITIVE_FUNCTIONS, PrimitiveFunction};
 use crate::ast::term::{CTerm, CType, VTerm, VType};
 use crate::ast::transformer::Transformer;
+use crate::ast::visitor::Visitor;
 
 #[derive(Debug, Clone)]
 pub struct FunctionDefinition {
@@ -13,16 +14,24 @@ pub struct FunctionDefinition {
     /// The (exclusive) upperbound of local variables bound in this definition. This is useful to
     /// initialize an array, which can be guaranteed to fit all local variables in this function.
     pub var_bound: usize,
-    /// This function may be simple (after specialization). In this case a simple version of the
-    /// function is generated for faster calls.
+    /// This function may be simple. In this case a simple version of the function is generated for
+    /// faster calls.
     pub may_be_simple: bool,
     pub may_be_complex: bool,
+    pub may_be_specialized: bool,
 }
 
 impl FunctionDefinition {
-    pub fn is_specializable(&self) -> bool {
-        self.may_be_simple && matches!(self.c_type, CType::SpecializedF(_))
+    fn is_specializable(&self) -> bool {
+        matches!(self.c_type, CType::SpecializedF(_))
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum FunctionEnablement {
+    MayBeSimple,
+    MayBeComplex,
+    MayBeSpecialized,
 }
 
 pub struct Signature {
@@ -51,6 +60,39 @@ impl Signature {
         self.reduce_immediate_redexes();
         self.lift_lambdas();
         self.rename_local_vars();
+    }
+
+    pub fn enable(&mut self, name: &str, function_enablement: FunctionEnablement) {
+        let function_definition = self.defs.get_mut(name).unwrap();
+        match function_enablement {
+            FunctionEnablement::MayBeSimple => {
+                if function_definition.may_be_simple {
+                    return;
+                }
+                function_definition.may_be_simple = true;
+            }
+            FunctionEnablement::MayBeComplex => {
+                if function_definition.may_be_complex {
+                    return;
+                }
+                function_definition.may_be_complex = true;
+            }
+            FunctionEnablement::MayBeSpecialized => {
+                if function_definition.may_be_specialized {
+                    return;
+                }
+                function_definition.may_be_specialized = true;
+            }
+        }
+
+        let c_term_ptr: *const CTerm = &function_definition.body;
+        // This is safe because all the writes are only one the enablement fields inside the
+        // function definition. The alternative of unsafe is to clone the body or track enablement
+        // in a separate data structure outside of Signature. Both are annoying and requires more
+        // work.
+        unsafe {
+            self.visit_c_term(&*c_term_ptr);
+        }
     }
 
     fn reduce_redundancy(&mut self) {
@@ -109,7 +151,8 @@ impl Signature {
             c_type,
             mut var_bound,
             may_be_simple,
-            may_be_complex
+            may_be_complex,
+            may_be_specialized
         }) in new_defs.into_iter() {
             Self::rename_local_vars_in_def(&mut args, &mut body, &mut var_bound);
             self.insert(name, FunctionDefinition {
@@ -119,6 +162,7 @@ impl Signature {
                 var_bound,
                 may_be_simple,
                 may_be_complex,
+                may_be_specialized,
             })
         }
     }
@@ -135,6 +179,56 @@ impl Signature {
         }
         renamer.transform_c_term(body);
         *var_bound = renamer.counter;
+    }
+}
+
+/// This visitor just marks functions that should be enabled
+impl Visitor for Signature {
+    fn visit_thunk(&mut self, v_term: &VTerm) {
+        let VTerm::Thunk { box t, .. } = v_term else { unreachable!() };
+        let empty_vec = vec![];
+        let (name, args) = match t {
+            CTerm::Redex { function: box CTerm::Def { name, .. }, args, } => (name, args),
+            CTerm::Def { name, .. } => (name, &empty_vec),
+            _ => panic!("all thunks should have been lifted at this point"),
+        };
+        args.iter().for_each(|arg| self.visit_v_term(arg));
+        // All thunked functions are treated effectful to simplify compilation.
+        self.enable(name, FunctionEnablement::MayBeComplex);
+    }
+
+    fn visit_redex(&mut self, c_term: &CTerm) {
+        let CTerm::Redex { box function, args } = c_term else { unreachable!() };
+        args.iter().for_each(|arg| self.visit_v_term(arg));
+        let CTerm::Def { name, may_have_complex_effects } = function else {
+            self.visit_c_term(function);
+            return;
+        };
+        if *may_have_complex_effects {
+            self.enable(name, FunctionEnablement::MayBeComplex);
+        } else {
+            let function_def = self.defs.get(name).unwrap();
+            if function_def.args.len() == args.len() && function_def.is_specializable() {
+                self.enable(name, FunctionEnablement::MayBeSpecialized);
+            } else {
+                self.enable(name, FunctionEnablement::MayBeSimple);
+            }
+        }
+    }
+
+
+    fn visit_def(&mut self, c_term: &CTerm) {
+        let CTerm::Def { name, may_have_complex_effects } = c_term else { unreachable!() };
+        if *may_have_complex_effects {
+            self.enable(name, FunctionEnablement::MayBeComplex);
+        } else {
+            let function_def = self.defs.get(name).unwrap();
+            if function_def.args.is_empty() && function_def.is_specializable() {
+                self.enable(name, FunctionEnablement::MayBeSpecialized);
+            } else {
+                self.enable(name, FunctionEnablement::MayBeSimple);
+            }
+        }
     }
 }
 
@@ -249,8 +343,9 @@ impl<'a> Transformer for CallSpecializer<'a> {
                         },
                         c_type: CType::SpecializedF(*return_type),
                         var_bound: arg_types.len(),
-                        may_be_simple: true,
+                        may_be_simple: false,
                         may_be_complex: false,
+                        may_be_specialized: false,
                     }))
                 }
                 Ordering::Equal => {
@@ -289,17 +384,16 @@ impl<'a> LambdaLifter<'a> {
         (thunk_def_name, redex)
     }
 
-    fn create_new_def(&mut self, name: String, free_vars: Vec<usize>, args: &[(usize, VType)], body: CTerm, may_be_complex: bool) {
+    fn create_new_def(&mut self, name: String, free_vars: Vec<usize>, args: &[(usize, VType)], body: CTerm) {
         let var_bound = *free_vars.iter().max().unwrap_or(&0);
         let function_definition = FunctionDefinition {
             args: free_vars.into_iter().map(|v| (v, self.local_var_types[v])).chain(args.iter().copied()).collect(),
             body,
             c_type: CType::Default,
             var_bound,
-            // We need to generate simple flavor for redex calling this function.
-            may_be_simple: !may_be_complex,
-            // All thunks are treated as effectful to simplify compilation.
-            may_be_complex: true,
+            may_be_simple: false,
+            may_be_complex: false,
+            may_be_specialized: false,
         };
         self.new_defs.push((name, function_definition));
     }
@@ -320,7 +414,7 @@ impl<'a> Transformer for LambdaLifter<'a> {
 
         let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars, *may_have_complex_effects);
         std::mem::swap(c_term, &mut redex);
-        self.create_new_def(thunk_def_name, free_vars, &[], redex, *may_have_complex_effects);
+        self.create_new_def(thunk_def_name, free_vars, &[], redex);
     }
 
     fn transform_lambda(&mut self, c_term: &mut CTerm) {
@@ -334,9 +428,9 @@ impl<'a> Transformer for LambdaLifter<'a> {
         let args = args.clone();
         std::mem::swap(c_term, &mut redex);
 
-        let CTerm::Lambda { box body, may_have_complex_effects, .. } = redex else { unreachable!() };
+        let CTerm::Lambda { box body, .. } = redex else { unreachable!() };
 
-        self.create_new_def(thunk_def_name, free_vars, &args, body, may_have_complex_effects);
+        self.create_new_def(thunk_def_name, free_vars, &args, body);
     }
 }
 
