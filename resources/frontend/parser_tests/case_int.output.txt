@@ -1,0 +1,23 @@
+CaseInt {
+    t: Int {
+        value: 1,
+    },
+    result_type: SpecializedF(
+        Specialized(
+            Integer,
+        ),
+    ),
+    branches: [
+        (
+            1,
+            Int {
+                value: 2,
+            },
+        ),
+    ],
+    default_branch: Some(
+        Int {
+            value: 3,
+        },
+    ),
+}

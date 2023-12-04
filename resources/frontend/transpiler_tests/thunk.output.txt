@@ -28,23 +28,28 @@ Defs {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
+                        may_have_complex_effects: false,
                     },
                     args: [
                         Redex {
                             function: Identifier {
                                 name: "_int_add",
+                                may_have_complex_effects: false,
                             },
                             args: [
                                 Identifier {
                                     name: "x",
+                                    may_have_complex_effects: false,
                                 },
                                 Identifier {
                                     name: "y",
+                                    may_have_complex_effects: false,
                                 },
                             ],
                         },
                         Identifier {
                             name: "z",
+                            may_have_complex_effects: false,
                         },
                     ],
                 },
@@ -87,16 +92,20 @@ Defs {
                                         body: Redex {
                                             function: Identifier {
                                                 name: "f",
+                                                may_have_complex_effects: false,
                                             },
                                             args: [
                                                 Identifier {
                                                     name: "d",
+                                                    may_have_complex_effects: false,
                                                 },
                                                 Identifier {
                                                     name: "a",
+                                                    may_have_complex_effects: false,
                                                 },
                                                 Identifier {
                                                     name: "b",
+                                                    may_have_complex_effects: false,
                                                 },
                                             ],
                                         },
@@ -114,10 +123,12 @@ Defs {
                                         body: Redex {
                                             function: Identifier {
                                                 name: "_int_add",
+                                                may_have_complex_effects: false,
                                             },
                                             args: [
                                                 Identifier {
                                                     name: "e",
+                                                    may_have_complex_effects: false,
                                                 },
                                                 Int {
                                                     value: 5,
@@ -129,17 +140,22 @@ Defs {
                                 body: Redex {
                                     function: Identifier {
                                         name: "_int_add",
+                                        may_have_complex_effects: false,
                                     },
                                     args: [
                                         Force {
                                             thunk: Identifier {
                                                 name: "t",
+                                                may_have_complex_effects: false,
                                             },
+                                            may_have_complex_effects: false,
                                         },
                                         Force {
                                             thunk: Identifier {
                                                 name: "t2",
+                                                may_have_complex_effects: false,
                                             },
+                                            may_have_complex_effects: false,
                                         },
                                     ],
                                 },
@@ -251,7 +267,7 @@ Defs
                                         t: Redex {
                                             function: Def {
                                                 name: "f",
-                                                may_have_complex_effects: true,
+                                                may_have_complex_effects: false,
                                             },
                                             args: [
                                                 Var {
@@ -265,6 +281,7 @@ Defs
                                                 },
                                             ],
                                         },
+                                        may_have_complex_effects: true,
                                     },
                                 },
                                 bound_index: 4,
@@ -278,6 +295,7 @@ Defs
                                                 },
                                                 args: [],
                                             },
+                                            may_have_complex_effects: true,
                                         },
                                     },
                                     bound_index: 5,
@@ -286,7 +304,7 @@ Defs
                                             thunk: Var {
                                                 index: 4,
                                             },
-                                            may_have_complex_effects: true,
+                                            may_have_complex_effects: false,
                                         },
                                         bound_index: 6,
                                         body: Let {
@@ -294,7 +312,7 @@ Defs
                                                 thunk: Var {
                                                     index: 5,
                                                 },
-                                                may_have_complex_effects: true,
+                                                may_have_complex_effects: false,
                                             },
                                             bound_index: 7,
                                             body: PrimitiveCall {

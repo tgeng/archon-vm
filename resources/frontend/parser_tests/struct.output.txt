@@ -1,0 +1,16 @@
+Struct {
+    values: [
+        Identifier {
+            name: "a",
+            may_have_complex_effects: false,
+        },
+        Identifier {
+            name: "b",
+            may_have_complex_effects: false,
+        },
+        Identifier {
+            name: "c",
+            may_have_complex_effects: false,
+        },
+    ],
+}

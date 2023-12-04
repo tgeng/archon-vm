@@ -206,8 +206,9 @@ impl Transformer for RedundancyRemover {
 
     fn transform_lambda(&mut self, c_term: &mut CTerm) {
         self.transform_lambda_default(c_term);
-        let CTerm::Lambda { args, box body } = c_term else { unreachable!() };
-        if let CTerm::Lambda { args: sub_args, body: box sub_body } = body {
+        let CTerm::Lambda { args, box body, may_have_complex_effects } = c_term else { unreachable!() };
+        if let CTerm::Lambda { args: sub_args, body: box sub_body, may_have_complex_effects: sub_may_have_complex_effects } = body {
+            *may_have_complex_effects |= *sub_may_have_complex_effects;
             args.extend(sub_args.iter().copied());
             let mut placeholder = CTerm::Return { value: VTerm::Int { value: 0 } };
             std::mem::swap(&mut placeholder, sub_body);
@@ -276,27 +277,28 @@ struct LambdaLifter<'a> {
 }
 
 impl<'a> LambdaLifter<'a> {
-    fn create_new_redex(&mut self, free_vars: &[usize]) -> (String, CTerm) {
+    fn create_new_redex(&mut self, free_vars: &[usize], may_have_complex_effects: bool) -> (String, CTerm) {
         let thunk_def_name = format!("{}$__lambda_{}", self.def_name, self.counter);
         self.counter += 1;
 
         let redex =
             CTerm::Redex {
-                function: Box::new(CTerm::Def { name: thunk_def_name.clone(), may_have_complex_effects: true }),
+                function: Box::new(CTerm::Def { name: thunk_def_name.clone(), may_have_complex_effects }),
                 args: free_vars.iter().map(|i| VTerm::Var { index: *i }).collect(),
             };
         (thunk_def_name, redex)
     }
 
-    fn create_new_def(&mut self, name: String, free_vars: Vec<usize>, args: &[(usize, VType)], body: CTerm) {
+    fn create_new_def(&mut self, name: String, free_vars: Vec<usize>, args: &[(usize, VType)], body: CTerm, may_be_complex: bool) {
         let var_bound = *free_vars.iter().max().unwrap_or(&0);
         let function_definition = FunctionDefinition {
             args: free_vars.into_iter().map(|v| (v, self.local_var_types[v])).chain(args.iter().copied()).collect(),
             body,
             c_type: CType::Default,
             var_bound,
+            // We need to generate simple flavor for redex calling this function.
+            may_be_simple: !may_be_complex,
             // All thunks are treated as effectful to simplify compilation.
-            may_be_simple: false,
             may_be_complex: true,
         };
         self.new_defs.push((name, function_definition));
@@ -305,7 +307,7 @@ impl<'a> LambdaLifter<'a> {
 
 impl<'a> Transformer for LambdaLifter<'a> {
     fn transform_thunk(&mut self, v_term: &mut VTerm) {
-        let VTerm::Thunk { t: box c_term } = v_term else { unreachable!() };
+        let VTerm::Thunk { t: box c_term, may_have_complex_effects } = v_term else { unreachable!() };
         self.transform_c_term(c_term);
 
         if let CTerm::Redex { function: box CTerm::Def { .. }, .. } | CTerm::Def { .. } = c_term {
@@ -316,9 +318,9 @@ impl<'a> Transformer for LambdaLifter<'a> {
         let mut free_vars: Vec<_> = c_term.free_vars().into_iter().collect();
         free_vars.sort();
 
-        let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars);
+        let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars, *may_have_complex_effects);
         std::mem::swap(c_term, &mut redex);
-        self.create_new_def(thunk_def_name, free_vars, &[], redex);
+        self.create_new_def(thunk_def_name, free_vars, &[], redex, *may_have_complex_effects);
     }
 
     fn transform_lambda(&mut self, c_term: &mut CTerm) {
@@ -326,15 +328,15 @@ impl<'a> Transformer for LambdaLifter<'a> {
         let mut free_vars: Vec<_> = c_term.free_vars().iter().copied().collect();
         free_vars.sort();
 
-        let CTerm::Lambda { args, .. } = c_term else { unreachable!() };
+        let CTerm::Lambda { args, may_have_complex_effects, .. } = c_term else { unreachable!() };
 
-        let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars);
+        let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars, *may_have_complex_effects);
         let args = args.clone();
         std::mem::swap(c_term, &mut redex);
 
-        let CTerm::Lambda { box body, .. } = redex else { unreachable!() };
+        let CTerm::Lambda { box body, may_have_complex_effects, .. } = redex else { unreachable!() };
 
-        self.create_new_def(thunk_def_name, free_vars, &args, body);
+        self.create_new_def(thunk_def_name, free_vars, &args, body, may_have_complex_effects);
     }
 }
 
@@ -344,7 +346,7 @@ impl Transformer for RedexReducer {
     fn transform_redex(&mut self, c_term: &mut CTerm) {
         self.transform_redex_default(c_term);
         let CTerm::Redex { box function, args } = c_term else { unreachable!() };
-        let CTerm::Lambda { args: lambda_args, body: box lambda_body } = function else { return; };
+        let CTerm::Lambda { args: lambda_args, body: box lambda_body, .. } = function else { return; };
         let num_args = min(args.len(), lambda_args.len());
         let matching_args = args.drain(..num_args).collect::<Vec<_>>();
         let matching_lambda_args = lambda_args.drain(..num_args).map(|(index, _)| index).collect::<Vec<_>>();
@@ -359,7 +361,7 @@ impl Transformer for RedexReducer {
     fn transform_force(&mut self, c_term: &mut CTerm) {
         self.transform_force_default(c_term);
         let CTerm::Force { thunk, .. } = c_term else { unreachable!() };
-        let VTerm::Thunk { box t } = thunk else { return; };
+        let VTerm::Thunk { box t, .. } = thunk else { return; };
         // The content of placeholder does not matter here
         let mut placeholder = CTerm::Return { value: VTerm::Var { index: 0 } };
         std::mem::swap(t, &mut placeholder);

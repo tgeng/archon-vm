@@ -1,0 +1,21 @@
+Thunk {
+    computation: Lambda {
+        arg_names: [],
+        body: Redex {
+            function: Identifier {
+                name: "a",
+                may_have_complex_effects: false,
+            },
+            args: [
+                Identifier {
+                    name: "b",
+                    may_have_complex_effects: false,
+                },
+                Identifier {
+                    name: "c",
+                    may_have_complex_effects: false,
+                },
+            ],
+        },
+    },
+}

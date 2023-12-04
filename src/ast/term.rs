@@ -57,7 +57,7 @@ pub enum CType {
 #[derive(Debug, Clone)]
 pub enum VTerm {
     Var { index: usize },
-    Thunk { t: Box<CTerm> },
+    Thunk { t: Box<CTerm>, may_have_complex_effects: bool },
     /// 51 bit integer represented as a machine word with highest bits sign-extended
     Int { value: i64 },
     Str { value: String },
@@ -87,7 +87,7 @@ pub enum CTerm {
     /// another consumes more arguments (aka tail call). In this case the result type is
     /// [CType::Default].
     CaseInt { t: VTerm, result_type: CType, branches: Vec<(i64, CTerm)>, default_branch: Option<Box<CTerm>> },
-    Lambda { args: Vec<(usize, VType)>, body: Box<CTerm> },
+    Lambda { args: Vec<(usize, VType)>, body: Box<CTerm>, may_have_complex_effects: bool },
     MemGet { base: VTerm, offset: VTerm },
     MemSet { base: VTerm, offset: VTerm, value: VTerm },
     // TODO: implement the following for setting and getting primitive values

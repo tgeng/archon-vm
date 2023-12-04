@@ -1,0 +1,19 @@
+Redex {
+    function: Force {
+        thunk: Identifier {
+            name: "x",
+            may_have_complex_effects: false,
+        },
+        may_have_complex_effects: false,
+    },
+    args: [
+        Identifier {
+            name: "y",
+            may_have_complex_effects: false,
+        },
+        Identifier {
+            name: "z",
+            may_have_complex_effects: false,
+        },
+    ],
+}

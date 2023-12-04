@@ -22,13 +22,16 @@ Defs {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
+                        may_have_complex_effects: false,
                     },
                     args: [
                         Identifier {
                             name: "x",
+                            may_have_complex_effects: false,
                         },
                         Identifier {
                             name: "y",
+                            may_have_complex_effects: false,
                         },
                     ],
                 },
@@ -50,6 +53,7 @@ Defs {
                         body: Redex {
                             function: Identifier {
                                 name: "f",
+                                may_have_complex_effects: false,
                             },
                             args: [
                                 Int {
@@ -65,6 +69,7 @@ Defs {
                 Redex {
                     function: Identifier {
                         name: "g",
+                        may_have_complex_effects: false,
                     },
                     args: [
                         Int {
@@ -125,7 +130,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "f",
-                    may_have_complex_effects: true,
+                    may_have_complex_effects: false,
                 },
                 args: [
                     Int {
@@ -146,7 +151,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "g",
-                    may_have_complex_effects: true,
+                    may_have_complex_effects: false,
                 },
                 args: [
                     Int {

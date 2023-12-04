@@ -1,0 +1,82 @@
+Defs {
+    defs: [
+        (
+            "f",
+            Def {
+                args: [
+                    (
+                        "x",
+                        Uniform,
+                    ),
+                ],
+                body: Identifier {
+                    name: "x",
+                    may_have_complex_effects: false,
+                },
+                c_type: Default,
+            },
+        ),
+    ],
+    body: Some(
+        Defs {
+            defs: [
+                (
+                    "g",
+                    Def {
+                        args: [
+                            (
+                                "x",
+                                Uniform,
+                            ),
+                            (
+                                "y",
+                                Uniform,
+                            ),
+                        ],
+                        body: Redex {
+                            function: Identifier {
+                                name: "_int_add",
+                                may_have_complex_effects: false,
+                            },
+                            args: [
+                                Identifier {
+                                    name: "x",
+                                    may_have_complex_effects: false,
+                                },
+                                Identifier {
+                                    name: "y",
+                                    may_have_complex_effects: false,
+                                },
+                            ],
+                        },
+                        c_type: Default,
+                    },
+                ),
+            ],
+            body: Some(
+                Redex {
+                    function: Identifier {
+                        name: "g",
+                        may_have_complex_effects: false,
+                    },
+                    args: [
+                        Redex {
+                            function: Identifier {
+                                name: "f",
+                                may_have_complex_effects: false,
+                            },
+                            args: [
+                                Int {
+                                    value: 1,
+                                },
+                            ],
+                        },
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+            ),
+        },
+    ),
+}

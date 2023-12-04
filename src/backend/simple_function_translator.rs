@@ -552,7 +552,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 }
                 v => v,
             },
-            VTerm::Thunk { box t } => {
+            VTerm::Thunk { box t, .. } => {
                 let empty_args = &vec![];
                 let (name, args) = match t {
                     CTerm::Redex { function: box CTerm::Def { name, .. }, args } => (name, args),

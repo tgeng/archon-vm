@@ -20,13 +20,16 @@ Let {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
+                        may_have_complex_effects: false,
                     },
                     args: [
                         Identifier {
                             name: "x",
+                            may_have_complex_effects: false,
                         },
                         Identifier {
                             name: "a",
+                            may_have_complex_effects: false,
                         },
                     ],
                 },
@@ -36,7 +39,9 @@ Let {
             function: Force {
                 thunk: Identifier {
                     name: "f",
+                    may_have_complex_effects: false,
                 },
+                may_have_complex_effects: false,
             },
             args: [
                 Int {
@@ -75,6 +80,7 @@ Defs
                                     },
                                 ],
                             },
+                            may_have_complex_effects: true,
                         },
                     },
                     bound_index: 1,
@@ -83,7 +89,7 @@ Defs
                             thunk: Var {
                                 index: 1,
                             },
-                            may_have_complex_effects: true,
+                            may_have_complex_effects: false,
                         },
                         args: [
                             Int {

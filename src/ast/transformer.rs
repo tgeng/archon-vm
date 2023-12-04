@@ -17,7 +17,7 @@ pub trait Transformer {
 
     fn transform_var(&mut self, _v_term: &mut VTerm) {}
     fn transform_thunk(&mut self, v_term: &mut VTerm) {
-        let VTerm::Thunk { t } = v_term else { unreachable!() };
+        let VTerm::Thunk { t, .. } = v_term else { unreachable!() };
         self.transform_c_term(t);
     }
     fn transform_int(&mut self, _v_term: &mut VTerm) {}
@@ -98,7 +98,7 @@ pub trait Transformer {
     }
 
     fn transform_lambda_default(&mut self, c_term: &mut CTerm) {
-        let CTerm::Lambda { args, body } = c_term else { unreachable!() };
+        let CTerm::Lambda { args, body, .. } = c_term else { unreachable!() };
         let old_args = args.clone();
         args.iter_mut().for_each(|(arg, _)| *arg = self.add_binding(*arg));
         self.transform_c_term(body);

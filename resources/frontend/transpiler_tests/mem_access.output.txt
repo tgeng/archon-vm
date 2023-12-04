@@ -20,6 +20,7 @@ Let {
         t: MemSet {
             base: Identifier {
                 name: "a",
+                may_have_complex_effects: false,
             },
             offset: Int {
                 value: 0,
@@ -33,6 +34,7 @@ Let {
             t: MemSet {
                 base: Identifier {
                     name: "a",
+                    may_have_complex_effects: false,
                 },
                 offset: Int {
                     value: 1,
@@ -46,6 +48,7 @@ Let {
                 t: MemSet {
                     base: Identifier {
                         name: "a",
+                        may_have_complex_effects: false,
                     },
                     offset: Int {
                         value: 2,
@@ -57,16 +60,19 @@ Let {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
+                        may_have_complex_effects: false,
                     },
                     args: [
                         Redex {
                             function: Identifier {
                                 name: "_int_add",
+                                may_have_complex_effects: false,
                             },
                             args: [
                                 MemGet {
                                     base: Identifier {
                                         name: "a",
+                                        may_have_complex_effects: false,
                                     },
                                     offset: Int {
                                         value: 0,
@@ -75,6 +81,7 @@ Let {
                                 MemGet {
                                     base: Identifier {
                                         name: "a",
+                                        may_have_complex_effects: false,
                                     },
                                     offset: Int {
                                         value: 1,
@@ -85,6 +92,7 @@ Let {
                         MemGet {
                             base: Identifier {
                                 name: "a",
+                                may_have_complex_effects: false,
                             },
                             offset: Int {
                                 value: 2,

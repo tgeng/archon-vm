@@ -16,6 +16,7 @@ Defs {
                 body: CaseInt {
                     t: Identifier {
                         name: "n",
+                        may_have_complex_effects: false,
                     },
                     result_type: SpecializedF(
                         Specialized(
@@ -34,23 +35,28 @@ Defs {
                         Redex {
                             function: Identifier {
                                 name: "_int_mul",
+                                may_have_complex_effects: false,
                             },
                             args: [
                                 Identifier {
                                     name: "n",
+                                    may_have_complex_effects: false,
                                 },
                                 Redex {
                                     function: Identifier {
                                         name: "factorial",
+                                        may_have_complex_effects: true,
                                     },
                                     args: [
                                         Redex {
                                             function: Identifier {
                                                 name: "_int_sub",
+                                                may_have_complex_effects: false,
                                             },
                                             args: [
                                                 Identifier {
                                                     name: "n",
+                                                    may_have_complex_effects: false,
                                                 },
                                                 Int {
                                                     value: 1,
@@ -75,6 +81,7 @@ Defs {
         Redex {
             function: Identifier {
                 name: "factorial",
+                may_have_complex_effects: false,
             },
             args: [
                 Int {
@@ -177,7 +184,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "factorial",
-                    may_have_complex_effects: true,
+                    may_have_complex_effects: false,
                 },
                 args: [
                     Int {

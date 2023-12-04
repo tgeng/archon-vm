@@ -1,0 +1,56 @@
+Redex {
+    function: Identifier {
+        name: "f",
+        may_have_complex_effects: false,
+    },
+    args: [
+        Identifier {
+            name: "a",
+            may_have_complex_effects: false,
+        },
+        Identifier {
+            name: "b",
+            may_have_complex_effects: false,
+        },
+        Redex {
+            function: Identifier {
+                name: "c",
+                may_have_complex_effects: false,
+            },
+            args: [
+                Identifier {
+                    name: "d",
+                    may_have_complex_effects: false,
+                },
+            ],
+        },
+        Let {
+            name: "_",
+            t: Redex {
+                function: Identifier {
+                    name: "g",
+                    may_have_complex_effects: false,
+                },
+                args: [
+                    Int {
+                        value: 1,
+                    },
+                    Int {
+                        value: 2,
+                    },
+                ],
+            },
+            body: Redex {
+                function: Identifier {
+                    name: "h",
+                    may_have_complex_effects: false,
+                },
+                args: [
+                    Int {
+                        value: 3,
+                    },
+                ],
+            },
+        },
+    ],
+}

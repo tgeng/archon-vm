@@ -13,7 +13,7 @@ pub struct Transpiler {
 
 struct Context<'a> {
     enclosing_def_name: &'a str,
-    def_map: &'a HashMap<String, CTerm>,
+    def_map: &'a HashMap<String, (String, Vec<VTerm>)>,
     var_map: &'a HashMap<String, usize>,
 }
 
@@ -39,7 +39,7 @@ impl Transpiler {
 
     fn transpile_impl(&mut self, f_term: FTerm, context: &Context) -> CTerm {
         match f_term {
-            FTerm::Identifier { name } => match self.transpile_identifier(&name, context) {
+            FTerm::Identifier { name, may_have_complex_effects } => match self.transpile_identifier(&name, context, may_have_complex_effects) {
                 Left(c) => c,
                 Right(v) => CTerm::Return { value: v },
             },
@@ -61,15 +61,17 @@ impl Transpiler {
                     def_map: context.def_map,
                     var_map: &var_map,
                 });
-                CTerm::Lambda { args, body: Box::new(transpiled_body) }
+                // TODO: add may_have_complex_effects in f_term
+                CTerm::Lambda { args, body: Box::new(transpiled_body), may_have_complex_effects: true }
             }
             FTerm::Redex { function, args } => {
                 let (transpiled_args, transpiled_computations) = self.transpile_values(args, context);
                 let body = CTerm::Redex { function: Box::new(self.transpile_impl(*function, context)), args: transpiled_args };
                 Self::squash_computations(body, transpiled_computations)
             }
-            FTerm::Force { thunk } => self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t, may_have_complex_effects: true }),
-            FTerm::Thunk { computation } => CTerm::Return { value: VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)) } },
+            FTerm::Force { thunk, may_have_complex_effects } => self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t, may_have_complex_effects }),
+            // TODO: add may_have_complex_effects in f_term
+            FTerm::Thunk { computation } => CTerm::Return { value: VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)), may_have_complex_effects: true } },
             FTerm::CaseInt { t, result_type, branches, default_branch } => {
                 let mut transpiled_branches = Vec::new();
                 for (value, branch) in branches {
@@ -116,7 +118,7 @@ impl Transpiler {
                     let identifier_names: HashSet<&str> = HashSet::new();
                     Self::get_free_vars(&def.body, &identifier_names, &mut free_vars);
                     // remove all names bound inside the current def
-                    def.args.iter().for_each(|(v, v_type)| {
+                    def.args.iter().for_each(|(v, _v_type)| {
                         free_vars.remove(v.as_str());
                     });
                     // remove all names matching defs bound in current scope
@@ -132,16 +134,12 @@ impl Transpiler {
                     };
                     let mut free_var_vec: Vec<String> = free_vars.into_iter().map(|s| s.to_owned()).collect();
                     free_var_vec.sort();
-                    let term = CTerm::Redex {
-                        function: Box::new(CTerm::Def { name: def_name.clone(), may_have_complex_effects: true }),
-                        args: free_var_vec.iter().map(|name| VTerm::Var { index: *context.var_map.get(name).unwrap() }).collect(),
-                    };
-                    def_map.insert(name, term);
+                    def_map.insert(name, (def_name.clone(), free_var_vec.iter().map(|name| VTerm::Var { index: *context.var_map.get(name).unwrap() }).collect()));
                     (def, def_name.clone(), free_var_vec)
                 }).collect();
                 def_with_names.into_iter().for_each(|(def, name, free_vars)| {
                     let mut var_map = HashMap::new();
-                    let bound_indexes: Vec<_> = free_vars.iter().map(|v| (v.clone(), VType::Uniform)).chain(def.args.clone().into_iter()).map(|(arg, arg_type)| {
+                    let bound_indexes: Vec<_> = free_vars.iter().map(|v| (v.clone(), VType::Uniform)).chain(def.args.clone()).map(|(arg, arg_type)| {
                         let index = self.new_local_index();
                         var_map.insert(arg.clone(), index);
                         (index, arg_type)
@@ -174,12 +172,59 @@ impl Transpiler {
                     })
                 }
             }
+            FTerm::OperationCall { box eff, args, simple } => {
+                self.transpile_value_and_map(eff, context, |(s, eff)| {
+                    let (transpiled_args, transpiled_computations) = s.transpile_values(args, context);
+                    let operation_call = CTerm::OperationCall { eff, args: transpiled_args, simple };
+                    Self::squash_computations(operation_call, transpiled_computations)
+                })
+            }
+            FTerm::Handler {
+                box parameter,
+                box parameter_disposer,
+                box parameter_replicator,
+                box transform,
+                simple_handlers,
+                complex_handlers,
+                box input
+            } => {
+                self.transpile_value_and_map(parameter, context, |(s, parameter)| {
+                    s.transpile_value_and_map(parameter_disposer, context, |(s, parameter_disposer)| {
+                        s.transpile_value_and_map(parameter_replicator, context, |(s, parameter_replicator)| {
+                            s.transpile_value_and_map(transform, context, |(s, transform)| {
+                                let (simple_effs, simple_handlers): (Vec<_>, Vec<_>) = simple_handlers.into_iter().map(|(box a, box b)| (a, b)).unzip();
+                                let (simple_effs_v, simple_effs_c) = s.transpile_values(simple_effs, context);
+                                let (simple_handlers_v, simple_handlers_c) = s.transpile_values(simple_handlers, context);
+                                let (complex_effs, complex_handlers): (Vec<_>, Vec<_>) = complex_handlers.into_iter().map(|(box a, box b)| (a, b)).unzip();
+                                let (complex_effs_v, complex_effs_c) = s.transpile_values(complex_effs, context);
+                                let (complex_handlers_v, complex_handlers_c) = s.transpile_values(complex_handlers, context);
+                                s.transpile_value_and_map(input, context, |(s, input)| {
+                                    let handler = CTerm::Handler {
+                                        parameter,
+                                        parameter_disposer,
+                                        parameter_replicator,
+                                        transform,
+                                        simple_handlers: simple_effs_v.into_iter().zip(simple_handlers_v).collect(),
+                                        complex_handlers: complex_effs_v.into_iter().zip(complex_handlers_v).collect(),
+                                        input,
+                                    };
+                                    let handler = Self::squash_computations(handler, simple_effs_c);
+                                    let handler = Self::squash_computations(handler, simple_handlers_c);
+                                    let handler = Self::squash_computations(handler, complex_effs_c);
+                                    let handler = Self::squash_computations(handler, complex_handlers_c);
+                                    handler
+                                })
+                            })
+                        })
+                    })
+                })
+            }
         }
     }
 
     fn transpile_value(&mut self, f_term: FTerm, context: &Context) -> (VTerm, Option<(usize, CTerm)>) {
         match f_term {
-            FTerm::Identifier { name } => match self.transpile_identifier(&name, context) {
+            FTerm::Identifier { name, may_have_complex_effects } => match self.transpile_identifier(&name, context, may_have_complex_effects) {
                 Left(c_term) => self.new_computation(c_term),
                 Right(v_term) => (v_term, None),
             }
@@ -193,10 +238,10 @@ impl Transpiler {
             }
             FTerm::Lambda { .. } => {
                 let c_term = self.transpile_impl(f_term, context);
-                (VTerm::Thunk { t: Box::new(c_term) }, None)
+                (VTerm::Thunk { t: Box::new(c_term), may_have_complex_effects: true }, None)
             }
             FTerm::Thunk { computation } => {
-                (VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)) }, None)
+                (VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)), may_have_complex_effects: true }, None)
             }
             FTerm::CaseInt { .. } |
             FTerm::MemGet { .. } |
@@ -204,6 +249,8 @@ impl Transpiler {
             FTerm::Redex { .. } |
             FTerm::Force { .. } |
             FTerm::Let { .. } |
+            FTerm::OperationCall { .. } |
+            FTerm::Handler { .. } |
             FTerm::Defs { .. } => {
                 let c_term = self.transpile_impl(f_term, context);
                 self.new_computation(c_term)
@@ -239,13 +286,17 @@ impl Transpiler {
         (VTerm::Var { index }, Some((index, c_term)))
     }
 
-    fn transpile_identifier(&self, name: &str, context: &Context) -> Either<CTerm, VTerm> {
+    fn transpile_identifier(&self, name: &str, context: &Context, may_have_complex_effects: bool) -> Either<CTerm, VTerm> {
         if let Some(index) = context.var_map.get(name) {
             Right(VTerm::Var { index: *index })
-        } else if let Some(term) = context.def_map.get(name) {
+        } else if let Some((name, args)) = context.def_map.get(name) {
+            let term = CTerm::Redex {
+                function: Box::new(CTerm::Def { name: name.to_owned(), may_have_complex_effects }),
+                args: args.to_owned(),
+            };
             Left(term.clone())
         } else if let Some(name) = PRIMITIVE_FUNCTIONS.get_key(name) {
-            Left(CTerm::Def { name: (*name).to_owned(), may_have_complex_effects: false })
+            Left(CTerm::Def { name: (*name).to_owned(), may_have_complex_effects })
         } else {
             // properly returning a Result is better but very annoying since that requires transposing out of various collection
             panic!("Unknown identifier: {}", name)
@@ -266,7 +317,7 @@ impl Transpiler {
 
     fn get_free_vars<'a>(f_term: &'a FTerm, bound_names: &HashSet<&'a str>, free_vars: &mut HashSet<&'a str>) {
         match f_term {
-            FTerm::Identifier { name } => if !bound_names.contains(name.as_str()) && !PRIMITIVE_FUNCTIONS.contains_key(name.as_str()) {
+            FTerm::Identifier { name, .. } => if !bound_names.contains(name.as_str()) && !PRIMITIVE_FUNCTIONS.contains_key(name.as_str()) {
                 free_vars.insert(name.as_str());
             }
             FTerm::Int { .. } => {}
@@ -281,7 +332,7 @@ impl Transpiler {
                 Self::get_free_vars(function, bound_names, free_vars);
                 args.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars));
             }
-            FTerm::Force { thunk } => Self::get_free_vars(thunk, bound_names, free_vars),
+            FTerm::Force { thunk, .. } => Self::get_free_vars(thunk, bound_names, free_vars),
             FTerm::Thunk { computation } => Self::get_free_vars(computation, bound_names, free_vars),
             FTerm::CaseInt { t, branches, default_branch, .. } => {
                 Self::get_free_vars(t, bound_names, free_vars);
@@ -316,6 +367,33 @@ impl Transpiler {
                 if let Some(body) = body {
                     Self::get_free_vars(body, &new_bound_names, free_vars);
                 }
+            }
+            FTerm::OperationCall { box eff, args, .. } => {
+                Self::get_free_vars(eff, bound_names, free_vars);
+                args.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars));
+            }
+            FTerm::Handler {
+                box parameter,
+                box parameter_disposer,
+                box parameter_replicator,
+                box transform,
+                complex_handlers,
+                simple_handlers,
+                box input
+            } => {
+                Self::get_free_vars(parameter, bound_names, free_vars);
+                Self::get_free_vars(parameter_disposer, bound_names, free_vars);
+                Self::get_free_vars(parameter_replicator, bound_names, free_vars);
+                Self::get_free_vars(transform, bound_names, free_vars);
+                complex_handlers.iter().for_each(|(eff, handler)| {
+                    Self::get_free_vars(eff, bound_names, free_vars);
+                    Self::get_free_vars(handler, bound_names, free_vars);
+                });
+                simple_handlers.iter().for_each(|(eff, handler)| {
+                    Self::get_free_vars(eff, bound_names, free_vars);
+                    Self::get_free_vars(handler, bound_names, free_vars);
+                });
+                Self::get_free_vars(input, bound_names, free_vars);
             }
         }
     }
@@ -377,7 +455,7 @@ mod tests {
     #[test]
     fn run_tests() -> Result<(), String> {
         let mut resource_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        resource_dir.push("resources/transpiler_tests");
+        resource_dir.push("resources/frontend/transpiler_tests");
         let mut test_input_paths = fs::read_dir(resource_dir)
             .unwrap()
             .map(|r| r.unwrap().path())

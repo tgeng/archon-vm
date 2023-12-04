@@ -1,0 +1,30 @@
+MemSet {
+    base: MemGet {
+        base: Struct {
+            values: [
+                Int {
+                    value: 1,
+                },
+                Struct {
+                    values: [
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+                Int {
+                    value: 3,
+                },
+            ],
+        },
+        offset: Int {
+            value: 1,
+        },
+    },
+    offset: Int {
+        value: 0,
+    },
+    value: Int {
+        value: 4,
+    },
+}

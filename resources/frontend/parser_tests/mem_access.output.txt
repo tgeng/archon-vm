@@ -1,0 +1,57 @@
+Let {
+    name: "a",
+    t: Struct {
+        values: [
+            Int {
+                value: 1,
+            },
+            Int {
+                value: 2,
+            },
+            Int {
+                value: 3,
+            },
+        ],
+    },
+    body: Let {
+        name: "_",
+        t: MemSet {
+            base: Identifier {
+                name: "a",
+                may_have_complex_effects: false,
+            },
+            offset: Int {
+                value: 0,
+            },
+            value: Int {
+                value: 4,
+            },
+        },
+        body: Redex {
+            function: Identifier {
+                name: "_int_add",
+                may_have_complex_effects: false,
+            },
+            args: [
+                MemGet {
+                    base: Identifier {
+                        name: "a",
+                        may_have_complex_effects: false,
+                    },
+                    offset: Int {
+                        value: 0,
+                    },
+                },
+                MemGet {
+                    base: Identifier {
+                        name: "a",
+                        may_have_complex_effects: false,
+                    },
+                    offset: Int {
+                        value: 1,
+                    },
+                },
+            ],
+        },
+    },
+}

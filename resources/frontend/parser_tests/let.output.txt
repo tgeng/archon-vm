@@ -1,0 +1,10 @@
+Let {
+    name: "x",
+    t: Int {
+        value: 1,
+    },
+    body: Identifier {
+        name: "x",
+        may_have_complex_effects: false,
+    },
+}

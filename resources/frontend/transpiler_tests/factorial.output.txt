@@ -1,0 +1,346 @@
+FTerm
+========
+Defs {
+    defs: [
+        (
+            "factorial",
+            Def {
+                args: [
+                    (
+                        "n",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                ],
+                body: CaseInt {
+                    t: Identifier {
+                        name: "n",
+                        may_have_complex_effects: false,
+                    },
+                    result_type: SpecializedF(
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                    branches: [
+                        (
+                            0,
+                            Int {
+                                value: 1,
+                            },
+                        ),
+                    ],
+                    default_branch: Some(
+                        Redex {
+                            function: Identifier {
+                                name: "_int_mul",
+                                may_have_complex_effects: false,
+                            },
+                            args: [
+                                Identifier {
+                                    name: "n",
+                                    may_have_complex_effects: false,
+                                },
+                                Redex {
+                                    function: Identifier {
+                                        name: "factorial",
+                                        may_have_complex_effects: false,
+                                    },
+                                    args: [
+                                        Redex {
+                                            function: Identifier {
+                                                name: "_int_sub",
+                                                may_have_complex_effects: false,
+                                            },
+                                            args: [
+                                                Identifier {
+                                                    name: "n",
+                                                    may_have_complex_effects: false,
+                                                },
+                                                Int {
+                                                    value: 1,
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ),
+                },
+                c_type: SpecializedF(
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            },
+        ),
+    ],
+    body: Some(
+        Redex {
+            function: Identifier {
+                name: "factorial",
+                may_have_complex_effects: false,
+            },
+            args: [
+                Int {
+                    value: 5,
+                },
+            ],
+        },
+    ),
+}
+
+Defs
+========
+[
+    (
+        "factorial",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            ],
+            body: CaseInt {
+                t: Var {
+                    index: 0,
+                },
+                result_type: SpecializedF(
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                branches: [
+                    (
+                        0,
+                        Return {
+                            value: Int {
+                                value: 1,
+                            },
+                        },
+                    ),
+                ],
+                default_branch: Some(
+                    Let {
+                        t: Let {
+                            t: PrimitiveCall {
+                                name: "_int_sub",
+                                args: [
+                                    Var {
+                                        index: 0,
+                                    },
+                                    Int {
+                                        value: 1,
+                                    },
+                                ],
+                            },
+                            bound_index: 1,
+                            body: Redex {
+                                function: Def {
+                                    name: "factorial",
+                                    may_have_complex_effects: false,
+                                },
+                                args: [
+                                    Var {
+                                        index: 1,
+                                    },
+                                ],
+                            },
+                        },
+                        bound_index: 2,
+                        body: PrimitiveCall {
+                            name: "_int_mul",
+                            args: [
+                                Var {
+                                    index: 0,
+                                },
+                                Var {
+                                    index: 2,
+                                },
+                            ],
+                        },
+                    },
+                ),
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 3,
+            may_be_simple: true,
+            may_be_complex: true,
+        },
+    ),
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Redex {
+                function: Def {
+                    name: "factorial",
+                    may_have_complex_effects: false,
+                },
+                args: [
+                    Int {
+                        value: 5,
+                    },
+                ],
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 0,
+            may_be_simple: true,
+            may_be_complex: false,
+        },
+    ),
+]
+
+CLIR
+========
+[factorial__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64) -> i64 tail
+    sig1 = (i64, i64, i64) -> i64 tail
+    fn0 = colocated u0:18 sig0
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = sshr_imm v2, 1
+    brif v3, block3, block2
+
+block2:
+    v6 = iconst.i64 1
+    jump block1(v6, v0)  ; v6 = 1
+
+block3:
+    v7 = iconst.i64 1
+    v8 = sshr_imm.i64 v2, 1
+    v9 = isub v8, v7  ; v7 = 1
+    v10 = call fn0(v0, v9)
+    v11 = sshr_imm.i64 v2, 1
+    v12 = imul v11, v10
+    jump block1(v12, v0)
+
+block1(v4: i64, v5: i64):
+    v13 = ishl_imm v4, 1
+    v14 = iadd_imm.i64 v0, 0
+    store v13, v14
+    v15 = load.i64 v1+8
+    v16 = iadd.i64 v0, v15
+    v17 = load.i64 v1
+    return_call_indirect sig1, v17(v16, v1, v14)
+}
+
+
+[factorial__simple]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64) -> i64 tail
+    fn0 = colocated u0:18 sig0
+
+block0(v0: i64):
+    v1 = load.i64 v0
+    v2 = sshr_imm v1, 1
+    brif v2, block3, block2
+
+block2:
+    v5 = iconst.i64 1
+    jump block1(v5, v0)  ; v5 = 1
+
+block3:
+    v6 = iconst.i64 1
+    v7 = sshr_imm.i64 v1, 1
+    v8 = isub v7, v6  ; v6 = 1
+    v9 = call fn0(v0, v8)
+    v10 = sshr_imm.i64 v1, 1
+    v11 = imul v10, v9
+    jump block1(v11, v0)
+
+block1(v3: i64, v4: i64):
+    v12 = ishl_imm v3, 1
+    v13 = iadd_imm.i64 v0, 0
+    store v12, v13
+    return v13
+}
+
+
+[factorial__specialized]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64) -> i64 tail
+    fn0 = colocated u0:18 sig0
+
+block0(v0: i64, v1: i64):
+    brif v1, block3, block2
+
+block2:
+    v4 = iconst.i64 1
+    jump block1(v4, v0)  ; v4 = 1
+
+block3:
+    v5 = iconst.i64 1
+    v6 = isub.i64 v1, v5  ; v5 = 1
+    v7 = call fn0(v0, v6)
+    v8 = imul.i64 v1, v7
+    jump block1(v8, v0)
+
+block1(v2: i64, v3: i64):
+    return v2
+}
+
+
+[main__simple]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64) -> i64 tail
+    fn0 = colocated u0:18 sig0
+
+block0(v0: i64):
+    v1 = iconst.i64 5
+    v2 = call fn0(v0, v1)  ; v1 = 5
+    v3 = ishl_imm v2, 1
+    v4 = iadd_imm v0, -8
+    store v3, v4
+    return v4
+}
+
+
+[main__specialized]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64) -> i64 tail
+    fn0 = colocated u0:18 sig0
+
+block0(v0: i64):
+    v1 = iconst.i64 5
+    return_call fn0(v0, v1)  ; v1 = 5
+}
+
+
+[__main__]
+function u0:0() -> i64 fast {
+    sig0 = () -> i64 apple_aarch64
+    sig1 = (i64) -> i64 tail
+    fn0 = u0:2 sig0
+    fn1 = colocated u0:20 sig1
+
+block0:
+    v0 = call fn0()
+    v1 = call fn1(v0)
+    return v1
+}
+
+
+Result
+========
+120

@@ -17,7 +17,7 @@ pub trait Visitor {
 
     fn visit_var(&mut self, _v_term: &VTerm) {}
     fn visit_thunk(&mut self, v_term: &VTerm) {
-        let VTerm::Thunk { t } = v_term else { unreachable!() };
+        let VTerm::Thunk { t, .. } = v_term else { unreachable!() };
         self.visit_c_term(t);
     }
     fn visit_int(&mut self, _v_term: &VTerm) {}
@@ -85,7 +85,7 @@ pub trait Visitor {
     }
 
     fn visit_lambda(&mut self, c_term: &CTerm) {
-        let CTerm::Lambda { args, body } = c_term else { unreachable!() };
+        let CTerm::Lambda { args, body, .. } = c_term else { unreachable!() };
         args.iter().for_each(|(arg, _)| self.add_binding(*arg));
         self.visit_c_term(body);
         args.iter().for_each(|(arg, _)| self.remove_binding(*arg));

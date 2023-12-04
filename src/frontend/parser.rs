@@ -37,7 +37,7 @@ static PRECEDENCE: &[(&[OperatorAndName], Fixity)] = &[
 
 // keywords
 static KEYWORDS: &[&str] = &[
-    "let", "def", "case", "force", "thunk", "=>", "=", "(", ")", ",", "\\", "{", "}", "@", "_", ":", "->"
+    "let", "def", "case", "force", "thunk", "=>", "=", "(", ")", ",", "\\", "{", "}", "@", "_", ":", "->", "!"
 ];
 
 // tokenizer
@@ -285,7 +285,7 @@ fn id(input: Input) -> IResult<Input, String> {
 }
 
 fn id_term(input: Input) -> IResult<Input, FTerm> {
-    context("id_term", map(id, |name| FTerm::Identifier { name }))(input)
+    context("id_term", map(pair(id, opt(token("!"))), |(name, effectful)| FTerm::Identifier { name, may_have_complex_effects: effectful.is_some() }))(input)
 }
 
 fn int(input: Input) -> IResult<Input, i64> {
@@ -337,7 +337,7 @@ fn atom(input: Input) -> IResult<Input, FTerm> {
 }
 
 fn force(input: Input) -> IResult<Input, FTerm> {
-    context("force", map(preceded(token("force"), cut(atom)), |t| FTerm::Force { thunk: Box::new(t) }))(input)
+    context("force", map(preceded(token("force"), pair(opt(token("!")), cut(atom))), |(effectful, t)| FTerm::Force { thunk: Box::new(t), may_have_complex_effects: effectful.is_some() }))(input)
 }
 
 fn mem_access_or_atom(input: Input) -> IResult<Input, FTerm> {
@@ -387,7 +387,7 @@ fn operator_id(operators: &'static [OperatorAndName]) -> impl FnMut(Input) -> IR
                         None
                     })
                 .next()
-                .map(|fun_name| FTerm::Identifier { name: fun_name.to_string() })
+                .map(|fun_name| FTerm::Identifier { name: fun_name.to_string(), may_have_complex_effects: false })
         }
         _ => None,
     })
@@ -731,6 +731,8 @@ pub fn parse_f_term(input: &str) -> Result<FTerm, String> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+    use std::path::PathBuf;
     use crate::frontend::parser::{parse_f_term, tokenize};
     use crate::test_utils::debug_print;
 
@@ -829,525 +831,38 @@ mod tests {
     }
 
     #[test]
-    fn check_literals() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("123")?), "Int {
-    value: 123,
-}");
-        assert_eq!(debug_print(parse_f_term(r#""abc""#)?), r#"Str {
-    value: "abc",
-}"#);
-        Ok(())
+    fn run_parser_tests() -> Result<(), String> {
+        let mut resource_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        resource_dir.push("resources/frontend/parser_tests");
+        let mut test_input_paths = fs::read_dir(resource_dir)
+            .unwrap()
+            .map(|r| r.unwrap().path())
+            .filter(|p| p.file_name().unwrap().to_str().unwrap().ends_with("input.txt"))
+            .collect::<Vec<_>>();
+        test_input_paths.sort();
+        let all_results = test_input_paths.into_iter().map(|test_input_path| {
+            let test_output_path = test_input_path.with_extension("").with_extension("output.txt");
+            let result = check(test_input_path.to_str().unwrap(), test_output_path.to_str().unwrap());
+            (test_input_path, result)
+        }).filter(|(_, r)| r.is_err()).collect::<Vec<_>>();
+        if all_results.is_empty() {
+            Ok(())
+        } else {
+            Err(all_results.into_iter().map(|(test_input_path, r)| format!("[{}] {}", test_input_path.file_name().unwrap().to_str().unwrap(), r.unwrap_err())).collect::<Vec<_>>().join("\n"))
+        }
     }
 
-    #[test]
-    fn check_parse_simple_expression() -> Result<(), String> {
-        let result = parse_f_term("a + b - c * d / -e % +f")?;
-        assert_eq!(debug_print(result), r#"Redex {
-    function: Identifier {
-        name: "_int_sub",
-    },
-    args: [
-        Redex {
-            function: Identifier {
-                name: "_int_add",
-            },
-            args: [
-                Identifier {
-                    name: "a",
-                },
-                Identifier {
-                    name: "b",
-                },
-            ],
-        },
-        Redex {
-            function: Identifier {
-                name: "_int_mod",
-            },
-            args: [
-                Redex {
-                    function: Identifier {
-                        name: "_int_div",
-                    },
-                    args: [
-                        Redex {
-                            function: Identifier {
-                                name: "_int_mul",
-                            },
-                            args: [
-                                Identifier {
-                                    name: "c",
-                                },
-                                Identifier {
-                                    name: "d",
-                                },
-                            ],
-                        },
-                        Redex {
-                            function: Identifier {
-                                name: "_int_neg",
-                            },
-                            args: [
-                                Identifier {
-                                    name: "e",
-                                },
-                            ],
-                        },
-                    ],
-                },
-                Redex {
-                    function: Identifier {
-                        name: "_int_pos",
-                    },
-                    args: [
-                        Identifier {
-                            name: "f",
-                        },
-                    ],
-                },
-            ],
-        },
-    ],
-}"#);
-        Ok(())
-    }
+    fn check(test_input_path: &str, test_output_path: &str) -> Result<(), String> {
+        println!("checking {}", test_input_path);
+        let input = fs::read_to_string(test_input_path).unwrap();
+        let expected = fs::read_to_string(test_output_path).unwrap_or("".to_owned());
+        let actual = debug_print(parse_f_term(&input)?);
 
-    #[test]
-    fn check_empty_array() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("{}")?), r#"Struct {
-    values: [],
-}"#);
-        Ok(())
-    }
-
-
-    #[test]
-    fn check_single_element_array() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("{a}")?), r#"Struct {
-    values: [
-        Identifier {
-            name: "a",
-        },
-    ],
-}"#);
-        Ok(())
-    }
-
-    #[test]
-    fn check_array() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("{a, b, c}")?), r#"Struct {
-    values: [
-        Identifier {
-            name: "a",
-        },
-        Identifier {
-            name: "b",
-        },
-        Identifier {
-            name: "c",
-        },
-    ],
-}"#);
-        Ok(())
-    }
-
-    #[test]
-    fn check_mem_get() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("{a, b, c} @ 1")?), r#"MemGet {
-    base: Struct {
-        values: [
-            Identifier {
-                name: "a",
-            },
-            Identifier {
-                name: "b",
-            },
-            Identifier {
-                name: "c",
-            },
-        ],
-    },
-    offset: Int {
-        value: 1,
-    },
-}"#);
-        Ok(())
-    }
-
-    #[test]
-    fn check_expr_with_parentheses() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("(a + b) * c")?), r#"Redex {
-    function: Identifier {
-        name: "_int_mul",
-    },
-    args: [
-        Redex {
-            function: Identifier {
-                name: "_int_add",
-            },
-            args: [
-                Identifier {
-                    name: "a",
-                },
-                Identifier {
-                    name: "b",
-                },
-            ],
-        },
-        Identifier {
-            name: "c",
-        },
-    ],
-}"#);
-        Ok(())
-    }
-
-    #[test]
-    fn check_expr_with_parentheses2() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("f (g a)")?), r#"Redex {
-    function: Identifier {
-        name: "f",
-    },
-    args: [
-        Redex {
-            function: Identifier {
-                name: "g",
-            },
-            args: [
-                Identifier {
-                    name: "a",
-                },
-            ],
-        },
-    ],
-}"#);
-        Ok(())
-    }
-
-    #[test]
-    fn check_scoped_app() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("\
-f a b (c d)
-  g 1 2
-  h 3")?), r#"Redex {
-    function: Identifier {
-        name: "f",
-    },
-    args: [
-        Identifier {
-            name: "a",
-        },
-        Identifier {
-            name: "b",
-        },
-        Redex {
-            function: Identifier {
-                name: "c",
-            },
-            args: [
-                Identifier {
-                    name: "d",
-                },
-            ],
-        },
-        Let {
-            name: "_",
-            t: Redex {
-                function: Identifier {
-                    name: "g",
-                },
-                args: [
-                    Int {
-                        value: 1,
-                    },
-                    Int {
-                        value: 2,
-                    },
-                ],
-            },
-            body: Redex {
-                function: Identifier {
-                    name: "h",
-                },
-                args: [
-                    Int {
-                        value: 3,
-                    },
-                ],
-            },
-        },
-    ],
-}"#);
-        Ok(())
-    }
-
-    #[test]
-    fn check_force() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("force x y z")?), r#"Redex {
-    function: Force {
-        thunk: Identifier {
-            name: "x",
-        },
-    },
-    args: [
-        Identifier {
-            name: "y",
-        },
-        Identifier {
-            name: "z",
-        },
-    ],
-}"#);
-        Ok(())
-    }
-
-    #[test]
-    fn check_thunk() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("thunk \\=> a b c")?), r#"Thunk {
-    computation: Lambda {
-        arg_names: [],
-        body: Redex {
-            function: Identifier {
-                name: "a",
-            },
-            args: [
-                Identifier {
-                    name: "b",
-                },
-                Identifier {
-                    name: "c",
-                },
-            ],
-        },
-    },
-}"#);
-        Ok(())
-    }
-
-    #[test]
-    fn check_let() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("
-let x = 1
-x")?), r#"Let {
-    name: "x",
-    t: Int {
-        value: 1,
-    },
-    body: Identifier {
-        name: "x",
-    },
-}"#);
-        Ok(())
-    }
-
-    #[test]
-    fn check_case_int() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("case 1 -> int
-  1 => 2
-  _ => 3
-")?), r#"CaseInt {
-    t: Int {
-        value: 1,
-    },
-    result_type: SpecializedF(
-        Specialized(
-            Integer,
-        ),
-    ),
-    branches: [
-        (
-            1,
-            Int {
-                value: 2,
-            },
-        ),
-    ],
-    default_branch: Some(
-        Int {
-            value: 3,
-        },
-    ),
-}"#);
-        Ok(())
-    }
-
-    #[test]
-    fn check_mem_access() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("let a = {1, 2, 3}
-a @ 0 = 4
-a @ 0 + a @ 1")?), r#"Let {
-    name: "a",
-    t: Struct {
-        values: [
-            Int {
-                value: 1,
-            },
-            Int {
-                value: 2,
-            },
-            Int {
-                value: 3,
-            },
-        ],
-    },
-    body: Let {
-        name: "_",
-        t: MemSet {
-            base: Identifier {
-                name: "a",
-            },
-            offset: Int {
-                value: 0,
-            },
-            value: Int {
-                value: 4,
-            },
-        },
-        body: Redex {
-            function: Identifier {
-                name: "_int_add",
-            },
-            args: [
-                MemGet {
-                    base: Identifier {
-                        name: "a",
-                    },
-                    offset: Int {
-                        value: 0,
-                    },
-                },
-                MemGet {
-                    base: Identifier {
-                        name: "a",
-                    },
-                    offset: Int {
-                        value: 1,
-                    },
-                },
-            ],
-        },
-    },
-}"#);
-        Ok(())
-    }
-
-    #[test]
-    fn check_nested_mem_access() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term("{1, {2}, 3} @ 1 @ 0 = 4")?), r#"MemSet {
-    base: MemGet {
-        base: Struct {
-            values: [
-                Int {
-                    value: 1,
-                },
-                Struct {
-                    values: [
-                        Int {
-                            value: 2,
-                        },
-                    ],
-                },
-                Int {
-                    value: 3,
-                },
-            ],
-        },
-        offset: Int {
-            value: 1,
-        },
-    },
-    offset: Int {
-        value: 0,
-    },
-    value: Int {
-        value: 4,
-    },
-}"#);
-        Ok(())
-    }
-
-    #[test]
-    fn check_def() -> Result<(), String> {
-        assert_eq!(debug_print(parse_f_term(r#"
-def f x => x
-def g x y => x + y
-g (f 1) 2
-"#)?), r#"Defs {
-    defs: [
-        (
-            "f",
-            Def {
-                args: [
-                    (
-                        "x",
-                        Uniform,
-                    ),
-                ],
-                body: Identifier {
-                    name: "x",
-                },
-                c_type: Default,
-            },
-        ),
-    ],
-    body: Some(
-        Defs {
-            defs: [
-                (
-                    "g",
-                    Def {
-                        args: [
-                            (
-                                "x",
-                                Uniform,
-                            ),
-                            (
-                                "y",
-                                Uniform,
-                            ),
-                        ],
-                        body: Redex {
-                            function: Identifier {
-                                name: "_int_add",
-                            },
-                            args: [
-                                Identifier {
-                                    name: "x",
-                                },
-                                Identifier {
-                                    name: "y",
-                                },
-                            ],
-                        },
-                        c_type: Default,
-                    },
-                ),
-            ],
-            body: Some(
-                Redex {
-                    function: Identifier {
-                        name: "g",
-                    },
-                    args: [
-                        Redex {
-                            function: Identifier {
-                                name: "f",
-                            },
-                            args: [
-                                Int {
-                                    value: 1,
-                                },
-                            ],
-                        },
-                        Int {
-                            value: 2,
-                        },
-                    ],
-                },
-            ),
-        },
-    ),
-}"#);
-        Ok(())
+        if expected != actual {
+            fs::write(test_output_path, actual).unwrap();
+            Err(format!("Output mismatch for {}", test_input_path))
+        } else {
+            Ok(())
+        }
     }
 }

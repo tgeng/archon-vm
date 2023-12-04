@@ -1,0 +1,20 @@
+Redex {
+    function: Identifier {
+        name: "f",
+        may_have_complex_effects: false,
+    },
+    args: [
+        Redex {
+            function: Identifier {
+                name: "g",
+                may_have_complex_effects: false,
+            },
+            args: [
+                Identifier {
+                    name: "a",
+                    may_have_complex_effects: false,
+                },
+            ],
+        },
+    ],
+}

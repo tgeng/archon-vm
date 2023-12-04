@@ -13,13 +13,16 @@ Let {
         body: Redex {
             function: Identifier {
                 name: "_int_add",
+                may_have_complex_effects: false,
             },
             args: [
                 Identifier {
                     name: "a",
+                    may_have_complex_effects: false,
                 },
                 Identifier {
                     name: "b",
+                    may_have_complex_effects: false,
                 },
             ],
         },
