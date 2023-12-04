@@ -15,14 +15,14 @@ pub enum FTerm {
     MemSet { base: Box<FTerm>, offset: Box<FTerm>, value: Box<FTerm> },
     Let { name: String, t: Box<FTerm>, body: Box<FTerm> },
     Defs { defs: Vec<(String, Def)>, body: Option<Box<FTerm>> },
-    OperationCall { eff: Box<FTerm>, args: Vec<FTerm>, simple: bool },
+    OperationCall { eff: Box<FTerm>, args: Vec<FTerm>, complex: bool },
     Handler {
         parameter: Box<FTerm>,
         parameter_disposer: Box<FTerm>,
         parameter_replicator: Box<FTerm>,
         transform: Box<FTerm>,
-        simple_handlers: Vec<(Box<FTerm>, Box<FTerm>)>,
-        complex_handlers: Vec<(Box<FTerm>, Box<FTerm>)>,
+        simple_handlers: Vec<(FTerm, FTerm)>,
+        complex_handlers: Vec<(FTerm, FTerm)>,
         input: Box<FTerm>,
     },
 }

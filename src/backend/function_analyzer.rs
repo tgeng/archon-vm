@@ -51,7 +51,7 @@ impl FunctionAnalyzer {
                 self.count += 1;
                 self.case_blocks.insert(current_block_id, (branch_block_ids, default_block_id, joining_block_id));
             }
-            CTerm::OperationCall { simple: false, .. } if !is_tail => {
+            CTerm::OperationCall { complex: true, .. } if !is_tail => {
                 self.count += 1;
                 self.has_non_tail_complex_effects = true;
             }

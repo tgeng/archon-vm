@@ -149,7 +149,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                 self.function_builder.ins().return_call(func_ref, &[new_base_address, continuation]);
                 None
             }
-            CTerm::OperationCall { eff, args, simple: false } if is_tail => {
+            CTerm::OperationCall { eff, args, complex: true } if is_tail => {
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);
@@ -455,7 +455,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 self.tip_address = self.function_builder.block_params(joining_block)[1];
                 Some((self.function_builder.block_params(joining_block)[0], *result_v_type))
             }
-            CTerm::OperationCall { eff, args, simple: false } => {
+            CTerm::OperationCall { eff, args, complex: true } => {
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);

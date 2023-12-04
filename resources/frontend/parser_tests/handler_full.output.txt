@@ -1,0 +1,200 @@
+Handler {
+    parameter: Int {
+        value: 42,
+    },
+    parameter_disposer: Lambda {
+        arg_names: [
+            (
+                "p",
+                Uniform,
+            ),
+        ],
+        body: Redex {
+            function: Identifier {
+                name: "_int_sub",
+                may_have_complex_effects: false,
+            },
+            args: [
+                Identifier {
+                    name: "p",
+                    may_have_complex_effects: false,
+                },
+                Int {
+                    value: 1,
+                },
+            ],
+        },
+        may_have_complex_effects: false,
+    },
+    parameter_replicator: Lambda {
+        arg_names: [
+            (
+                "p",
+                Uniform,
+            ),
+        ],
+        body: Struct {
+            values: [
+                Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                        may_have_complex_effects: false,
+                    },
+                    args: [
+                        Identifier {
+                            name: "p",
+                            may_have_complex_effects: false,
+                        },
+                        Int {
+                            value: 1,
+                        },
+                    ],
+                },
+                Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                        may_have_complex_effects: false,
+                    },
+                    args: [
+                        Identifier {
+                            name: "p",
+                            may_have_complex_effects: false,
+                        },
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+            ],
+        },
+        may_have_complex_effects: false,
+    },
+    transform: Lambda {
+        arg_names: [
+            (
+                "p",
+                Uniform,
+            ),
+            (
+                "r",
+                Uniform,
+            ),
+        ],
+        body: Redex {
+            function: Identifier {
+                name: "_int_add",
+                may_have_complex_effects: false,
+            },
+            args: [
+                Identifier {
+                    name: "r",
+                    may_have_complex_effects: false,
+                },
+                Int {
+                    value: 3,
+                },
+            ],
+        },
+        may_have_complex_effects: false,
+    },
+    simple_handlers: [
+        (
+            Str {
+                value: "bar",
+            },
+            Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                    (
+                        "x",
+                        Uniform,
+                    ),
+                ],
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                        may_have_complex_effects: false,
+                    },
+                    args: [
+                        Identifier {
+                            name: "x",
+                            may_have_complex_effects: false,
+                        },
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+                may_have_complex_effects: false,
+            },
+        ),
+    ],
+    complex_handlers: [
+        (
+            Str {
+                value: "foo",
+            },
+            Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                    (
+                        "x",
+                        Uniform,
+                    ),
+                    (
+                        "cont",
+                        Uniform,
+                    ),
+                ],
+                body: Redex {
+                    function: Identifier {
+                        name: "cont",
+                        may_have_complex_effects: true,
+                    },
+                    args: [
+                        Int {
+                            value: 0,
+                        },
+                        Identifier {
+                            name: "p",
+                            may_have_complex_effects: false,
+                        },
+                        Redex {
+                            function: Identifier {
+                                name: "_int_add",
+                                may_have_complex_effects: false,
+                            },
+                            args: [
+                                Identifier {
+                                    name: "x",
+                                    may_have_complex_effects: false,
+                                },
+                                Int {
+                                    value: 1,
+                                },
+                            ],
+                        },
+                    ],
+                },
+                may_have_complex_effects: true,
+            },
+        ),
+    ],
+    input: OperationCall {
+        eff: Str {
+            value: "foo",
+        },
+        args: [
+            Int {
+                value: 1,
+            },
+        ],
+        complex: true,
+    },
+}

@@ -1,3 +1,4 @@
+use either::Either;
 use nom::branch::alt;
 use nom::{InputLength, IResult};
 use nom::character::complete::{space0, char, satisfy as char_satisfy, alphanumeric1, one_of};
@@ -37,7 +38,7 @@ static PRECEDENCE: &[(&[OperatorAndName], Fixity)] = &[
 
 // keywords
 static KEYWORDS: &[&str] = &[
-    "let", "def", "case", "force", "thunk", "=>", "=", "(", ")", ",", "\\", "{", "}", "@", "_", ":", "->", "!"
+    "let", "def", "case", "force", "thunk", "handler", "=>", "=", "(", ")", ",", "\\", "{", "}", "@", "_", ":", "->", "!", "#", "=>!", "#!", "disposer", "replicator"
 ];
 
 // tokenizer
@@ -79,7 +80,7 @@ fn identifier_token(input: Span) -> IResult<Span, Token> {
                 one_of("(),\\{}").map(|c| Token::Normal(c.to_string(), input.location_line() - 1, input.naive_get_utf8_column() - 1)),
                 // punctuation identifier
                 take_while1(|c: char| c.is_ascii_punctuation() &&
-                    c != '`' && c != '"' && c != '(' && c != ')' && c != ',' && c != '\\')
+                    c != '`' && c != '"' && c != '(' && c != ')' && c != ',' && c != '\\' && c != '{' && c != '}')
                     .map(|s: Span| Token::Normal(s.to_string(), input.location_line() - 1, input.naive_get_utf8_column() - 1)),
                 // backtick-quoted identifier
                 delimited(
@@ -174,6 +175,26 @@ impl<'a> InputLength for Input<'a> {
         self.tokens.input_len()
     }
 }
+
+fn boolean<I, P1, P2, O1, O2, E>(false_parser: P1, true_parser: P2) -> impl FnMut(I) -> IResult<I, bool, E> where
+    I: Clone + InputLength,
+    P1: Parser<I, O1, E>,
+    P2: Parser<I, O2, E>,
+    E: ParseError<I>
+{
+    alt((false_parser.map(|_| false), true_parser.map(|_| true)))
+}
+
+// pub fn separated_list0<I, O, O2, E, F, G>(
+//     mut sep: G,
+//     mut f: F,
+// ) -> impl FnMut(I) -> IResult<I, Vec<O>, E>
+//     where
+//         I: Clone + InputLength,
+//         F: Parser<I, O, E>,
+//         G: Parser<I, O2, E>,
+//         E: ParseError<I>,
+// {
 
 fn map_token<F, R>(f: F) -> impl FnMut(Input) -> IResult<Input, R> where F: Fn(&Token) -> Option<R> {
     move |input: Input| {
@@ -340,24 +361,38 @@ fn force(input: Input) -> IResult<Input, FTerm> {
     context("force", map(preceded(token("force"), pair(opt(token("!")), cut(atom))), |(effectful, t)| FTerm::Force { thunk: Box::new(t), may_have_complex_effects: effectful.is_some() }))(input)
 }
 
-fn mem_access_or_atom(input: Input) -> IResult<Input, FTerm> {
-    context("mem_access_or_atom", map(
-        pair(atom, many0(pair(preceded(token("@"), cut(atom)), opt(preceded(token("="), cut(f_term)))))),
-        |(t, index_and_values)| {
-            index_and_values.into_iter().fold(t, |t, (index, assignment)| {
-                match assignment {
-                    None => FTerm::MemGet { base: Box::new(t), offset: Box::new(index) },
-                    Some(value) => FTerm::MemSet { base: Box::new(t), offset: Box::new(index), value: Box::new(value) },
-                }
-            })
-        },
-    ))(input)
+fn atomic_call(input: Input) -> IResult<Input, FTerm> {
+    context("atomic_call",
+            map(
+                pair(
+                    atom,
+                    alt((
+                        map(pair(boolean(token("#"), token("#!")), cut(struct_)), Either::Right),
+                        map(many0(pair(preceded(token("@"), cut(atom)), opt(preceded(token("="), cut(f_term))))), Either::Left),
+                    )),
+                ),
+                |(t, either)| {
+                    match either {
+                        Either::Left(index_and_values) => index_and_values.into_iter().fold(t, |t, (index, assignment)| {
+                            match assignment {
+                                None => FTerm::MemGet { base: Box::new(t), offset: Box::new(index) },
+                                Some(value) => FTerm::MemSet { base: Box::new(t), offset: Box::new(index), value: Box::new(value) },
+                            }
+                        }),
+                        Either::Right((complex, FTerm::Struct { values })) => {
+                            FTerm::OperationCall { eff: Box::new(t), args: values, complex }
+                        }
+                        _ => unreachable!()
+                    }
+                },
+            ),
+    )(input)
 }
 
 fn scoped_app(input: Input) -> IResult<Input, FTerm> {
     context("scoped_app", scoped(
         map(
-            pair(many1(alt((mem_access_or_atom, force))), many0(preceded(newline, f_term))),
+            pair(many1(alt((atomic_call, force))), many0(preceded(newline, f_term))),
             |(f_and_args, more_args)| {
                 if f_and_args.len() == 1 && more_args.is_empty() {
                     f_and_args.into_iter().next().unwrap()
@@ -636,14 +671,14 @@ fn lambda(input: Input) -> IResult<Input, FTerm> {
     context("lambda", scoped(
         map(
             tuple((
-                delimited(
+                preceded(
                     token("\\"),
                     separated_list0(newline_opt, pair(id, v_type_decl)),
-                    token("=>")),
-                opt(token("!")),
+                ),
+                boolean(token("=>"), token("=>!")),
                 cut(expr))),
-            |(arg_names, effectful, body)|
-                FTerm::Lambda { arg_names, body: Box::new(body), may_have_complex_effects: effectful.is_some() },
+            |(arg_names, may_have_complex_effects, body)|
+                FTerm::Lambda { arg_names, body: Box::new(body), may_have_complex_effects },
         )))(input)
 }
 
@@ -694,8 +729,106 @@ fn defs_term(input: Input) -> IResult<Input, FTerm> {
     ))(input)
 }
 
+enum HandlerComponent {
+    Disposer(FTerm),
+    Replicator(FTerm),
+    Transform(FTerm),
+    Handler { eff: FTerm, handler: FTerm, complex: bool },
+}
+
+fn handler_component(input: Input) -> IResult<Input, HandlerComponent> {
+    alt((
+        map(preceded(token("disposer"), cut(computation)), HandlerComponent::Disposer),
+        map(preceded(token("replicator"), cut(computation)), HandlerComponent::Replicator),
+        map(preceded(token("#"), cut(computation)), HandlerComponent::Transform),
+        map(
+            tuple((
+                atom,
+                boolean(token("#"), token("#!")),
+                computation,
+            )),
+            |(eff, complex, handler, )| HandlerComponent::Handler { eff, handler, complex },
+        ),
+    ))(input)
+}
+
+fn handler_term(input: Input) -> IResult<Input, FTerm> {
+    context("handler_term", map(
+        pair(
+            scoped(tuple((
+                preceded(token("handler"), cut(opt(atom))),
+                many0(preceded(newline, cut(handler_component))),
+            ))),
+            preceded(newline, f_term),
+        ),
+        |((parameter, handler_components), input)| {
+            let mut handler = FTerm::Handler {
+                parameter: Box::new(parameter.unwrap_or(FTerm::Struct { values: vec![] })),
+                parameter_disposer: Box::new(FTerm::Lambda {
+                    arg_names: vec![("_".to_owned(), VType::Uniform)],
+                    body: Box::new(FTerm::Struct { values: vec![] }),
+                    may_have_complex_effects: false,
+                }),
+                parameter_replicator: Box::new(FTerm::Lambda {
+                    arg_names: vec![("p".to_owned(), VType::Uniform)],
+                    body: Box::new(FTerm::Struct {
+                        values: vec![
+                            FTerm::Identifier {
+                                name: "p".to_owned(),
+                                may_have_complex_effects: false,
+                            },
+                            FTerm::Identifier {
+                                name: "p".to_owned(),
+                                may_have_complex_effects: false,
+                            }]
+                    }),
+                    may_have_complex_effects: false,
+                }),
+                transform: Box::new(FTerm::Lambda {
+                    arg_names: vec![("p".to_owned(), VType::Uniform), ("r".to_owned(), VType::Uniform)],
+                    body: Box::new(FTerm::Identifier { name: "r".to_owned(), may_have_complex_effects: false }),
+                    may_have_complex_effects: false,
+                }),
+                simple_handlers: vec![],
+                complex_handlers: vec![],
+                input: Box::new(input),
+            };
+            for handler_component in handler_components.into_iter() {
+                let FTerm::Handler {
+                    box parameter_disposer,
+                    box parameter_replicator,
+                    box transform,
+                    simple_handlers,
+                    complex_handlers,
+                    ..
+                } = &mut handler else { unreachable!() };
+
+                match handler_component {
+                    HandlerComponent::Disposer(disposer) => {
+                        *parameter_disposer = disposer;
+                    }
+                    HandlerComponent::Replicator(replicator) => {
+                        *parameter_replicator = replicator;
+                    }
+                    HandlerComponent::Transform(t) => {
+                        *transform = t;
+                    }
+                    HandlerComponent::Handler { eff, handler, complex } => {
+                        if complex {
+                            complex_handlers.push((eff, handler));
+                        } else {
+                            simple_handlers.push((eff, handler));
+                        }
+                    }
+                }
+            }
+            handler
+        },
+    ))(input)
+}
+
 fn computation(input: Input) -> IResult<Input, FTerm> {
-    alt((let_term, defs_term, expr, lambda, case))(input)
+    alt((let_term, defs_term, handler_term, expr, lambda, case))(input)
 }
 
 fn thunk(input: Input) -> IResult<Input, FTerm> {

@@ -187,10 +187,10 @@ impl Transpiler {
                     })
                 }
             }
-            FTerm::OperationCall { box eff, args, simple } => {
+            FTerm::OperationCall { box eff, args, complex } => {
                 self.transpile_value_and_map(eff, context, |(s, eff)| {
                     let (transpiled_args, transpiled_computations) = s.transpile_values(args, context);
-                    let operation_call = CTerm::OperationCall { eff, args: transpiled_args, simple };
+                    let operation_call = CTerm::OperationCall { eff, args: transpiled_args, complex };
                     Self::squash_computations(operation_call, transpiled_computations)
                 })
             }
@@ -207,10 +207,10 @@ impl Transpiler {
                     s.transpile_value_and_map(parameter_disposer, context, |(s, parameter_disposer)| {
                         s.transpile_value_and_map(parameter_replicator, context, |(s, parameter_replicator)| {
                             s.transpile_value_and_map(transform, context, |(s, transform)| {
-                                let (simple_effs, simple_handlers): (Vec<_>, Vec<_>) = simple_handlers.into_iter().map(|(box a, box b)| (a, b)).unzip();
+                                let (simple_effs, simple_handlers): (Vec<_>, Vec<_>) = simple_handlers.into_iter().map(|(a, b)| (a, b)).unzip();
                                 let (simple_effs_v, simple_effs_c) = s.transpile_values(simple_effs, context);
                                 let (simple_handlers_v, simple_handlers_c) = s.transpile_values(simple_handlers, context);
-                                let (complex_effs, complex_handlers): (Vec<_>, Vec<_>) = complex_handlers.into_iter().map(|(box a, box b)| (a, b)).unzip();
+                                let (complex_effs, complex_handlers): (Vec<_>, Vec<_>) = complex_handlers.into_iter().map(|(a, b)| (a, b)).unzip();
                                 let (complex_effs_v, complex_effs_c) = s.transpile_values(complex_effs, context);
                                 let (complex_handlers_v, complex_handlers_c) = s.transpile_values(complex_handlers, context);
                                 s.transpile_value_and_map(input, context, |(s, input)| {

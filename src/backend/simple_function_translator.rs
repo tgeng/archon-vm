@@ -361,8 +361,8 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let return_value = (primitive_function.code_gen)(&mut self.function_builder, &arg_values);
                 Some((return_value, primitive_function.return_type))
             }
-            CTerm::OperationCall { eff, args, simple } => {
-                assert!(simple);
+            CTerm::OperationCall { eff, args, complex } => {
+                assert!(!complex);
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);
@@ -588,6 +588,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 Some((self.function_builder.ins().symbol_value(I64, global_value), Specialized(PrimitivePtr)))
             }
             VTerm::Struct { values } => {
+                // TODO: use a common empty struct if values is empty
                 let translated = values.iter().map(|v| {
                     let v = self.translate_v_term(v);
                     self.convert_to_uniform(v)

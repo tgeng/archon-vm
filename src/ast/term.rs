@@ -94,7 +94,7 @@ pub enum CTerm {
     // PMemGet { base: VTerm, offset: VTerm, p_type: PType },
     // PMemSet { base: VTerm, offset: VTerm, value: VTerm, p_type: PType },
     PrimitiveCall { name: &'static str, args: Vec<VTerm> },
-    OperationCall { eff: VTerm, args: Vec<VTerm>, simple: bool },
+    OperationCall { eff: VTerm, args: Vec<VTerm>, complex: bool },
     Handler {
         parameter: VTerm,
         /// thunk of lambda: parameter -> 0
