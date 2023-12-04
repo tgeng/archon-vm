@@ -109,8 +109,11 @@ Defs {
                                                 },
                                             ],
                                         },
+                                        may_have_complex_effects: false,
                                     },
+                                    may_have_complex_effects: false,
                                 },
+                                may_have_complex_effects: false,
                             },
                             body: Let {
                                 name: "t2",
@@ -136,6 +139,7 @@ Defs {
                                             ],
                                         },
                                     },
+                                    may_have_complex_effects: false,
                                 },
                                 body: Redex {
                                     function: Identifier {
@@ -281,7 +285,7 @@ Defs
                                                 },
                                             ],
                                         },
-                                        may_have_complex_effects: true,
+                                        may_have_complex_effects: false,
                                     },
                                 },
                                 bound_index: 4,
@@ -291,11 +295,11 @@ Defs
                                             t: Redex {
                                                 function: Def {
                                                     name: "main$__lambda_0",
-                                                    may_have_complex_effects: true,
+                                                    may_have_complex_effects: false,
                                                 },
                                                 args: [],
                                             },
-                                            may_have_complex_effects: true,
+                                            may_have_complex_effects: false,
                                         },
                                     },
                                     bound_index: 5,
@@ -369,7 +373,7 @@ Defs
             },
             c_type: Default,
             var_bound: 1,
-            may_be_simple: false,
+            may_be_simple: true,
             may_be_complex: true,
         },
     ),
@@ -579,6 +583,21 @@ block0(v0: i64, v1: i64):
     v8 = iadd v0, v7
     v9 = load.i64 v1
     return_call_indirect sig0, v9(v8, v1, v6)
+}
+
+
+[main$__lambda_0__simple]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+
+block0(v0: i64):
+    v1 = iconst.i64 4
+    v2 = iconst.i64 5
+    v3 = iadd v1, v2  ; v1 = 4, v2 = 5
+    v4 = ishl_imm v3, 1
+    v5 = iadd_imm v0, -8
+    store v4, v5
+    return v5
 }
 
 

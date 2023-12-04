@@ -33,7 +33,9 @@ Let {
                         },
                     ],
                 },
+                may_have_complex_effects: false,
             },
+            may_have_complex_effects: false,
         },
         body: Redex {
             function: Force {
@@ -72,7 +74,7 @@ Defs
                             t: Redex {
                                 function: Def {
                                     name: "main$__lambda_0",
-                                    may_have_complex_effects: true,
+                                    may_have_complex_effects: false,
                                 },
                                 args: [
                                     Var {
@@ -80,7 +82,7 @@ Defs
                                     },
                                 ],
                             },
-                            may_have_complex_effects: true,
+                            may_have_complex_effects: false,
                         },
                     },
                     bound_index: 1,
@@ -137,7 +139,7 @@ Defs
             },
             c_type: Default,
             var_bound: 2,
-            may_be_simple: false,
+            may_be_simple: true,
             may_be_complex: true,
         },
     ),
@@ -243,6 +245,23 @@ block0(v0: i64, v1: i64):
     v10 = iadd v0, v9
     v11 = load.i64 v1
     return_call_indirect sig0, v11(v10, v1, v8)
+}
+
+
+[main$__lambda_0__simple]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+
+block0(v0: i64):
+    v1 = load.i64 v0
+    v2 = load.i64 v0+8
+    v3 = sshr_imm v2, 1
+    v4 = sshr_imm v1, 1
+    v5 = iadd v3, v4
+    v6 = ishl_imm v5, 1
+    v7 = iadd_imm v0, 8
+    store v6, v7
+    return v7
 }
 
 

@@ -39,17 +39,18 @@ impl Transpiler {
 
     fn transpile_impl(&mut self, f_term: FTerm, context: &Context) -> CTerm {
         match f_term {
-            FTerm::Identifier { name, may_have_complex_effects } => match self.transpile_identifier(&name, context, may_have_complex_effects) {
-                Left(c) => c,
-                Right(v) => CTerm::Return { value: v },
-            },
+            FTerm::Identifier { name, may_have_complex_effects } =>
+                match self.transpile_identifier(&name, context, may_have_complex_effects) {
+                    Left(c) => c,
+                    Right(v) => CTerm::Return { value: v },
+                },
             FTerm::Int { value } => CTerm::Return { value: VTerm::Int { value } },
             FTerm::Str { value } => CTerm::Return { value: VTerm::Str { value } },
             FTerm::Struct { values } => {
                 let (transpiled_values, transpiled_computations) = self.transpile_values(values, context);
                 Self::squash_computations(CTerm::Return { value: VTerm::Struct { values: transpiled_values } }, transpiled_computations)
             }
-            FTerm::Lambda { arg_names, body } => {
+            FTerm::Lambda { arg_names, body, may_have_complex_effects } => {
                 let mut var_map = context.var_map.clone();
                 let args: Vec<_> = arg_names.iter().map(|(name, v_type)| {
                     let index = self.new_local_index();
@@ -61,17 +62,22 @@ impl Transpiler {
                     def_map: context.def_map,
                     var_map: &var_map,
                 });
-                // TODO: add may_have_complex_effects in f_term
-                CTerm::Lambda { args, body: Box::new(transpiled_body), may_have_complex_effects: true }
+                CTerm::Lambda { args, body: Box::new(transpiled_body), may_have_complex_effects }
             }
             FTerm::Redex { function, args } => {
                 let (transpiled_args, transpiled_computations) = self.transpile_values(args, context);
                 let body = CTerm::Redex { function: Box::new(self.transpile_impl(*function, context)), args: transpiled_args };
                 Self::squash_computations(body, transpiled_computations)
             }
-            FTerm::Force { thunk, may_have_complex_effects } => self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t, may_have_complex_effects }),
-            // TODO: add may_have_complex_effects in f_term
-            FTerm::Thunk { computation } => CTerm::Return { value: VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)), may_have_complex_effects: true } },
+            FTerm::Force { thunk, may_have_complex_effects } =>
+                self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t, may_have_complex_effects }),
+            FTerm::Thunk { computation, may_have_complex_effects } =>
+                CTerm::Return {
+                    value: VTerm::Thunk {
+                        t: Box::new(self.transpile_impl(*computation, context)),
+                        may_have_complex_effects,
+                    }
+                },
             FTerm::CaseInt { t, result_type, branches, default_branch } => {
                 let mut transpiled_branches = Vec::new();
                 for (value, branch) in branches {
@@ -134,7 +140,14 @@ impl Transpiler {
                     };
                     let mut free_var_vec: Vec<String> = free_vars.into_iter().map(|s| s.to_owned()).collect();
                     free_var_vec.sort();
-                    def_map.insert(name, (def_name.clone(), free_var_vec.iter().map(|name| VTerm::Var { index: *context.var_map.get(name).unwrap() }).collect()));
+                    def_map.insert(
+                        name,
+                        (
+                            def_name.clone(),
+                            free_var_vec
+                                .iter()
+                                .map(|name| VTerm::Var { index: *context.var_map.get(name).unwrap() })
+                                .collect()));
                     (def, def_name.clone(), free_var_vec)
                 }).collect();
                 def_with_names.into_iter().for_each(|(def, name, free_vars)| {
@@ -240,8 +253,8 @@ impl Transpiler {
                 let c_term = self.transpile_impl(f_term, context);
                 (VTerm::Thunk { t: Box::new(c_term), may_have_complex_effects: true }, None)
             }
-            FTerm::Thunk { computation } => {
-                (VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)), may_have_complex_effects: true }, None)
+            FTerm::Thunk { computation, may_have_complex_effects } => {
+                (VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)), may_have_complex_effects }, None)
             }
             FTerm::CaseInt { .. } |
             FTerm::MemGet { .. } |
@@ -323,7 +336,7 @@ impl Transpiler {
             FTerm::Int { .. } => {}
             FTerm::Str { .. } => {}
             FTerm::Struct { values } => values.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars)),
-            FTerm::Lambda { arg_names, body } => {
+            FTerm::Lambda { arg_names, body, .. } => {
                 let mut new_bound_names = bound_names.clone();
                 new_bound_names.extend(arg_names.iter().map(|(s, _)| s.as_str()));
                 Self::get_free_vars(body, &new_bound_names, free_vars);
@@ -333,7 +346,7 @@ impl Transpiler {
                 args.iter().for_each(|v| Self::get_free_vars(v, bound_names, free_vars));
             }
             FTerm::Force { thunk, .. } => Self::get_free_vars(thunk, bound_names, free_vars),
-            FTerm::Thunk { computation } => Self::get_free_vars(computation, bound_names, free_vars),
+            FTerm::Thunk { computation, .. } => Self::get_free_vars(computation, bound_names, free_vars),
             FTerm::CaseInt { t, branches, default_branch, .. } => {
                 Self::get_free_vars(t, bound_names, free_vars);
                 branches.iter().for_each(|(_, v)| Self::get_free_vars(v, bound_names, free_vars));

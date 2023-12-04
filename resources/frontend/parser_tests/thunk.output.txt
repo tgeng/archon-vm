@@ -17,5 +17,7 @@ Thunk {
                 },
             ],
         },
+        may_have_complex_effects: false,
     },
+    may_have_complex_effects: false,
 }

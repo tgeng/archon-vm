@@ -212,6 +212,7 @@ Defs {
                                 name: "add",
                                 may_have_complex_effects: false,
                             },
+                            may_have_complex_effects: false,
                         },
                         Int {
                             value: 0,
@@ -444,7 +445,7 @@ Defs
                             name: "add",
                             may_have_complex_effects: false,
                         },
-                        may_have_complex_effects: true,
+                        may_have_complex_effects: false,
                     },
                     Int {
                         value: 0,

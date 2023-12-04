@@ -635,13 +635,15 @@ fn expr(input: Input) -> IResult<Input, FTerm> {
 fn lambda(input: Input) -> IResult<Input, FTerm> {
     context("lambda", scoped(
         map(
-            pair(
+            tuple((
                 delimited(
                     token("\\"),
                     separated_list0(newline_opt, pair(id, v_type_decl)),
                     token("=>")),
-                cut(expr)),
-            |(arg_names, body)| FTerm::Lambda { arg_names, body: Box::new(body) },
+                opt(token("!")),
+                cut(expr))),
+            |(arg_names, effectful, body)|
+                FTerm::Lambda { arg_names, body: Box::new(body), may_have_complex_effects: effectful.is_some() },
         )))(input)
 }
 
@@ -701,8 +703,8 @@ fn thunk(input: Input) -> IResult<Input, FTerm> {
         "thunk",
         scoped(
             map(
-                preceded(preceded(token("thunk"), newline_opt), cut(computation)),
-                |t| FTerm::Thunk { computation: Box::new(t) })
+                preceded(preceded(token("thunk"), newline_opt), pair(opt(token("!")), cut(computation))),
+                |(effectful, t)| FTerm::Thunk { computation: Box::new(t), may_have_complex_effects: effectful.is_some() })
         ))(input)
 }
 
