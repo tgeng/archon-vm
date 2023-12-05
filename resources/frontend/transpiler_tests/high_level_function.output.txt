@@ -526,7 +526,7 @@ block2:
     v20 = stack_load.i64 ss0
     v21 = isub v16, v20
     v22 = sshr_imm v21, 3
-    v23 = iadd_imm v17, 8
+    v23 = load.i64 v17+8
     v24 = iadd v23, v22
     store v24, v17+8
     v25 = call_indirect sig2, v19(v20, v17)

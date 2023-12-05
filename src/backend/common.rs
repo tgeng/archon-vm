@@ -358,7 +358,7 @@ impl BuiltinFunction {
         builder.seal_block(entry_block);
 
         let base_address = builder.block_params(entry_block)[0];
-        let next_continuation = builder.block_params(entry_block)[1];
+        let current_continuation = builder.block_params(entry_block)[1];
         let last_result = builder.block_params(entry_block)[2];
 
         let transform_thunk = builder.ins().load(I64, MemFlags::new(), base_address, 0);
@@ -387,6 +387,7 @@ impl BuiltinFunction {
         builder.ins().store(MemFlags::new(), last_result, tip_address, -16);
         let tip_address = builder.ins().iadd_imm(tip_address, -16);
 
+        let next_continuation = builder.ins().load(I64, MemFlags::new(), current_continuation, 16);
         // update frame height of the next continuation to account for the transform arguments
         // pushed to the stack
         let next_continuation_frame_height = builder.ins().load(I64, MemFlags::new(), next_continuation, 8);

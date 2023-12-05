@@ -275,7 +275,7 @@ block0(v0: i64):
     v20 = stack_load.i64 ss0
     v21 = isub v14, v20
     v22 = sshr_imm v21, 3
-    v23 = iadd_imm v15, 8
+    v23 = load.i64 v15+8
     v24 = iadd v23, v22
     store v24, v15+8
     v25 = call_indirect sig11, v19(v20, v15)
@@ -376,3 +376,8 @@ block0:
     v1 = call fn1(v0)
     return v1
 }
+
+
+Result
+========
+2186724180

@@ -185,7 +185,7 @@ block0(v0: i64):
     v15 = stack_load.i64 ss0
     v16 = isub v10, v15
     v17 = sshr_imm v16, 3
-    v18 = iadd_imm v11, 8
+    v18 = load.i64 v11+8
     v19 = iadd v18, v17
     store v19, v11+8
     v20 = call_indirect sig4, v14(v15, v11)
