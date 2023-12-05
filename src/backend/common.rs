@@ -256,6 +256,9 @@ impl BuiltinFunction {
         // corresponding to all the fields. We just load that compiled integer value and dispatch to
         // the corresponding action.
         let field = builder.ins().load(I64, MemFlags::new(), base_address, 8);
+        // The field is a tagged integer, so we need to shift it to the right by one to get the
+        // actual value.
+        let field = builder.ins().sshr_imm(field, 1);
         // All three actions assume that there is a handler parameter argument
         let handler_parameter = builder.ins().load(I64, MemFlags::new(), base_address, 16);
 
