@@ -242,31 +242,33 @@ block3:
     v16 = iadd_imm.i64 v5, -8
     store aligned v15, v16
     v17 = isub v16, v0
-    store v17, v1+16
-    v18 = iconst.i64 3
-    store v18, v1+24  ; v18 = 3
-    v19 = ishl_imm v14, 1
-    store v19, v4+8
+    v18 = ushr_imm v17, 3
+    store v18, v1+8
+    v19 = iconst.i64 3
+    store v19, v1+24  ; v19 = 3
+    v20 = ishl_imm v14, 1
+    store v20, v4+8
     return_call fn0(v16, v1)
 
 block4:
-    v20 = iadd_imm.i64 v2, 8
-    v21 = load.i64 v2
-    v22 = load.i64 v0
-    v23 = sshr_imm v22, 1
-    v24 = sshr_imm v21, 1
-    v25 = imul v23, v24
-    jump block5(v25, v20)
+    v21 = iadd_imm.i64 v2, 8
+    v22 = load.i64 v2
+    v23 = load.i64 v0
+    v24 = sshr_imm v23, 1
+    v25 = sshr_imm v22, 1
+    v26 = imul v24, v25
+    jump block5(v26, v21)
 
 block5(v9: i64, v10: i64):
-    v26 = ishl_imm v9, 1
-    v27 = iadd_imm.i64 v0, 0
-    store v26, v27
-    v28 = load.i64 v1+16
-    v29 = load.i64 v28+8
-    v30 = iadd.i64 v0, v29
-    v31 = load.i64 v28
-    return_call_indirect sig1, v31(v30, v28, v27)
+    v27 = ishl_imm v9, 1
+    v28 = iadd_imm.i64 v0, 0
+    store v27, v28
+    v29 = load.i64 v1+16
+    v30 = load.i64 v29+8
+    v31 = ishl_imm v30, 3
+    v32 = iadd.i64 v0, v31
+    v33 = load.i64 v29
+    return_call_indirect sig1, v33(v32, v29, v28)
 }
 
 

@@ -231,7 +231,7 @@ block0(v0: i64):
     v8 = call fn1(v1, v7)
     v9 = stack_load.i64 ss0
     v10 = isub v5, v9
-    v11 = sshr_imm v10, 3
+    v11 = ushr_imm v10, 3
     v12 = load.i64 v6+8
     v13 = iadd v12, v11
     store v13, v6+8
@@ -286,9 +286,10 @@ block0(v0: i64, v1: i64):
     v8 = iadd_imm v0, 8
     store v7, v8
     v9 = load.i64 v1+8
-    v10 = iadd v0, v9
-    v11 = load.i64 v1
-    return_call_indirect sig0, v11(v10, v1, v8)
+    v10 = ishl_imm v9, 3
+    v11 = iadd v0, v10
+    v12 = load.i64 v1
+    return_call_indirect sig0, v12(v11, v1, v8)
 }
 
 

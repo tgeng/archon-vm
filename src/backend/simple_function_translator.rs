@@ -474,7 +474,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         let old_tip_address = self.tip_address;
         self.load_tip_address_from_stack();
         let continuation_frame_height_delta_bytes = self.function_builder.ins().isub(old_tip_address, self.tip_address);
-        let continuation_frame_height_delta = self.function_builder.ins().sshr_imm(continuation_frame_height_delta_bytes, 3);
+        let continuation_frame_height_delta = self.function_builder.ins().ushr_imm(continuation_frame_height_delta_bytes, 3);
         let continuation_frame_height = self.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 8);
         let new_continuation_frame_height = self.function_builder.ins().iadd(continuation_frame_height, continuation_frame_height_delta);
         self.function_builder.ins().store(MemFlags::new(), new_continuation_frame_height, next_continuation, 8);

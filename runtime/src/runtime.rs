@@ -19,7 +19,8 @@ pub type Eff = usize;
 #[repr(C, align(8))]
 pub struct Continuation {
     pub func: ContImplPtr,
-    /// The number of slots taken on the argument stack by this continuation.
+    /// The number of slots taken on the argument stack by this continuation. The unit is machine
+    /// word (aka 8 bytes).
     pub arg_stack_frame_height: usize,
     pub next: *mut Continuation,
     pub state: usize,

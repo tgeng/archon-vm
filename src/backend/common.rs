@@ -391,7 +391,8 @@ impl BuiltinFunction {
         // update frame height of the next continuation to account for the transform arguments
         // pushed to the stack
         let next_continuation_frame_height = builder.ins().load(I64, MemFlags::new(), next_continuation, 8);
-        let next_continuation_frame_height_delta = builder.ins().isub(tip_address, base_address);
+        let next_continuation_frame_height_delta_bytes = builder.ins().isub(tip_address, base_address);
+        let next_continuation_frame_height_delta = builder.ins().ushr_imm(next_continuation_frame_height_delta_bytes, 3);
         let next_continuation_frame_height = builder.ins().iadd(next_continuation_frame_height, next_continuation_frame_height_delta);
         builder.ins().store(MemFlags::new(), next_continuation_frame_height, next_continuation, 8);
 
@@ -439,7 +440,7 @@ impl FunctionFlavor {
 pub fn create_cps_impl_signature<M: Module>(module: &M) -> Signature {
     let mut uniform_cps_impl_func_signature = module.make_signature();
     uniform_cps_impl_func_signature.params.push(AbiParam::new(I64)); // base address
-    uniform_cps_impl_func_signature.params.push(AbiParam::new(I64)); // the continuation object
+    uniform_cps_impl_func_signature.params.push(AbiParam::new(I64)); // the current continuation object
     uniform_cps_impl_func_signature.params.push(AbiParam::new(I64)); // the last result
     uniform_cps_impl_func_signature.returns.push(AbiParam::new(I64));
     uniform_cps_impl_func_signature.call_conv = CallConv::Tail;

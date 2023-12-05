@@ -515,8 +515,9 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         // Store current height
         let tip_address = self.tip_address;
         let base_address = self.base_address;
-        let arg_stack_frame_height = self.function_builder.ins().isub(tip_address, base_address);
-        self.function_builder.ins().store(MemFlags::new(), arg_stack_frame_height, continuation, 16);
+        let arg_stack_frame_height_bytes = self.function_builder.ins().isub(tip_address, base_address);
+        let arg_stack_frame_height = self.function_builder.ins().ushr_imm(arg_stack_frame_height_bytes, 3);
+        self.function_builder.ins().store(MemFlags::new(), arg_stack_frame_height, continuation, 8);
 
         // Store next state
         let current_block_id = self.current_block_id;
@@ -567,8 +568,10 @@ fn compute_cps_tail_call_base_address<M: Module>(translator: &mut SimpleFunction
     let new_base_address = translator.copy_tail_call_args_and_get_new_base();
     let next_continuation_height = translator.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 8);
     let base_address = translator.base_address;
-    let next_continuation_base = translator.function_builder.ins().iadd(base_address, next_continuation_height);
-    let new_next_continuation_height = translator.function_builder.ins().isub(new_base_address, next_continuation_base);
+    let next_continuation_height_bytes = translator.function_builder.ins().ishl_imm(next_continuation_height, 3);
+    let next_continuation_base = translator.function_builder.ins().iadd(base_address, next_continuation_height_bytes);
+    let new_next_continuation_height_bytes = translator.function_builder.ins().isub(new_base_address, next_continuation_base);
+    let new_next_continuation_height = translator.function_builder.ins().ushr_imm(new_next_continuation_height_bytes, 3);
     translator.function_builder.ins().store(MemFlags::new(), new_next_continuation_height, next_continuation, 8);
     new_base_address
 }
@@ -576,8 +579,9 @@ fn compute_cps_tail_call_base_address<M: Module>(translator: &mut SimpleFunction
 fn invoke_next_continuation_in_the_end<M: Module>(translator: &mut SimpleFunctionTranslator<M>, return_address: Value, next_continuation: Value) {
     // compute next base address
     let next_continuation_height = translator.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 8);
+    let next_continuation_height_bytes = translator.function_builder.ins().ishl_imm(next_continuation_height, 3);
     let base_address = translator.base_address;
-    let next_base_address = translator.function_builder.ins().iadd(base_address, next_continuation_height);
+    let next_base_address = translator.function_builder.ins().iadd(base_address, next_continuation_height_bytes);
 
     // get next continuation impl function
     let next_continuation_impl = translator.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 0);

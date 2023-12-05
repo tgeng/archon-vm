@@ -51,8 +51,8 @@ pub unsafe fn runtime_force_thunk(thunk: *const usize, tip_address_ptr: *mut *mu
 
 /// Alocate
 pub unsafe fn runtime_alloc_stack() -> *mut usize {
-    // Allocate a stack with 8MB of space
-    let stack_size = 1 << 6;
+    // Allocate a 1M words for the stack, which is 8MB of space
+    let stack_size = 20;
     let mut vec: Vec<usize> = Vec::with_capacity(stack_size);
     let start: *mut usize = vec.as_mut_ptr();
     std::mem::forget(vec);

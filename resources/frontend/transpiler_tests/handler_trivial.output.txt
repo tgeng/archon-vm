@@ -274,7 +274,7 @@ block0(v0: i64):
     v19 = call fn10(v17, v18)
     v20 = stack_load.i64 ss0
     v21 = isub v14, v20
-    v22 = sshr_imm v21, 3
+    v22 = ushr_imm v21, 3
     v23 = load.i64 v15+8
     v24 = iadd v23, v22
     store v24, v15+8
@@ -301,9 +301,10 @@ block0(v0: i64, v1: i64):
     v6 = iadd_imm v0, 0
     store v5, v6
     v7 = load.i64 v1+8
-    v8 = iadd v0, v7
-    v9 = load.i64 v1
-    return_call_indirect sig1, v9(v8, v1, v6)
+    v8 = ishl_imm v7, 3
+    v9 = iadd v0, v8
+    v10 = load.i64 v1
+    return_call_indirect sig1, v10(v9, v1, v6)
 }
 
 
@@ -324,9 +325,10 @@ block0(v0: i64, v1: i64):
     v6 = iadd_imm v0, 0
     store v5, v6
     v7 = load.i64 v1+8
-    v8 = iadd v0, v7
-    v9 = load.i64 v1
-    return_call_indirect sig1, v9(v8, v1, v6)
+    v8 = ishl_imm v7, 3
+    v9 = iadd v0, v8
+    v10 = load.i64 v1
+    return_call_indirect sig1, v10(v9, v1, v6)
 }
 
 
@@ -341,9 +343,10 @@ block0(v0: i64, v1: i64):
     v4 = iadd_imm v0, 8
     store v3, v4
     v5 = load.i64 v1+8
-    v6 = iadd v0, v5
-    v7 = load.i64 v1
-    return_call_indirect sig0, v7(v6, v1, v4)
+    v6 = ishl_imm v5, 3
+    v7 = iadd v0, v6
+    v8 = load.i64 v1
+    return_call_indirect sig0, v8(v7, v1, v4)
 }
 
 
@@ -358,9 +361,10 @@ block0(v0: i64, v1: i64):
     v4 = iadd_imm v0, -8
     store v3, v4
     v5 = load.i64 v1+8
-    v6 = iadd v0, v5
-    v7 = load.i64 v1
-    return_call_indirect sig0, v7(v6, v1, v4)
+    v6 = ishl_imm v5, 3
+    v7 = iadd v0, v6
+    v8 = load.i64 v1
+    return_call_indirect sig0, v8(v7, v1, v4)
 }
 
 
@@ -380,4 +384,4 @@ block0:
 
 Result
 ========
-2186724180
+2157085524
