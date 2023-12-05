@@ -7,7 +7,12 @@ thread_local!(
     static HANDLERS: RefCell<Vec<HandlerEntry>> = RefCell::new(Vec::new());
 );
 
+static mut EMPTY_STRUCT: usize = 0;
+
 pub unsafe fn runtime_alloc(num_words: usize) -> *mut usize {
+    if num_words == 0 {
+        return (&mut EMPTY_STRUCT as *mut usize).add(1);
+    }
     let mut vec = Vec::with_capacity(num_words + 1);
     let ptr: *mut usize = vec.as_mut_ptr();
     // Write the size of this allocation
