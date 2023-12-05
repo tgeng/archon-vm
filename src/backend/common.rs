@@ -359,7 +359,8 @@ impl BuiltinFunction {
 
         let base_address = builder.block_params(entry_block)[0];
         let current_continuation = builder.block_params(entry_block)[1];
-        let last_result = builder.block_params(entry_block)[2];
+        let last_result_ptr = builder.block_params(entry_block)[2];
+        let last_result = builder.ins().load(I64, MemFlags::new(), last_result_ptr, 0);
 
         let transform_thunk = builder.ins().load(I64, MemFlags::new(), base_address, 0);
 
@@ -382,9 +383,10 @@ impl BuiltinFunction {
         let transform_ptr = builder.inst_results(inst)[0];
         let tip_address = builder.ins().stack_load(I64, tip_address_slot, 0);
 
-        // write handler parameter and result on stack
-        builder.ins().store(MemFlags::new(), handler_parameter, tip_address, -8);
-        builder.ins().store(MemFlags::new(), last_result, tip_address, -16);
+        // write handler parameter and result on stack. The first parameter is written closer to the
+        // base address, so it's lower on the stack.
+        builder.ins().store(MemFlags::new(), handler_parameter, tip_address, -16);
+        builder.ins().store(MemFlags::new(), last_result, tip_address, -8);
         let tip_address = builder.ins().iadd_imm(tip_address, -16);
 
         let next_continuation = builder.ins().load(I64, MemFlags::new(), current_continuation, 16);

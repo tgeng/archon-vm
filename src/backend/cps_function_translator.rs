@@ -177,7 +177,10 @@ struct ComplexCpsFunctionTranslator<'a, M: Module> {
     continuation: Value,
     /// The pointer to the last result passed to the continuation. This is also the value needed to
     /// execute the next step.
-    last_result_ptr: Value,
+    last_result: Value,
+    /// The tip address at the beginning of the CPS impl function. This is computed from the last
+    /// result pointer.
+    start_tip_address: Value,
     /// The number of arguments of the current function.
     argument_count: usize,
     /// The ID of the current block. Initially it's zero, which means the first block right after
@@ -319,7 +322,10 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         function_translator.local_var_ptr = function_translator.function_builder.ins().iadd_imm(continuation, 32);
 
         // set the tip address according to the last result pointer.
-        function_translator.tip_address = function_translator.function_builder.ins().iadd_imm(last_result_ptr, 8);
+        let start_tip_address = function_translator.function_builder.ins().iadd_imm(last_result_ptr, 8);
+        function_translator.tip_address = start_tip_address;
+
+        let last_result = function_translator.function_builder.ins().load(I64, MemFlags::new(), last_result_ptr, 0);
 
         let argument_count = function_definition.args.len();
 
@@ -351,7 +357,8 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         Self {
             function_translator,
             continuation,
-            last_result_ptr,
+            last_result,
+            start_tip_address,
             argument_count,
             current_block_id: 0,
             blocks,
@@ -545,10 +552,8 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         let next_block = self.blocks[self.current_block_id];
         self.function_builder.seal_block(next_block);
         self.function_builder.switch_to_block(next_block);
-        let last_result_ptr = self.last_result_ptr;
-        self.tip_address = self.function_builder.ins().iadd_imm(last_result_ptr, 8);
-        let last_result = self.function_builder.ins().load(I64, MemFlags::new(), last_result_ptr, 0);
-        Some((last_result, Uniform))
+        self.tip_address = self.start_tip_address;
+        Some((self.last_result, Uniform))
     }
 
     fn advance_for_case(&mut self) {
