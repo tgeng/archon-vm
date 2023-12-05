@@ -131,11 +131,11 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
     fn translate_c_term_cps(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
         match c_term {
             CTerm::Force { thunk, may_have_complex_effects: true } if is_tail => {
-                let func_pointer = self.process_thunk(thunk);
+                let continuation = self.next_continuation;
+                let func_pointer = self.process_thunk(thunk, continuation);
 
                 let signature = self.uniform_cps_func_signature.clone();
                 let sig_ref = self.function_builder.import_signature(signature);
-                let continuation = self.next_continuation;
                 let new_base_address = compute_cps_tail_call_base_address(self, continuation);
                 self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
                     new_base_address, continuation,
@@ -367,19 +367,19 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 self.translate_c_term_cps_impl(function, is_tail)
             }
             CTerm::Force { thunk, may_have_complex_effects: true } => {
-                let func_pointer = self.process_thunk(thunk);
+                let continuation = self.continuation;
+                let func_pointer = self.process_thunk(thunk, continuation);
 
                 let signature = self.uniform_cps_func_signature.clone();
                 let sig_ref = self.function_builder.import_signature(signature);
                 if is_tail {
-                    let (new_base_address, next_continuation) = self.adjust_next_continuation_frame_height(self.continuation);
+                    let (new_base_address, next_continuation) = self.adjust_next_continuation_frame_height(continuation);
                     self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
                         new_base_address, next_continuation,
                     ]);
                     None
                 } else {
                     self.pack_up_continuation();
-                    let continuation = self.continuation;
                     let tip_address = self.tip_address;
                     self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
                         tip_address,

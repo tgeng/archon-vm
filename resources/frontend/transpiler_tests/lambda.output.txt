@@ -183,11 +183,16 @@ block0(v0: i64):
     v13 = stack_addr.i64 ss0
     v14 = call fn3(v12, v13)
     v15 = stack_load.i64 ss0
-    v16 = call_indirect sig4, v14(v15, v11)
-    v17 = load.i64 v16
-    v18 = iadd_imm v16, 8
-    v19 = sshr_imm v17, 1
-    return v19
+    v16 = isub v10, v15
+    v17 = sshr_imm v16, 3
+    v18 = iadd_imm v11, 8
+    v19 = iadd v18, v17
+    store v19, v11+8
+    v20 = call_indirect sig4, v14(v15, v11)
+    v21 = load.i64 v20
+    v22 = iadd_imm v20, 8
+    v23 = sshr_imm v21, 1
+    return v23
 }
 
 

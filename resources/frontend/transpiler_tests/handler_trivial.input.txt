@@ -1,3 +1,2 @@
-handler!
-  "foo" #! \p x cont =>! cont! 0 p (x + 1)
-"foo" #! {1}
+handler
+1

@@ -524,13 +524,18 @@ block2:
     v18 = stack_addr.i64 ss0
     v19 = call fn1(v4, v18)
     v20 = stack_load.i64 ss0
-    v21 = call_indirect sig2, v19(v20, v17)
-    v22 = load.i64 v21
-    v23 = iadd_imm v21, 8
-    v24 = iconst.i64 1
-    v25 = iadd.i64 v5, v24  ; v24 = 1
-    v26 = sshr_imm v22, 1
-    return_call fn2(v23, v1, v2, v26, v4, v25)
+    v21 = isub v16, v20
+    v22 = sshr_imm v21, 3
+    v23 = iadd_imm v17, 8
+    v24 = iadd v23, v22
+    store v24, v17+8
+    v25 = call_indirect sig2, v19(v20, v17)
+    v26 = load.i64 v25
+    v27 = iadd_imm v25, 8
+    v28 = iconst.i64 1
+    v29 = iadd.i64 v5, v28  ; v28 = 1
+    v30 = sshr_imm v26, 1
+    return_call fn2(v27, v1, v2, v30, v4, v29)
 
 block4:
     trap unreachable

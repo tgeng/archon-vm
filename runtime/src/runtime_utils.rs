@@ -151,7 +151,10 @@ pub unsafe fn runtime_prepare_complex_operation(
     new_tip_address.write(matching_parameter);
 
     // Set up return values.
+    let tip_address_before_forcing_handler_impl = new_tip_address;
     let handler_function_ptr = runtime_force_thunk(handler_impl, &mut new_tip_address);
+    // unpacking captured arguments of the handler would affect frame height of the next continuation as well.
+    (*next_continuation).arg_stack_frame_height += tip_address_before_forcing_handler_impl.offset_from(new_tip_address) as usize;
     let new_base_address = new_tip_address;
     let result_ptr = new_tip_address.add(4);
     result_ptr.write(handler_function_ptr as usize);
@@ -207,10 +210,11 @@ pub unsafe fn runtime_register_handler(
     let transform_loader_continuation = &mut *(runtime_alloc(4) as *mut Continuation);
     transform_loader_continuation.func = transform_loader_cps_impl;
     transform_loader_continuation.next = next_continuation;
-    // The transform loader invokes the actual transform function by passing two arguments to it:
-    // - the handler parameter
-    // - the result of handler input
-    transform_loader_continuation.arg_stack_frame_height = 2;
+    // Initially the transform loader is chained with handler input. At that point there are no
+    // arguments passed from transform loader to the input function. Hence the frame height is 0.
+    // Later transform loader invokes the handler transform function. But that invocation is a tail
+    // call, so the frame height is never updated later.
+    transform_loader_continuation.arg_stack_frame_height = 0;
     transform_loader_continuation.state = 0;
 
     // This is needed because by joining transform loader continuation with the caller continuation,
@@ -230,8 +234,8 @@ pub unsafe fn runtime_register_handler(
 
     HANDLERS.with(|handlers| {
         handlers.borrow_mut().push(HandlerEntry::Handler(Handler {
-            transform_loader_base_address: *tip_address_ptr,
             transform_loader_continuation,
+            transform_loader_base_address: new_tip_address,
             transform_loader_num_args,
             parameter,
             parameter_disposer,
