@@ -27,7 +27,7 @@ impl FunctionDefinition {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum FunctionEnablement {
     MayBeSimple,
     MayBeComplex,
@@ -91,7 +91,7 @@ impl Signature {
         // in a separate data structure outside of Signature. Both are annoying and requires more
         // work.
         unsafe {
-            self.visit_c_term(&*c_term_ptr);
+            self.visit_c_term(&*c_term_ptr, function_enablement != FunctionEnablement::MayBeComplex);
         }
     }
 
@@ -186,7 +186,9 @@ impl Signature {
 // This visitor just marks functions that should be enabled recursively. It's not intended to be
 // callable outside of this file.
 impl Visitor for Signature {
-    fn visit_thunk(&mut self, v_term: &VTerm) {
+    type Ctx = bool;
+
+    fn visit_thunk(&mut self, v_term: &VTerm, in_simple_context: bool) {
         let VTerm::Thunk { box t, .. } = v_term else { unreachable!() };
         let empty_vec = vec![];
         let (name, args) = match t {
@@ -194,19 +196,19 @@ impl Visitor for Signature {
             CTerm::Def { name, .. } => (name, &empty_vec),
             _ => panic!("all thunks should have been lifted at this point"),
         };
-        args.iter().for_each(|arg| self.visit_v_term(arg));
+        args.iter().for_each(|arg| self.visit_v_term(arg, in_simple_context));
         // All thunked functions are treated effectful to simplify compilation.
         self.enable(name, FunctionEnablement::MayBeComplex);
     }
 
-    fn visit_redex(&mut self, c_term: &CTerm) {
+    fn visit_redex(&mut self, c_term: &CTerm, in_simple_context: bool) {
         let CTerm::Redex { box function, args } = c_term else { unreachable!() };
-        args.iter().for_each(|arg| self.visit_v_term(arg));
+        args.iter().for_each(|arg| self.visit_v_term(arg, in_simple_context));
         let CTerm::Def { name, may_have_complex_effects } = function else {
-            self.visit_c_term(function);
+            self.visit_c_term(function, in_simple_context);
             return;
         };
-        if *may_have_complex_effects {
+        if *may_have_complex_effects && !in_simple_context {
             self.enable(name, FunctionEnablement::MayBeComplex);
         } else {
             let function_def = self.defs.get(name).unwrap();
@@ -219,9 +221,9 @@ impl Visitor for Signature {
     }
 
 
-    fn visit_def(&mut self, c_term: &CTerm) {
+    fn visit_def(&mut self, c_term: &CTerm, in_simple_context: bool) {
         let CTerm::Def { name, may_have_complex_effects } = c_term else { unreachable!() };
-        if *may_have_complex_effects {
+        if *may_have_complex_effects && !in_simple_context {
             self.enable(name, FunctionEnablement::MayBeComplex);
         } else {
             let function_def = self.defs.get(name).unwrap();
