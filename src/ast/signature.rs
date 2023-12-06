@@ -131,6 +131,7 @@ impl Signature {
 
     /// Assume all local variables are distinct. Also this transformation preserves this property.
     fn lift_lambdas(&mut self) {
+        // TODO: cache identical lambdas
         let mut new_defs: Vec<(String, FunctionDefinition)> = Vec::new();
         self.defs.iter_mut().for_each(|(name, FunctionDefinition { args, body, var_bound, .. })| {
             let local_var_types = &mut vec![VType::Uniform; *var_bound];

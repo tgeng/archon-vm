@@ -1,3 +1,2 @@
-handler! 5
-  123 #! \p x cont => force cont 0 p (p + x)
-123 #! {3}
+handler
+1
