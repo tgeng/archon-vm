@@ -250,6 +250,7 @@ impl BuiltinFunction {
         let base_address = builder.block_params(entry_block)[0];
         let next_continuation = builder.block_params(entry_block)[1];
         let captured_continuation = builder.ins().load(I64, MemFlags::new(), base_address, 0);
+        let captured_continuation = builder.ins().iadd_imm(captured_continuation, -0b01); // untag SPtr
         // Field is the field of the captured continuation record. Background: a captured
         // continuation is represented as a record in the core type theory. There are three fields:
         // resume, dispose, and replicate. Since records are compiled to function with integer input

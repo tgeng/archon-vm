@@ -67,6 +67,10 @@ Handler {
                         Uniform,
                     ),
                     (
+                        "x",
+                        Uniform,
+                    ),
+                    (
                         "cont",
                         Uniform,
                     ),
@@ -87,9 +91,21 @@ Handler {
                             name: "p",
                             may_have_complex_effects: false,
                         },
-                        Identifier {
-                            name: "p",
-                            may_have_complex_effects: false,
+                        Redex {
+                            function: Identifier {
+                                name: "_int_add",
+                                may_have_complex_effects: false,
+                            },
+                            args: [
+                                Identifier {
+                                    name: "p",
+                                    may_have_complex_effects: false,
+                                },
+                                Identifier {
+                                    name: "x",
+                                    may_have_complex_effects: false,
+                                },
+                            ],
                         },
                     ],
                 },
@@ -102,7 +118,11 @@ Handler {
             eff: Int {
                 value: 123,
             },
-            args: [],
+            args: [
+                Int {
+                    value: 3,
+                },
+            ],
             complex: true,
         },
         may_have_complex_effects: true,
@@ -276,28 +296,46 @@ Defs
                     1,
                     Uniform,
                 ),
+                (
+                    2,
+                    Uniform,
+                ),
             ],
-            body: Redex {
-                function: Force {
-                    thunk: Var {
-                        index: 1,
-                    },
-                    may_have_complex_effects: false,
+            body: Let {
+                t: PrimitiveCall {
+                    name: "_int_add",
+                    args: [
+                        Var {
+                            index: 0,
+                        },
+                        Var {
+                            index: 1,
+                        },
+                    ],
                 },
-                args: [
-                    Int {
-                        value: 0,
+                bound_index: 3,
+                body: Redex {
+                    function: Force {
+                        thunk: Var {
+                            index: 2,
+                        },
+                        may_have_complex_effects: false,
                     },
-                    Var {
-                        index: 0,
-                    },
-                    Var {
-                        index: 0,
-                    },
-                ],
+                    args: [
+                        Int {
+                            value: 0,
+                        },
+                        Var {
+                            index: 0,
+                        },
+                        Var {
+                            index: 3,
+                        },
+                    ],
+                },
             },
             c_type: Default,
-            var_bound: 2,
+            var_bound: 4,
             may_be_simple: false,
             may_be_complex: true,
             may_be_specialized: false,
@@ -311,7 +349,11 @@ Defs
                 eff: Int {
                     value: 123,
                 },
-                args: [],
+                args: [
+                    Int {
+                        value: 3,
+                    },
+                ],
                 complex: true,
             },
             c_type: Default,
@@ -470,28 +512,33 @@ function u0:0(i64, i64) -> i64 tail {
 block0(v0: i64, v1: i64):
     v2 = load.i64 v0
     v3 = load.i64 v0+8
-    v4 = iconst.i64 0
-    v5 = ishl_imm v4, 1  ; v4 = 0
-    v6 = iadd_imm v0, -8
-    store aligned v2, v6
-    v7 = iadd_imm v6, -8
-    store aligned v2, v7
-    v8 = iadd_imm v7, -8
-    store aligned v5, v8
-    v9 = call fn0()
-    stack_store v8, ss0
-    v10 = stack_addr.i64 ss0
-    v11 = call fn1(v3, v10)
-    v12 = stack_load.i64 ss0
-    v13 = isub v8, v12
-    v14 = ushr_imm v13, 3
-    v15 = load.i64 v9+8
-    v16 = iadd v15, v14
-    store v16, v9+8
-    v17 = iadd_imm v12, 16
-    v18 = isub v0, v12
-    v19 = call fn2(v17, v12, v18)
-    return_call_indirect sig2, v11(v17, v9)
+    v4 = load.i64 v0+16
+    v5 = sshr_imm v2, 1
+    v6 = sshr_imm v3, 1
+    v7 = iadd v5, v6
+    v8 = iconst.i64 0
+    v9 = ishl_imm v8, 1  ; v8 = 0
+    v10 = ishl_imm v7, 1
+    v11 = iadd_imm v0, -8
+    store aligned v10, v11
+    v12 = iadd_imm v11, -8
+    store aligned v2, v12
+    v13 = iadd_imm v12, -8
+    store aligned v9, v13
+    v14 = call fn0()
+    stack_store v13, ss0
+    v15 = stack_addr.i64 ss0
+    v16 = call fn1(v4, v15)
+    v17 = stack_load.i64 ss0
+    v18 = isub v13, v17
+    v19 = ushr_imm v18, 3
+    v20 = load.i64 v14+8
+    v21 = iadd v20, v19
+    store v21, v14+8
+    v22 = iadd_imm v17, 24
+    v23 = isub v0, v17
+    v24 = call fn2(v22, v17, v23)
+    return_call_indirect sig2, v16(v22, v14)
 }
 
 
@@ -507,20 +554,24 @@ function u0:0(i64, i64) -> i64 tail {
 block0(v0: i64, v1: i64):
     v2 = iconst.i64 123
     v3 = ishl_imm v2, 1  ; v2 = 123
-    v4 = load.i64 v1+8
-    v5 = ishl_imm v4, 3
-    v6 = iadd v0, v5
-    v7 = isub v0, v6
-    v8 = ushr_imm v7, 3
-    store v8, v1+8
-    v9 = iconst.i64 0
-    v10 = call fn0(v3, v0, v1, v9)  ; v9 = 0
-    v11 = load.i64 v10
-    v12 = iadd_imm v10, 8
-    v13 = load.i64 v10+16
-    v14 = load.i64 v10+24
-    call fn1(v14)
-    return_call_indirect sig2, v11(v12, v13)
+    v4 = iconst.i64 3
+    v5 = ishl_imm v4, 1  ; v4 = 3
+    v6 = iadd_imm v0, -8
+    store aligned v5, v6
+    v7 = load.i64 v1+8
+    v8 = ishl_imm v7, 3
+    v9 = iadd v0, v8
+    v10 = isub v6, v9
+    v11 = ushr_imm v10, 3
+    store v11, v1+8
+    v12 = iconst.i64 1
+    v13 = call fn0(v3, v6, v1, v12)  ; v12 = 1
+    v14 = load.i64 v13
+    v15 = load.i64 v13+8
+    v16 = load.i64 v13+16
+    v17 = load.i64 v13+24
+    call fn1(v17)
+    return_call_indirect sig2, v14(v15, v16)
 }
 
 
@@ -536,3 +587,8 @@ block0:
     v1 = call fn1(v0)
     return v1
 }
+
+
+Result
+========
+8
