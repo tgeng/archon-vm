@@ -300,7 +300,7 @@ pub unsafe fn runtime_prepare_resume_continuation(
                 transform_loader_base_address: transform_base_address.add(handler.transform_loader_base_address),
                 transform_loader_continuation: handler.transform_loader_continuation,
                 transform_loader_num_args: handler.transform_loader_num_args,
-                parameter: handler.parameter,
+                parameter,
                 parameter_disposer: handler.parameter_disposer,
                 parameter_replicator: handler.parameter_replicator,
                 simple_handler: handler.simple_handler,
