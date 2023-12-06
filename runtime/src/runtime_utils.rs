@@ -117,12 +117,13 @@ pub unsafe fn runtime_prepare_complex_operation(
     let stack_fragment: Vec<Generic> = std::slice::from_raw_parts(stack_fragment_start, stack_fragment_length as usize).to_vec();
 
     // Copy the handler fragment.
-    let base_offset = matching_handler.transform_loader_base_address as usize;
+    let matching_base_address = matching_handler.transform_loader_base_address;
     let handler_fragment: Vec<Handler<usize>> = handler_entry_fragment.into_iter().map(|handler_entry| {
         match handler_entry {
             HandlerEntry::Handler(handler) => {
+                let transform_base_address = handler.transform_loader_base_address;
                 let mut handler: Handler<usize> = std::mem::transmute(handler);
-                handler.transform_loader_base_address -= base_offset;
+                handler.transform_loader_base_address = matching_base_address.offset_from(transform_base_address) as usize;
                 handler
             }
             _ => panic!("Expect a handler entry")
@@ -133,7 +134,6 @@ pub unsafe fn runtime_prepare_complex_operation(
 
     *captured_continuation = CapturedContinuation {
         tip_continuation,
-        base_continuation,
         handler_fragment,
         stack_fragment,
     };
@@ -278,29 +278,40 @@ pub unsafe fn runtime_prepare_resume_continuation(
     parameter: Uniform,
     result: Uniform,
 ) -> *const usize {
-    let captured_continuation = captured_continuation.read();
-    let base_handler = captured_continuation.handler_fragment.first().unwrap();
-    (*captured_continuation.base_continuation).next = next_continuation;
+    let mut captured_continuation = captured_continuation.read();
+    let base_handler = captured_continuation.handler_fragment.first_mut().unwrap();
+    base_handler.parameter = parameter;
+    (*base_handler.transform_loader_continuation).next = next_continuation;
     // Chain the base of the captured continuation to the next continuation, where we need to add
     // all the arguments for the handler transform function to the argument stack. Hence we need to
     // update the stack frame height of the next continuation.
+    // TODO: replace this with a constant since it's always 1.
     next_continuation.arg_stack_frame_height += base_handler.transform_loader_num_args;
 
-    let transform_base_address = base_address.add(base_handler.transform_loader_num_args);
+    // swallow the 4 arguments passed to the captured continuation record:
+    // captured continuation object, field, handler parameter, and last result.
+    base_address = base_address.add(4);
+
+    // The argument to transform loader is the transform thunk, which is set in
+    // `runtime_register_handler` and got captured in `runtime_prepare_complex_operation` inside the
+    // stack fragment. So this value is restored in the loop right below this statement.
+    let transform_loader_base_address = base_address.sub(base_handler.transform_loader_num_args);
     for arg in captured_continuation.stack_fragment.iter().rev() {
         base_address = base_address.sub(1);
         base_address.write(*arg);
     }
-    let new_base_address = base_address;
+    let tip_continuation = captured_continuation.tip_continuation;
+    let tip_continuation_height = (*tip_continuation).arg_stack_frame_height;
+    let new_base_address = base_address.add(tip_continuation_height);
 
     HANDLERS.with(|handlers| {
         let mut handlers = handlers.borrow_mut();
         for handler in captured_continuation.handler_fragment.into_iter() {
             handlers.push(HandlerEntry::Handler(Handler {
-                transform_loader_base_address: transform_base_address.add(handler.transform_loader_base_address),
+                transform_loader_base_address: transform_loader_base_address.sub(handler.transform_loader_base_address),
                 transform_loader_continuation: handler.transform_loader_continuation,
                 transform_loader_num_args: handler.transform_loader_num_args,
-                parameter,
+                parameter: handler.parameter,
                 parameter_disposer: handler.parameter_disposer,
                 parameter_replicator: handler.parameter_replicator,
                 simple_handler: handler.simple_handler,
@@ -310,12 +321,12 @@ pub unsafe fn runtime_prepare_resume_continuation(
     });
 
     // Write the last result
-    let last_result_address = base_address.add(1);
+    let last_result_address = base_address.sub(1);
     last_result_address.write(result);
 
     // Write the return values of this helper function.
-    base_address = last_result_address.add(3);
-    base_address.write(captured_continuation.tip_continuation as usize);
+    base_address = last_result_address.sub(3);
+    base_address.write(tip_continuation as usize);
     base_address.add(1).write(new_base_address as usize);
     base_address.add(2).write(last_result_address as usize);
 

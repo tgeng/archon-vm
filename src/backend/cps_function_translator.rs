@@ -575,7 +575,7 @@ fn compute_cps_tail_call_base_address<M: Module>(translator: &mut SimpleFunction
     let base_address = translator.base_address;
     let next_continuation_height_bytes = translator.function_builder.ins().ishl_imm(next_continuation_height, 3);
     let next_continuation_base = translator.function_builder.ins().iadd(base_address, next_continuation_height_bytes);
-    let new_next_continuation_height_bytes = translator.function_builder.ins().isub(new_base_address, next_continuation_base);
+    let new_next_continuation_height_bytes = translator.function_builder.ins().isub(next_continuation_base, new_base_address);
     let new_next_continuation_height = translator.function_builder.ins().ushr_imm(new_next_continuation_height_bytes, 3);
     translator.function_builder.ins().store(MemFlags::new(), new_next_continuation_height, next_continuation, 8);
     new_base_address

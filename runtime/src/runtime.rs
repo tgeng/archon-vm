@@ -47,9 +47,6 @@ pub enum HandlerEntry {
 
 pub struct CapturedContinuation {
     pub tip_continuation: *mut Continuation,
-    /// The base continuation is the continuation created from the matching handler's transform
-    /// component.
-    pub base_continuation: *mut Continuation,
     pub handler_fragment: Vec<Handler<usize>>,
     /// This contains all the arguments passed to the matching handler's transform component. But
     /// it does NOT contain any arguments passed to the handler implementation. That is,

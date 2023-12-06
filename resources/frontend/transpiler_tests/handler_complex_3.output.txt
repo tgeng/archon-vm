@@ -2,7 +2,7 @@ FTerm
 ========
 Handler {
     parameter: Int {
-        value: 5,
+        value: 0,
     },
     parameter_disposer: Lambda {
         arg_names: [
@@ -58,7 +58,7 @@ Handler {
     complex_handlers: [
         (
             Int {
-                value: 123,
+                value: 11,
             },
             Lambda {
                 arg_names: [
@@ -81,15 +81,11 @@ Handler {
                             name: "cont",
                             may_have_complex_effects: false,
                         },
-                        may_have_complex_effects: false,
+                        may_have_complex_effects: true,
                     },
                     args: [
                         Int {
                             value: 0,
-                        },
-                        Identifier {
-                            name: "p",
-                            may_have_complex_effects: false,
                         },
                         Redex {
                             function: Identifier {
@@ -107,20 +103,24 @@ Handler {
                                 },
                             ],
                         },
+                        Identifier {
+                            name: "p",
+                            may_have_complex_effects: false,
+                        },
                     ],
                 },
-                may_have_complex_effects: false,
+                may_have_complex_effects: true,
             },
         ),
     ],
     input: Thunk {
         computation: OperationCall {
             eff: Int {
-                value: 123,
+                value: 11,
             },
             args: [
                 Int {
-                    value: 3,
+                    value: 2,
                 },
             ],
             complex: true,
@@ -138,7 +138,7 @@ Defs
             args: [],
             body: Handler {
                 parameter: Int {
-                    value: 5,
+                    value: 0,
                 },
                 parameter_disposer: Thunk {
                     t: Redex {
@@ -173,13 +173,13 @@ Defs
                 complex_handlers: [
                     (
                         Int {
-                            value: 123,
+                            value: 11,
                         },
                         Thunk {
                             t: Redex {
                                 function: Def {
                                     name: "main$__lambda_3",
-                                    may_have_complex_effects: false,
+                                    may_have_complex_effects: true,
                                 },
                                 args: [],
                             },
@@ -319,17 +319,17 @@ Defs
                         thunk: Var {
                             index: 2,
                         },
-                        may_have_complex_effects: false,
+                        may_have_complex_effects: true,
                     },
                     args: [
                         Int {
                             value: 0,
                         },
                         Var {
-                            index: 0,
+                            index: 3,
                         },
                         Var {
-                            index: 3,
+                            index: 0,
                         },
                     ],
                 },
@@ -347,11 +347,11 @@ Defs
             args: [],
             body: OperationCall {
                 eff: Int {
-                    value: 123,
+                    value: 11,
                 },
                 args: [
                     Int {
-                        value: 3,
+                        value: 2,
                     },
                 ],
                 complex: true,
@@ -396,8 +396,8 @@ function u0:0(i64) -> i64 tail {
 
 block0(v0: i64):
     v1 = call fn0()
-    v2 = iconst.i64 5
-    v3 = ishl_imm v2, 1  ; v2 = 5
+    v2 = iconst.i64 0
+    v3 = ishl_imm v2, 1  ; v2 = 0
     v4 = func_addr.i64 fn1
     v5 = iadd_imm v4, 3
     v6 = func_addr.i64 fn2
@@ -409,8 +409,8 @@ block0(v0: i64):
     v11 = stack_addr.i64 ss0
     v12 = call fn5(v11, v1, v3, v5, v7, v9, v10)
     v13 = stack_load.i64 ss0
-    v14 = iconst.i64 123
-    v15 = ishl_imm v14, 1  ; v14 = 123
+    v14 = iconst.i64 11
+    v15 = ishl_imm v14, 1  ; v14 = 11
     v16 = func_addr.i64 fn8
     v17 = iadd_imm v16, 3
     call fn7(v12, v15, v17)
@@ -520,9 +520,9 @@ block0(v0: i64, v1: i64):
     v9 = ishl_imm v8, 1  ; v8 = 0
     v10 = ishl_imm v7, 1
     v11 = iadd_imm v0, -8
-    store aligned v10, v11
+    store aligned v2, v11
     v12 = iadd_imm v11, -8
-    store aligned v2, v12
+    store aligned v10, v12
     v13 = iadd_imm v12, -8
     store aligned v9, v13
     v14 = call fn0()
@@ -552,10 +552,10 @@ function u0:0(i64, i64) -> i64 tail {
     fn1 = colocated u0:13 sig1
 
 block0(v0: i64, v1: i64):
-    v2 = iconst.i64 123
-    v3 = ishl_imm v2, 1  ; v2 = 123
-    v4 = iconst.i64 3
-    v5 = ishl_imm v4, 1  ; v4 = 3
+    v2 = iconst.i64 11
+    v3 = ishl_imm v2, 1  ; v2 = 11
+    v4 = iconst.i64 2
+    v5 = ishl_imm v4, 1  ; v4 = 2
     v6 = iadd_imm v0, -8
     store aligned v5, v6
     v7 = load.i64 v1+8
@@ -591,4 +591,4 @@ block0:
 
 Result
 ========
-8
+0

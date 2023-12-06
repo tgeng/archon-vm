@@ -465,7 +465,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
     pub fn process_thunk(&mut self, thunk: &VTerm, next_continuation: Value) -> Value {
         let thunk_value = self.translate_v_term(thunk);
         // We must change the thunk value to uniform representation because the built-in
-        // function expects a uniform representation in order to tell a thunk from a raw
+        // force thunk function expects a uniform representation in order to tell a thunk from a raw
         // function pointer.
         let thunk_value = self.convert_to_uniform(thunk_value);
 
