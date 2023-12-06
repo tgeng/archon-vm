@@ -333,6 +333,7 @@ impl BuiltinFunction {
         // set values on the thunk pointer
         let impl_func_ref = module.declare_func_in_func(impl_func_id, builder.func);
         let impl_func_ptr = builder.ins().func_addr(I64, impl_func_ref);
+        let impl_func_ptr = builder.ins().iadd_imm(impl_func_ptr, 0b11); // tag it as a PPtr
         builder.ins().store(MemFlags::new(), impl_func_ptr, thunk_ptr, 0);
         let num_args = builder.ins().iconst(I64, 1);
         builder.ins().store(MemFlags::new(), num_args, thunk_ptr, 8);
@@ -341,7 +342,7 @@ impl BuiltinFunction {
         builder.ins().store(MemFlags::new(), captured_continuation, thunk_ptr, 16);
 
         // replace the pointer to the captured continuation object with the pointer to the thunk
-        let thunk_ptr = builder.ins().iadd_imm(thunk_ptr, 0b11); // tag it as a SPtr
+        let thunk_ptr = builder.ins().iadd_imm(thunk_ptr, 0b01); // tag it as a SPtr
         builder.ins().store(MemFlags::new(), thunk_ptr, captured_continuation_ptr, 0);
         builder.ins().return_(&[]);
         builder.finalize();
@@ -349,9 +350,9 @@ impl BuiltinFunction {
         func_id
     }
 
-    fn transform_loader_cps_impl<M: Module>(m: &mut M, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
-        let sig = create_cps_impl_signature(m);
-        let func_id = m.declare_function(BuiltinFunction::TransformLoaderCpsImpl.func_name(), Linkage::Local, &sig).unwrap();
+    fn transform_loader_cps_impl<M: Module>(module: &mut M, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
+        let sig = create_cps_impl_signature(module);
+        let func_id = module.declare_function(BuiltinFunction::TransformLoaderCpsImpl.func_name(), Linkage::Local, &sig).unwrap();
         ctx.func.signature = sig;
         let mut builder = FunctionBuilder::new(&mut ctx.func, builder_ctx);
         let entry_block = builder.create_block();
@@ -365,10 +366,12 @@ impl BuiltinFunction {
         let last_result_ptr = builder.block_params(entry_block)[2];
         let last_result = builder.ins().load(I64, MemFlags::new(), last_result_ptr, 0);
 
+        // transform thunk is set on the argument stack by `runtime_register_handler` when it
+        // creates the transform loader continuation.
         let transform_thunk = builder.ins().load(I64, MemFlags::new(), base_address, 0);
 
-        let pop_handler_func_id = BuiltinFunction::PopHandler.declare(m);
-        let pop_handler_func_ref = m.declare_func_in_func(pop_handler_func_id, builder.func);
+        let pop_handler_func_id = BuiltinFunction::PopHandler.declare(module);
+        let pop_handler_func_ref = module.declare_func_in_func(pop_handler_func_id, builder.func);
         let inst = builder.ins().call(pop_handler_func_ref, &[]);
         let handler_parameter = builder.inst_results(inst)[0];
 
@@ -376,8 +379,8 @@ impl BuiltinFunction {
         // is taken for the final tail call to the transform function.
         let tip_address = builder.ins().iadd_imm(base_address, 8);
 
-        let force_thunk_func_id = BuiltinFunction::ForceThunk.declare(m);
-        let force_thunk_func_ref = m.declare_func_in_func(force_thunk_func_id, builder.func);
+        let force_thunk_func_id = BuiltinFunction::ForceThunk.declare(module);
+        let force_thunk_func_ref = module.declare_func_in_func(force_thunk_func_id, builder.func);
 
         // push all the thunk arguments to the stack
         builder.ins().stack_store(tip_address, tip_address_slot, 0);
@@ -402,7 +405,7 @@ impl BuiltinFunction {
         builder.ins().store(MemFlags::new(), next_continuation_frame_height, next_continuation, 8);
 
         // call the next continuation
-        let sig = create_cps_signature(m);
+        let sig = create_cps_signature(module);
         let sig_ref = builder.import_signature(sig);
         builder.ins().return_call_indirect(sig_ref, transform_ptr, &[tip_address, next_continuation]);
 

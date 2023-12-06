@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Write;
 use std::iter;
 use cranelift::codegen::ir::{FuncRef, Inst, StackSlot};
 use cranelift::frontend::Switch;
@@ -730,8 +731,8 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         let inst = self.call_builtin_func(BuiltinFunction::PrepareComplexOperation, &[eff_value, new_base_address, continuation, num_args_value]);
         let result_ptr = self.function_builder.inst_results(inst)[0];
         let handler_impl = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 0);
-        let handler_base_address = self.function_builder.ins().iadd_imm(result_ptr, 8);
-        let handler_continuation = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 16);
+        let handler_base_address = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 8);
+        let next_continuation = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 16);
         let captured_continuation_ptr = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 24);
 
         self.call_builtin_func(BuiltinFunction::ConvertCapturedContinuationToThunk, &[captured_continuation_ptr]);
@@ -739,6 +740,6 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         let signature = self.uniform_cps_func_signature.clone();
         let sig_ref = self.function_builder.import_signature(signature);
 
-        self.function_builder.ins().return_call_indirect(sig_ref, handler_impl, &[handler_base_address, handler_continuation]);
+        self.function_builder.ins().return_call_indirect(sig_ref, handler_impl, &[handler_base_address, next_continuation]);
     }
 }

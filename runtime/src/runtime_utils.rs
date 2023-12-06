@@ -33,19 +33,21 @@ pub unsafe fn runtime_word_box() -> *mut usize {
 /// a pointer to the underlying raw function.
 pub unsafe fn runtime_force_thunk(thunk: *const usize, tip_address_ptr: *mut *mut usize) -> *const usize {
     let thunk_ptr = thunk.to_normal_ptr();
-    if UniformType::from_bits(thunk as usize) == UniformType::PPtr {
-        thunk_ptr
-    } else {
-        let next_thunk = thunk_ptr.read() as *const usize;
-        let num_args = thunk_ptr.add(1).read();
-        let mut tip_address = tip_address_ptr.read();
-        for i in (0..num_args).rev() {
-            let arg = thunk_ptr.add(2 + i).read();
-            tip_address = tip_address.sub(1);
-            tip_address.write(arg);
+    match UniformType::from_bits(thunk as usize) {
+        UniformType::PPtr => thunk_ptr,
+        UniformType::SPtr => {
+            let next_thunk = thunk_ptr.read() as *const usize;
+            let num_args = thunk_ptr.add(1).read();
+            let mut tip_address = tip_address_ptr.read();
+            for i in (0..num_args).rev() {
+                let arg = thunk_ptr.add(2 + i).read();
+                tip_address = tip_address.sub(1);
+                tip_address.write(arg);
+            }
+            tip_address_ptr.write(tip_address);
+            runtime_force_thunk(next_thunk, tip_address_ptr)
         }
-        tip_address_ptr.write(tip_address);
-        runtime_force_thunk(next_thunk, tip_address_ptr)
+        _ => unreachable!("bad thunk pointer")
     }
 }
 
@@ -161,7 +163,7 @@ pub unsafe fn runtime_prepare_complex_operation(
     // unpacking captured arguments of the handler would affect frame height of the next continuation as well.
     (*next_continuation).arg_stack_frame_height += tip_address_before_forcing_handler_impl.offset_from(new_tip_address) as usize;
     let new_base_address = new_tip_address;
-    let result_ptr = new_tip_address.add(4);
+    let result_ptr = new_tip_address.sub(4);
     result_ptr.write(handler_function_ptr as usize);
     result_ptr.add(1).write(new_base_address as usize);
     result_ptr.add(2).write(next_continuation as usize);
