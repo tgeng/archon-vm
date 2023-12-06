@@ -676,7 +676,7 @@ fn lambda(input: Input) -> IResult<Input, FTerm> {
                     separated_list0(newline_opt, pair(id, v_type_decl)),
                 ),
                 boolean(token("=>"), token("=>!")),
-                cut(expr))),
+                preceded(opt(newline), cut(computation)))),
             |(arg_names, may_have_complex_effects, body)|
                 FTerm::Lambda { arg_names, body: Box::new(body), may_have_complex_effects },
         )))(input)
@@ -740,12 +740,12 @@ fn handler_component(input: Input) -> IResult<Input, HandlerComponent> {
     alt((
         map(preceded(token("disposer"), cut(computation)), HandlerComponent::Disposer),
         map(preceded(token("replicator"), cut(computation)), HandlerComponent::Replicator),
-        map(preceded(token("#"), cut(computation)), HandlerComponent::Transform),
+        map(preceded(token("#"), preceded(opt(newline), cut(computation))), HandlerComponent::Transform),
         map(
             tuple((
                 atom,
                 boolean(token("#"), token("#!")),
-                computation,
+                preceded(opt(newline), computation),
             )),
             |(eff, complex, handler, )| HandlerComponent::Handler { eff, handler, complex },
         ),
