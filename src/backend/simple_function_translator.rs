@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::io::Write;
 use std::iter;
 use cranelift::codegen::ir::{FuncRef, Inst, StackSlot};
 use cranelift::frontend::Switch;
@@ -586,6 +585,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 // Insert into the global data section if not already there.
                 let data_id = self.static_strings.entry(value.clone()).or_insert_with(|| {
                     self.data_description.define(value.clone().into_bytes().into_boxed_slice());
+                    self.data_description.align = Some(8);
                     let data_id = self.module.declare_data(value, Linkage::Local, false, false).unwrap();
                     self.module.define_data(data_id, &self.data_description).unwrap();
                     self.data_description.clear();

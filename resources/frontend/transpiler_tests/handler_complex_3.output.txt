@@ -119,6 +119,127 @@ Handler {
                 may_have_complex_effects: true,
             },
         ),
+        (
+            Str {
+                value: "dissipate",
+            },
+            Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                    (
+                        "x",
+                        Uniform,
+                    ),
+                    (
+                        "cont",
+                        Uniform,
+                    ),
+                ],
+                body: Let {
+                    name: "r",
+                    t: Redex {
+                        function: Identifier {
+                            name: "_int_sub",
+                            may_have_complex_effects: false,
+                        },
+                        args: [
+                            Identifier {
+                                name: "p",
+                                may_have_complex_effects: false,
+                            },
+                            Identifier {
+                                name: "x",
+                                may_have_complex_effects: false,
+                            },
+                        ],
+                    },
+                    body: Redex {
+                        function: Force {
+                            thunk: Identifier {
+                                name: "cont",
+                                may_have_complex_effects: false,
+                            },
+                            may_have_complex_effects: true,
+                        },
+                        args: [
+                            Int {
+                                value: 0,
+                            },
+                            Identifier {
+                                name: "r",
+                                may_have_complex_effects: false,
+                            },
+                            Identifier {
+                                name: "r",
+                                may_have_complex_effects: false,
+                            },
+                        ],
+                    },
+                },
+                may_have_complex_effects: true,
+            },
+        ),
+        (
+            Str {
+                value: "proliferate",
+            },
+            Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                    (
+                        "cont",
+                        Uniform,
+                    ),
+                ],
+                body: Let {
+                    name: "r",
+                    t: Redex {
+                        function: Identifier {
+                            name: "_int_mul",
+                            may_have_complex_effects: false,
+                        },
+                        args: [
+                            Identifier {
+                                name: "p",
+                                may_have_complex_effects: false,
+                            },
+                            Int {
+                                value: 2,
+                            },
+                        ],
+                    },
+                    body: Redex {
+                        function: Force {
+                            thunk: Identifier {
+                                name: "cont",
+                                may_have_complex_effects: false,
+                            },
+                            may_have_complex_effects: true,
+                        },
+                        args: [
+                            Int {
+                                value: 0,
+                            },
+                            Identifier {
+                                name: "r",
+                                may_have_complex_effects: false,
+                            },
+                            Identifier {
+                                name: "r",
+                                may_have_complex_effects: false,
+                            },
+                        ],
+                    },
+                },
+                may_have_complex_effects: true,
+            },
+        ),
     ],
     input: Thunk {
         computation: Let {
@@ -134,16 +255,40 @@ Handler {
                 ],
                 complex: true,
             },
-            body: OperationCall {
-                eff: Str {
-                    value: "accumulate",
-                },
-                args: [
-                    Int {
-                        value: 4,
+            body: Let {
+                name: "_",
+                t: OperationCall {
+                    eff: Str {
+                        value: "accumulate",
                     },
-                ],
-                complex: true,
+                    args: [
+                        Int {
+                            value: 4,
+                        },
+                    ],
+                    complex: true,
+                },
+                body: Let {
+                    name: "_",
+                    t: OperationCall {
+                        eff: Str {
+                            value: "dissipate",
+                        },
+                        args: [
+                            Int {
+                                value: 1,
+                            },
+                        ],
+                        complex: true,
+                    },
+                    body: OperationCall {
+                        eff: Str {
+                            value: "proliferate",
+                        },
+                        args: [],
+                        complex: true,
+                    },
+                },
             },
         },
         may_have_complex_effects: true,
@@ -207,12 +352,42 @@ Defs
                             may_have_complex_effects: true,
                         },
                     ),
+                    (
+                        Str {
+                            value: "dissipate",
+                        },
+                        Thunk {
+                            t: Redex {
+                                function: Def {
+                                    name: "main$__lambda_4",
+                                    may_have_complex_effects: true,
+                                },
+                                args: [],
+                            },
+                            may_have_complex_effects: true,
+                        },
+                    ),
+                    (
+                        Str {
+                            value: "proliferate",
+                        },
+                        Thunk {
+                            t: Redex {
+                                function: Def {
+                                    name: "main$__lambda_5",
+                                    may_have_complex_effects: true,
+                                },
+                                args: [],
+                            },
+                            may_have_complex_effects: true,
+                        },
+                    ),
                 ],
                 simple_handlers: [],
                 input: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "main$__lambda_4",
+                            name: "main$__lambda_6",
                             may_have_complex_effects: true,
                         },
                         args: [],
@@ -365,6 +540,116 @@ Defs
     (
         "main$__lambda_4",
         FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+                (
+                    2,
+                    Uniform,
+                ),
+            ],
+            body: Let {
+                t: PrimitiveCall {
+                    name: "_int_sub",
+                    args: [
+                        Var {
+                            index: 0,
+                        },
+                        Var {
+                            index: 1,
+                        },
+                    ],
+                },
+                bound_index: 3,
+                body: Redex {
+                    function: Force {
+                        thunk: Var {
+                            index: 2,
+                        },
+                        may_have_complex_effects: true,
+                    },
+                    args: [
+                        Int {
+                            value: 0,
+                        },
+                        Var {
+                            index: 3,
+                        },
+                        Var {
+                            index: 3,
+                        },
+                    ],
+                },
+            },
+            c_type: Default,
+            var_bound: 4,
+            may_be_simple: false,
+            may_be_complex: true,
+            may_be_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_5",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+            ],
+            body: Let {
+                t: PrimitiveCall {
+                    name: "_int_mul",
+                    args: [
+                        Var {
+                            index: 0,
+                        },
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+                bound_index: 2,
+                body: Redex {
+                    function: Force {
+                        thunk: Var {
+                            index: 1,
+                        },
+                        may_have_complex_effects: true,
+                    },
+                    args: [
+                        Int {
+                            value: 0,
+                        },
+                        Var {
+                            index: 2,
+                        },
+                        Var {
+                            index: 2,
+                        },
+                    ],
+                },
+            },
+            c_type: Default,
+            var_bound: 3,
+            may_be_simple: false,
+            may_be_complex: true,
+            may_be_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_6",
+        FunctionDefinition {
             args: [],
             body: Let {
                 t: OperationCall {
@@ -379,20 +664,44 @@ Defs
                     complex: true,
                 },
                 bound_index: 0,
-                body: OperationCall {
-                    eff: Str {
-                        value: "accumulate",
-                    },
-                    args: [
-                        Int {
-                            value: 4,
+                body: Let {
+                    t: OperationCall {
+                        eff: Str {
+                            value: "accumulate",
                         },
-                    ],
-                    complex: true,
+                        args: [
+                            Int {
+                                value: 4,
+                            },
+                        ],
+                        complex: true,
+                    },
+                    bound_index: 1,
+                    body: Let {
+                        t: OperationCall {
+                            eff: Str {
+                                value: "dissipate",
+                            },
+                            args: [
+                                Int {
+                                    value: 1,
+                                },
+                            ],
+                            complex: true,
+                        },
+                        bound_index: 2,
+                        body: OperationCall {
+                            eff: Str {
+                                value: "proliferate",
+                            },
+                            args: [],
+                            complex: true,
+                        },
+                    },
                 },
             },
             c_type: Default,
-            var_bound: 1,
+            var_bound: 3,
             may_be_simple: false,
             may_be_complex: true,
             may_be_specialized: false,
@@ -406,6 +715,8 @@ CLIR
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     gv0 = symbol colocated userextname8
+    gv1 = symbol colocated userextname10
+    gv2 = symbol colocated userextname12
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64, i64) -> i64 tail
     sig2 = (i64, i64) -> i64 tail
@@ -416,8 +727,10 @@ function u0:0(i64) -> i64 tail {
     sig7 = (i64, i64, i64) apple_aarch64
     sig8 = (i64, i64) -> i64 tail
     sig9 = (i64, i64) -> i64 tail
-    sig10 = (i64, i64) -> i64 apple_aarch64
+    sig10 = (i64, i64) -> i64 tail
     sig11 = (i64, i64) -> i64 tail
+    sig12 = (i64, i64) -> i64 apple_aarch64
+    sig13 = (i64, i64) -> i64 tail
     fn0 = colocated u0:11 sig0
     fn1 = colocated u0:16 sig1
     fn2 = colocated u0:18 sig2
@@ -428,7 +741,9 @@ function u0:0(i64) -> i64 tail {
     fn7 = u0:8 sig7
     fn8 = colocated u0:22 sig8
     fn9 = colocated u0:24 sig9
-    fn10 = u0:1 sig10
+    fn10 = colocated u0:26 sig10
+    fn11 = colocated u0:28 sig11
+    fn12 = u0:1 sig12
 
 block0(v0: i64):
     v1 = call fn0()
@@ -450,23 +765,33 @@ block0(v0: i64):
     v16 = func_addr.i64 fn8
     v17 = iadd_imm v16, 3
     call fn7(v12, v15, v17)
-    v18 = load.i64 v12
-    v19 = func_addr.i64 fn9
-    v20 = iadd_imm v19, 3
+    v18 = symbol_value.i64 gv1
+    v19 = iadd_imm v18, 3
+    v20 = func_addr.i64 fn9
+    v21 = iadd_imm v20, 3
+    call fn7(v12, v19, v21)
+    v22 = symbol_value.i64 gv2
+    v23 = iadd_imm v22, 3
+    v24 = func_addr.i64 fn10
+    v25 = iadd_imm v24, 3
+    call fn7(v12, v23, v25)
+    v26 = load.i64 v12
+    v27 = func_addr.i64 fn11
+    v28 = iadd_imm v27, 3
     stack_store v13, ss0
-    v21 = stack_addr.i64 ss0
-    v22 = call fn10(v20, v21)
-    v23 = stack_load.i64 ss0
-    v24 = isub v13, v23
-    v25 = ushr_imm v24, 3
-    v26 = load.i64 v18+8
-    v27 = iadd v26, v25
-    store v27, v18+8
-    v28 = call_indirect sig11, v22(v23, v18)
-    v29 = load.i64 v28
-    v30 = iadd_imm v28, 8
-    v31 = sshr_imm v29, 1
-    return v31
+    v29 = stack_addr.i64 ss0
+    v30 = call fn12(v28, v29)
+    v31 = stack_load.i64 ss0
+    v32 = isub v13, v31
+    v33 = ushr_imm v32, 3
+    v34 = load.i64 v26+8
+    v35 = iadd v34, v33
+    store v35, v26+8
+    v36 = call_indirect sig13, v30(v31, v26)
+    v37 = load.i64 v36
+    v38 = iadd_imm v36, 8
+    v39 = sshr_imm v37, 1
+    return v39
 }
 
 
@@ -579,21 +904,122 @@ block0(v0: i64, v1: i64):
 }
 
 
-[main$__lambda_4__cps_impl]
+[main$__lambda_4__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = () -> i64 apple_aarch64
+    sig1 = (i64, i64) -> i64 apple_aarch64
+    sig2 = (i64, i64) -> i64 tail
+    sig3 = (i64, i64, i64) -> i64 apple_aarch64
+    fn0 = colocated u0:11 sig0
+    fn1 = u0:1 sig1
+    fn2 = %Memmove sig3
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = load.i64 v0+8
+    v4 = load.i64 v0+16
+    v5 = sshr_imm v2, 1
+    v6 = sshr_imm v3, 1
+    v7 = isub v5, v6
+    v8 = iconst.i64 0
+    v9 = ishl_imm v8, 1  ; v8 = 0
+    v10 = ishl_imm v7, 1
+    v11 = ishl_imm v7, 1
+    v12 = iadd_imm v0, -8
+    store aligned v11, v12
+    v13 = iadd_imm v12, -8
+    store aligned v10, v13
+    v14 = iadd_imm v13, -8
+    store aligned v9, v14
+    v15 = call fn0()
+    stack_store v14, ss0
+    v16 = stack_addr.i64 ss0
+    v17 = call fn1(v4, v16)
+    v18 = stack_load.i64 ss0
+    v19 = isub v14, v18
+    v20 = ushr_imm v19, 3
+    v21 = load.i64 v15+8
+    v22 = iadd v21, v20
+    store v22, v15+8
+    v23 = iadd_imm v18, 24
+    v24 = isub v0, v18
+    v25 = call fn2(v23, v18, v24)
+    return_call_indirect sig2, v17(v23, v15)
+}
+
+
+[main$__lambda_5__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = () -> i64 apple_aarch64
+    sig1 = (i64, i64) -> i64 apple_aarch64
+    sig2 = (i64, i64) -> i64 tail
+    sig3 = (i64, i64, i64) -> i64 apple_aarch64
+    fn0 = colocated u0:11 sig0
+    fn1 = u0:1 sig1
+    fn2 = %Memmove sig3
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = load.i64 v0+8
+    v4 = iconst.i64 2
+    v5 = sshr_imm v2, 1
+    v6 = imul v5, v4  ; v4 = 2
+    v7 = iconst.i64 0
+    v8 = ishl_imm v7, 1  ; v7 = 0
+    v9 = ishl_imm v6, 1
+    v10 = ishl_imm v6, 1
+    v11 = iadd_imm v0, -8
+    store aligned v10, v11
+    v12 = iadd_imm v11, -8
+    store aligned v9, v12
+    v13 = iadd_imm v12, -8
+    store aligned v8, v13
+    v14 = call fn0()
+    stack_store v13, ss0
+    v15 = stack_addr.i64 ss0
+    v16 = call fn1(v3, v15)
+    v17 = stack_load.i64 ss0
+    v18 = isub v13, v17
+    v19 = ushr_imm v18, 3
+    v20 = load.i64 v14+8
+    v21 = iadd v20, v19
+    store v21, v14+8
+    v22 = iadd_imm v17, 16
+    v23 = isub v0, v17
+    v24 = call fn2(v22, v17, v23)
+    return_call_indirect sig2, v16(v22, v14)
+}
+
+
+[main$__lambda_6__cps_impl]
 function u0:0(i64, i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     gv0 = symbol colocated userextname0
     gv1 = symbol colocated userextname0
+    gv2 = symbol colocated userextname3
+    gv3 = symbol colocated userextname4
     sig0 = (i64, i64, i64, i64) -> i64 apple_aarch64
     sig1 = (i64) apple_aarch64
     sig2 = (i64, i64) -> i64 tail
     sig3 = (i64, i64, i64, i64) -> i64 apple_aarch64
     sig4 = (i64) apple_aarch64
     sig5 = (i64, i64) -> i64 tail
+    sig6 = (i64, i64, i64, i64) -> i64 apple_aarch64
+    sig7 = (i64) apple_aarch64
+    sig8 = (i64, i64) -> i64 tail
+    sig9 = (i64, i64, i64, i64) -> i64 apple_aarch64
+    sig10 = (i64) apple_aarch64
+    sig11 = (i64, i64) -> i64 tail
     fn0 = u0:4 sig0
     fn1 = colocated u0:13 sig1
     fn2 = u0:4 sig3
     fn3 = colocated u0:13 sig4
+    fn4 = u0:4 sig6
+    fn5 = colocated u0:13 sig7
+    fn6 = u0:4 sig9
+    fn7 = colocated u0:13 sig10
 
 block0(v0: i64, v1: i64, v2: i64):
     v3 = load.i64 v1+24
@@ -601,11 +1027,11 @@ block0(v0: i64, v1: i64, v2: i64):
     v5 = iadd_imm v2, 8
     v6 = load.i64 v2
     v7 = icmp_imm ugt v3, 0xffff_ffff
-    brif v7, block1, block3
+    brif v7, block1, block5
 
-block3:
+block5:
     v8 = ireduce.i32 v3
-    br_table v8, block1, [block1, block2]
+    br_table v8, block1, [block1, block2, block3, block4]
 
 block1:
     v9 = symbol_value.i64 gv0
@@ -635,35 +1061,75 @@ block2:
     v26 = ishl_imm v25, 1  ; v25 = 4
     v27 = iadd_imm.i64 v5, -8
     store aligned v26, v27
-    v28 = load.i64 v1+16
-    v29 = load.i64 v28+8
-    v30 = ishl_imm v29, 3
-    v31 = iadd.i64 v0, v30
-    v32 = isub v31, v27
-    v33 = ushr_imm v32, 3
-    store v33, v28+8
-    v34 = iconst.i64 1
-    v35 = call fn2(v24, v27, v28, v34)  ; v34 = 1
-    v36 = load.i64 v35
-    v37 = load.i64 v35+8
-    v38 = load.i64 v35+16
-    v39 = load.i64 v35+24
-    call fn3(v39)
-    return_call_indirect sig5, v36(v37, v38)
+    v28 = isub.i64 v0, v27
+    v29 = ushr_imm v28, 3
+    store v29, v1+8
+    v30 = iconst.i64 2
+    store v30, v1+24  ; v30 = 2
+    store.i64 v6, v4
+    v31 = iconst.i64 1
+    v32 = call fn2(v24, v27, v1, v31)  ; v31 = 1
+    v33 = load.i64 v32
+    v34 = load.i64 v32+8
+    v35 = load.i64 v32+16
+    v36 = load.i64 v32+24
+    call fn3(v36)
+    return_call_indirect sig5, v33(v34, v35)
+
+block3:
+    v37 = symbol_value.i64 gv2
+    v38 = iadd_imm v37, 3
+    v39 = iconst.i64 1
+    v40 = ishl_imm v39, 1  ; v39 = 1
+    v41 = iadd_imm.i64 v5, -8
+    store aligned v40, v41
+    v42 = isub.i64 v0, v41
+    v43 = ushr_imm v42, 3
+    store v43, v1+8
+    v44 = iconst.i64 3
+    store v44, v1+24  ; v44 = 3
+    store.i64 v6, v4+8
+    v45 = iconst.i64 1
+    v46 = call fn4(v38, v41, v1, v45)  ; v45 = 1
+    v47 = load.i64 v46
+    v48 = load.i64 v46+8
+    v49 = load.i64 v46+16
+    v50 = load.i64 v46+24
+    call fn5(v50)
+    return_call_indirect sig8, v47(v48, v49)
+
+block4:
+    v51 = symbol_value.i64 gv3
+    v52 = iadd_imm v51, 3
+    v53 = load.i64 v1+16
+    v54 = load.i64 v53+8
+    v55 = ishl_imm v54, 3
+    v56 = iadd.i64 v0, v55
+    v57 = isub v56, v5
+    v58 = ushr_imm v57, 3
+    store v58, v53+8
+    v59 = iconst.i64 0
+    v60 = call fn6(v52, v5, v53, v59)  ; v59 = 0
+    v61 = load.i64 v60
+    v62 = load.i64 v60+8
+    v63 = load.i64 v60+16
+    v64 = load.i64 v60+24
+    call fn7(v64)
+    return_call_indirect sig11, v61(v62, v63)
 }
 
 
-[main$__lambda_4__cps]
+[main$__lambda_6__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64) -> i64 apple_aarch64
     sig1 = (i64, i64, i64) -> i64 tail
     fn0 = u0:0 sig0
-    fn1 = colocated u0:25 sig1
+    fn1 = colocated u0:29 sig1
 
 block0(v0: i64, v1: i64):
-    v2 = iconst.i64 40
-    v3 = call fn0(v2)  ; v2 = 40
+    v2 = iconst.i64 56
+    v3 = call fn0(v2)  ; v2 = 56
     v4 = func_addr.i64 fn1
     store v4, v3
     store v1, v3+16
@@ -688,4 +1154,4 @@ block0:
 
 Result
 ========
-6
+10
