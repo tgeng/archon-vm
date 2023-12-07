@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::iter;
-use cranelift::codegen::ir::{FuncRef, Inst, StackSlot};
+use cranelift::codegen::ir::{Endianness, FuncRef, Inst, StackSlot};
 use cranelift::frontend::Switch;
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, I32, I64};
@@ -584,7 +584,16 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             VTerm::Str { value } => {
                 // Insert into the global data section if not already there.
                 let data_id = self.static_strings.entry(value.clone()).or_insert_with(|| {
-                    self.data_description.define(value.clone().into_bytes().into_boxed_slice());
+                    let len_in_words = value.len().div_ceil(8);
+                    let bytes = value.clone().into_bytes();
+                    let len_bytes = match self.module.isa().endianness() {
+                        Endianness::Little => len_in_words.to_le_bytes(),
+                        Endianness::Big => len_in_words.to_be_bytes(),
+                    };
+                    // prepend bytes with length of the string in machine words.
+                    let bytes = len_bytes.iter().copied().chain(bytes).collect::<Vec<_>>();
+                    self.data_description.define(bytes.into_boxed_slice());
+                    // Align to 8 bytes because comparison logic compares aligned words.
                     self.data_description.align = Some(8);
                     let data_id = self.module.declare_data(value, Linkage::Local, false, false).unwrap();
                     self.module.define_data(data_id, &self.data_description).unwrap();
@@ -592,7 +601,10 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                     data_id
                 });
                 let global_value = self.module.declare_data_in_func(*data_id, self.function_builder.func);
-                Some((self.function_builder.ins().symbol_value(I64, global_value), Specialized(PrimitivePtr)))
+                let raw_data_ptr = self.function_builder.ins().symbol_value(I64, global_value);
+                // Offset the pointer by 8 bytes to skip the length field.
+                let data_ptr = self.function_builder.ins().iadd_imm(raw_data_ptr, 8);
+                Some((data_ptr, Specialized(PrimitivePtr)))
             }
             VTerm::Struct { values } => {
                 // TODO: use a common empty struct if values is empty
