@@ -522,7 +522,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         // Store current height
         let tip_address = self.tip_address;
         let base_address = self.base_address;
-        let arg_stack_frame_height_bytes = self.function_builder.ins().isub(tip_address, base_address);
+        let arg_stack_frame_height_bytes = self.function_builder.ins().isub(base_address, tip_address);
         let arg_stack_frame_height = self.function_builder.ins().ushr_imm(arg_stack_frame_height_bytes, 3);
         self.function_builder.ins().store(MemFlags::new(), arg_stack_frame_height, continuation, 8);
 
