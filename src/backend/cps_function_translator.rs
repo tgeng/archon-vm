@@ -149,13 +149,13 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                 self.function_builder.ins().return_call(func_ref, &[new_base_address, continuation]);
                 None
             }
-            CTerm::OperationCall { eff, args, complex: true } if is_tail => {
+            CTerm::OperationCall { eff, args, may_be_complex: true } if is_tail => {
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);
                 let next_continuation = self.next_continuation;
                 let new_base_address = compute_cps_tail_call_base_address(self, next_continuation);
-                self.handle_complex_operation_call(eff_value, new_base_address, next_continuation, args.len());
+                self.handle_complex_operation_call(eff_value, new_base_address, next_continuation, args.len(), true);
                 None
             }
             _ => self.translate_c_term(c_term, is_tail),
@@ -471,7 +471,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 self.tip_address = self.function_builder.block_params(joining_block)[1];
                 Some((self.function_builder.block_params(joining_block)[0], *result_v_type))
             }
-            CTerm::OperationCall { eff, args, complex: true } => {
+            CTerm::OperationCall { eff, args, may_be_complex: true } => {
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);
@@ -482,7 +482,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                     (self.tip_address, self.continuation)
                 };
 
-                self.handle_complex_operation_call(eff_value, new_base_address, continuation, args.len());
+                self.handle_complex_operation_call(eff_value, new_base_address, continuation, args.len(), true);
                 if is_tail {
                     None
                 } else {

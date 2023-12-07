@@ -253,7 +253,7 @@ Handler {
                         value: 2,
                     },
                 ],
-                complex: true,
+                may_be_complex: true,
             },
             body: Let {
                 name: "_",
@@ -266,7 +266,7 @@ Handler {
                             value: 4,
                         },
                     ],
-                    complex: true,
+                    may_be_complex: true,
                 },
                 body: Let {
                     name: "_",
@@ -279,14 +279,14 @@ Handler {
                                 value: 1,
                             },
                         ],
-                        complex: true,
+                        may_be_complex: true,
                     },
                     body: OperationCall {
                         eff: Str {
                             value: "proliferate",
                         },
                         args: [],
-                        complex: true,
+                        may_be_complex: true,
                     },
                 },
             },
@@ -661,7 +661,7 @@ Defs
                             value: 2,
                         },
                     ],
-                    complex: true,
+                    may_be_complex: true,
                 },
                 bound_index: 0,
                 body: Let {
@@ -674,7 +674,7 @@ Defs
                                 value: 4,
                             },
                         ],
-                        complex: true,
+                        may_be_complex: true,
                     },
                     bound_index: 1,
                     body: Let {
@@ -687,7 +687,7 @@ Defs
                                     value: 1,
                                 },
                             ],
-                            complex: true,
+                            may_be_complex: true,
                         },
                         bound_index: 2,
                         body: OperationCall {
@@ -695,7 +695,7 @@ Defs
                                 value: "proliferate",
                             },
                             args: [],
-                            complex: true,
+                            may_be_complex: true,
                         },
                     },
                 },
@@ -1004,16 +1004,16 @@ function u0:0(i64, i64, i64) -> i64 tail {
     gv2 = symbol colocated userextname3
     gv3 = symbol colocated userextname4
     sig0 = (i64, i64) -> i64 tail
-    sig1 = (i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig1 = (i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
     sig2 = (i64, i64) -> i64 tail
     sig3 = (i64, i64) -> i64 tail
-    sig4 = (i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig4 = (i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
     sig5 = (i64, i64) -> i64 tail
     sig6 = (i64, i64) -> i64 tail
-    sig7 = (i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig7 = (i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
     sig8 = (i64, i64) -> i64 tail
     sig9 = (i64, i64) -> i64 tail
-    sig10 = (i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig10 = (i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
     sig11 = (i64, i64) -> i64 tail
     fn0 = colocated u0:12 sig0
     fn1 = u0:4 sig1
@@ -1051,74 +1051,78 @@ block1:
     store v17, v1+24  ; v17 = 1
     v18 = iconst.i64 1
     v19 = func_addr.i64 fn0
-    v20 = call fn1(v11, v14, v1, v18, v19)  ; v18 = 1
-    v21 = load.i64 v20
-    v22 = load.i64 v20+8
-    v23 = load.i64 v20+16
-    return_call_indirect sig2, v21(v22, v23)
+    v20 = iconst.i64 1
+    v21 = call fn1(v11, v14, v1, v18, v19, v20)  ; v18 = 1, v20 = 1
+    v22 = load.i64 v21
+    v23 = load.i64 v21+8
+    v24 = load.i64 v21+16
+    return_call_indirect sig2, v22(v23, v24)
 
 block2:
-    v24 = symbol_value.i64 gv1
-    v25 = iadd_imm v24, 8
-    v26 = iadd_imm v25, 3
-    v27 = iconst.i64 4
-    v28 = ishl_imm v27, 1  ; v27 = 4
-    v29 = iadd_imm.i64 v5, -8
-    store aligned v28, v29
-    v30 = isub.i64 v0, v29
-    v31 = ushr_imm v30, 3
-    store v31, v1+8
-    v32 = iconst.i64 2
-    store v32, v1+24  ; v32 = 2
+    v25 = symbol_value.i64 gv1
+    v26 = iadd_imm v25, 8
+    v27 = iadd_imm v26, 3
+    v28 = iconst.i64 4
+    v29 = ishl_imm v28, 1  ; v28 = 4
+    v30 = iadd_imm.i64 v5, -8
+    store aligned v29, v30
+    v31 = isub.i64 v0, v30
+    v32 = ushr_imm v31, 3
+    store v32, v1+8
+    v33 = iconst.i64 2
+    store v33, v1+24  ; v33 = 2
     store.i64 v6, v4
-    v33 = iconst.i64 1
-    v34 = func_addr.i64 fn2
-    v35 = call fn3(v26, v29, v1, v33, v34)  ; v33 = 1
-    v36 = load.i64 v35
-    v37 = load.i64 v35+8
-    v38 = load.i64 v35+16
-    return_call_indirect sig5, v36(v37, v38)
+    v34 = iconst.i64 1
+    v35 = func_addr.i64 fn2
+    v36 = iconst.i64 1
+    v37 = call fn3(v27, v30, v1, v34, v35, v36)  ; v34 = 1, v36 = 1
+    v38 = load.i64 v37
+    v39 = load.i64 v37+8
+    v40 = load.i64 v37+16
+    return_call_indirect sig5, v38(v39, v40)
 
 block3:
-    v39 = symbol_value.i64 gv2
-    v40 = iadd_imm v39, 8
-    v41 = iadd_imm v40, 3
-    v42 = iconst.i64 1
-    v43 = ishl_imm v42, 1  ; v42 = 1
-    v44 = iadd_imm.i64 v5, -8
-    store aligned v43, v44
-    v45 = isub.i64 v0, v44
-    v46 = ushr_imm v45, 3
-    store v46, v1+8
-    v47 = iconst.i64 3
-    store v47, v1+24  ; v47 = 3
+    v41 = symbol_value.i64 gv2
+    v42 = iadd_imm v41, 8
+    v43 = iadd_imm v42, 3
+    v44 = iconst.i64 1
+    v45 = ishl_imm v44, 1  ; v44 = 1
+    v46 = iadd_imm.i64 v5, -8
+    store aligned v45, v46
+    v47 = isub.i64 v0, v46
+    v48 = ushr_imm v47, 3
+    store v48, v1+8
+    v49 = iconst.i64 3
+    store v49, v1+24  ; v49 = 3
     store.i64 v6, v4+8
-    v48 = iconst.i64 1
-    v49 = func_addr.i64 fn4
-    v50 = call fn5(v41, v44, v1, v48, v49)  ; v48 = 1
-    v51 = load.i64 v50
-    v52 = load.i64 v50+8
-    v53 = load.i64 v50+16
-    return_call_indirect sig8, v51(v52, v53)
+    v50 = iconst.i64 1
+    v51 = func_addr.i64 fn4
+    v52 = iconst.i64 1
+    v53 = call fn5(v43, v46, v1, v50, v51, v52)  ; v50 = 1, v52 = 1
+    v54 = load.i64 v53
+    v55 = load.i64 v53+8
+    v56 = load.i64 v53+16
+    return_call_indirect sig8, v54(v55, v56)
 
 block4:
-    v54 = symbol_value.i64 gv3
-    v55 = iadd_imm v54, 8
-    v56 = iadd_imm v55, 3
-    v57 = load.i64 v1+16
-    v58 = load.i64 v57+8
-    v59 = ishl_imm v58, 3
-    v60 = iadd.i64 v0, v59
-    v61 = isub v60, v5
-    v62 = ushr_imm v61, 3
-    store v62, v57+8
-    v63 = iconst.i64 0
-    v64 = func_addr.i64 fn6
-    v65 = call fn7(v56, v5, v57, v63, v64)  ; v63 = 0
-    v66 = load.i64 v65
-    v67 = load.i64 v65+8
-    v68 = load.i64 v65+16
-    return_call_indirect sig11, v66(v67, v68)
+    v57 = symbol_value.i64 gv3
+    v58 = iadd_imm v57, 8
+    v59 = iadd_imm v58, 3
+    v60 = load.i64 v1+16
+    v61 = load.i64 v60+8
+    v62 = ishl_imm v61, 3
+    v63 = iadd.i64 v0, v62
+    v64 = isub v63, v5
+    v65 = ushr_imm v64, 3
+    store v65, v60+8
+    v66 = iconst.i64 0
+    v67 = func_addr.i64 fn6
+    v68 = iconst.i64 1
+    v69 = call fn7(v59, v5, v60, v66, v67, v68)  ; v66 = 0, v68 = 1
+    v70 = load.i64 v69
+    v71 = load.i64 v69+8
+    v72 = load.i64 v69+16
+    return_call_indirect sig11, v70(v71, v72)
 }
 
 

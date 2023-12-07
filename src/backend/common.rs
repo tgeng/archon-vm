@@ -127,7 +127,7 @@ impl BuiltinFunction {
             BuiltinFunction::ForceThunk => declare_external_func(2, 1),
             BuiltinFunction::AllocStack => declare_external_func(0, 1),
             BuiltinFunction::HandleSimpleOperation => declare_external_func(3, 1),
-            BuiltinFunction::PrepareOperation => declare_external_func(5, 1),
+            BuiltinFunction::PrepareOperation => declare_external_func(6, 1),
             BuiltinFunction::PopHandler => declare_external_func(0, 1),
             BuiltinFunction::RegisterHandlerAndGetTransformContinuation => declare_external_func(7, 1),
             BuiltinFunction::AddSimpleHandler => declare_external_func(3, 0),

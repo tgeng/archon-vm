@@ -361,8 +361,8 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let return_value = (primitive_function.code_gen)(&mut self.function_builder, &arg_values);
                 Some((return_value, primitive_function.return_type))
             }
-            CTerm::OperationCall { eff, args, complex } => {
-                assert!(!complex);
+            CTerm::OperationCall { eff, args, may_be_complex } => {
+                assert!(!may_be_complex);
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);
@@ -738,11 +738,12 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         });
     }
 
-    pub fn handle_complex_operation_call(&mut self, eff_value: Value, new_base_address: Value, continuation: Value, num_args: usize) {
+    pub fn handle_complex_operation_call(&mut self, eff_value: Value, new_base_address: Value, continuation: Value, num_args: usize, may_be_complex: bool) {
         let num_args_value = self.function_builder.ins().iconst(I64, num_args as i64);
         let captured_continuation_thunk_impl_ref = self.module.declare_func_in_func(self.builtin_functions[BuiltinFunction::ConvertCapturedContinuationThunkImpl], self.function_builder.func);
         let captured_continuation_thunk_impl_ptr = self.function_builder.ins().func_addr(I64, captured_continuation_thunk_impl_ref);
-        let inst = self.call_builtin_func(BuiltinFunction::PrepareOperation, &[eff_value, new_base_address, continuation, num_args_value, captured_continuation_thunk_impl_ptr]);
+        let may_be_complex_value = self.function_builder.ins().iconst(I64, may_be_complex as i64);
+        let inst = self.call_builtin_func(BuiltinFunction::PrepareOperation, &[eff_value, new_base_address, continuation, num_args_value, captured_continuation_thunk_impl_ptr, may_be_complex_value]);
         let result_ptr = self.function_builder.inst_results(inst)[0];
         let handler_impl = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 0);
         let handler_base_address = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 8);

@@ -117,7 +117,7 @@ Handler {
                     value: 1,
                 },
             ],
-            complex: true,
+            may_be_complex: true,
         },
         may_have_complex_effects: true,
     },

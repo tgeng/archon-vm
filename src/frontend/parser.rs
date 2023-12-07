@@ -379,8 +379,8 @@ fn atomic_call(input: Input) -> IResult<Input, FTerm> {
                                 Some(value) => FTerm::MemSet { base: Box::new(t), offset: Box::new(index), value: Box::new(value) },
                             }
                         }),
-                        Either::Right((complex, FTerm::Struct { values })) => {
-                            FTerm::OperationCall { eff: Box::new(t), args: values, complex }
+                        Either::Right((may_be_complex, FTerm::Struct { values })) => {
+                            FTerm::OperationCall { eff: Box::new(t), args: values, may_be_complex }
                         }
                         _ => unreachable!()
                     }

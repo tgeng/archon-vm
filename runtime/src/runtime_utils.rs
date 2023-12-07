@@ -64,7 +64,7 @@ pub unsafe fn runtime_alloc_stack() -> *mut usize {
 /// Returns the result of the operation in uniform representation
 /// TODO: add args
 pub unsafe fn runtime_handle_simple_operation(eff: usize, handler_call_base_address: *const usize, handler_num_args: usize) -> usize {
-    let (handler_index, handler_impl) = find_matching_handler(eff, true);
+    let (handler_index, handler_impl, _) = find_matching_handler(eff, 0);
     todo!()
 }
 
@@ -79,8 +79,9 @@ pub unsafe fn runtime_prepare_operation(
     tip_continuation: &mut Continuation,
     handler_num_args: usize,
     captured_continuation_thunk_impl: RawFuncPtr,
+    may_be_complex: usize,
 ) -> *const usize {
-    let (handler_index, handler_impl) = find_matching_handler(eff, false);
+    let (handler_index, handler_impl, complex) = find_matching_handler(eff, may_be_complex);
     let handler_entry_fragment = HANDLERS.with(|handler| handler.borrow_mut().split_off(handler_index));
     let matching_handler = match handler_entry_fragment.first().unwrap() {
         HandlerEntry::Handler(handler) => handler,
@@ -179,21 +180,20 @@ pub unsafe fn runtime_pop_handler() -> Uniform {
     })
 }
 
-fn find_matching_handler(eff: Eff, simple: bool) -> (usize, ThunkPtr) {
+fn find_matching_handler(eff: Eff, may_be_complex: usize) -> (usize, ThunkPtr, bool) {
     HANDLERS.with(|handler| {
         for (i, e) in handler.borrow().iter().rev().enumerate() {
             if let HandlerEntry::Handler(handler) = e {
-                if simple {
-                    for (e, handler_impl) in &handler.simple_handler {
-                        if unsafe { compare_uniform(eff, *e) } {
-                            return (i, *handler_impl);
-                        }
-                    }
-                } else {
+                if may_be_complex != 0 {
                     for (e, handler_impl) in &handler.complex_handler {
                         if unsafe { compare_uniform(eff, *e) } {
-                            return (i, *handler_impl);
+                            return (i, *handler_impl, true);
                         }
+                    }
+                }
+                for (e, handler_impl) in &handler.simple_handler {
+                    if unsafe { compare_uniform(eff, *e) } {
+                        return (i, *handler_impl, false);
                     }
                 }
             }

@@ -134,7 +134,7 @@ Handler {
                     value: 5,
                 },
             ],
-            complex: true,
+            may_be_complex: true,
         },
         may_have_complex_effects: true,
     },
@@ -371,7 +371,7 @@ Defs
                         value: 5,
                     },
                 ],
-                complex: true,
+                may_be_complex: true,
             },
             c_type: Default,
             var_bound: 0,
@@ -569,7 +569,7 @@ block0(v0: i64, v1: i64):
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     sig0 = (i64, i64) -> i64 tail
-    sig1 = (i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig1 = (i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
     sig2 = (i64, i64) -> i64 tail
     fn0 = colocated u0:12 sig0
     fn1 = u0:4 sig1
@@ -589,11 +589,12 @@ block0(v0: i64, v1: i64):
     store v11, v1+8
     v12 = iconst.i64 1
     v13 = func_addr.i64 fn0
-    v14 = call fn1(v3, v6, v1, v12, v13)  ; v12 = 1
-    v15 = load.i64 v14
-    v16 = load.i64 v14+8
-    v17 = load.i64 v14+16
-    return_call_indirect sig2, v15(v16, v17)
+    v14 = iconst.i64 1
+    v15 = call fn1(v3, v6, v1, v12, v13, v14)  ; v12 = 1, v14 = 1
+    v16 = load.i64 v15
+    v17 = load.i64 v15+8
+    v18 = load.i64 v15+16
+    return_call_indirect sig2, v16(v17, v18)
 }
 
 

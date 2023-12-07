@@ -187,10 +187,10 @@ impl Transpiler {
                     })
                 }
             }
-            FTerm::OperationCall { box eff, args, complex } => {
+            FTerm::OperationCall { box eff, args, may_be_complex } => {
                 self.transpile_value_and_map(eff, context, |(s, eff)| {
                     let (transpiled_args, transpiled_computations) = s.transpile_values(args, context);
-                    let operation_call = CTerm::OperationCall { eff, args: transpiled_args, complex };
+                    let operation_call = CTerm::OperationCall { eff, args: transpiled_args, may_be_complex };
                     Self::squash_computations(operation_call, transpiled_computations)
                 })
             }
