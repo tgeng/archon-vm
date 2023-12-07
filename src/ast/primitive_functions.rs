@@ -16,7 +16,7 @@ pub static PRIMITIVE_FUNCTIONS: phf::Map<&'static str, &'static PrimitiveFunctio
     "_int_pos" => &PrimitiveFunction {
         arg_types: &[Specialized(Integer)],
         return_type: Specialized(Integer),
-        code_gen: |function_builder, args| {
+        code_gen: |_function_builder, args| {
             assert_eq!(args.len(), 1);
             args[0]
         }

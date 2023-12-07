@@ -3,9 +3,9 @@ use crate::ast::term::{CTerm, VTerm};
 pub trait Visitor {
     type Ctx: Copy;
 
-    fn add_binding(&mut self, _name: usize, ctx: Self::Ctx) {}
+    fn add_binding(&mut self, _name: usize, _ctx: Self::Ctx) {}
 
-    fn remove_binding(&mut self, _name: usize, ctx: Self::Ctx) {}
+    fn remove_binding(&mut self, _name: usize, _ctx: Self::Ctx) {}
 
     fn visit_v_term(&mut self, v_term: &VTerm, ctx: Self::Ctx) {
         match v_term {
@@ -17,13 +17,13 @@ pub trait Visitor {
         }
     }
 
-    fn visit_var(&mut self, _v_term: &VTerm, ctx: Self::Ctx) {}
+    fn visit_var(&mut self, _v_term: &VTerm, _ctx: Self::Ctx) {}
     fn visit_thunk(&mut self, v_term: &VTerm, ctx: Self::Ctx) {
         let VTerm::Thunk { t, .. } = v_term else { unreachable!() };
         self.visit_c_term(t, ctx);
     }
-    fn visit_int(&mut self, _v_term: &VTerm, ctx: Self::Ctx) {}
-    fn visit_str(&mut self, _v_term: &VTerm, ctx: Self::Ctx) {}
+    fn visit_int(&mut self, _v_term: &VTerm, _ctx: Self::Ctx) {}
+    fn visit_str(&mut self, _v_term: &VTerm, _ctx: Self::Ctx) {}
     fn visit_tuple(&mut self, v_term: &VTerm, ctx: Self::Ctx) {
         let VTerm::Struct { values } = v_term else { unreachable!() };
         for v in values {
@@ -73,7 +73,7 @@ pub trait Visitor {
         self.remove_binding(*bound_name, ctx);
     }
 
-    fn visit_def(&mut self, _c_term: &CTerm, ctx: Self::Ctx) {}
+    fn visit_def(&mut self, _c_term: &CTerm, _ctx: Self::Ctx) {}
 
     fn visit_case_int(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
         let CTerm::CaseInt { t, branches, default_branch, .. } = c_term else { unreachable!() };

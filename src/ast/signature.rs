@@ -106,7 +106,7 @@ impl Signature {
     fn specialize_calls(&mut self) {
         let mut new_defs: Vec<(String, FunctionDefinition)> = Vec::new();
         let specializable_functions: HashMap<_, _> = self.defs.iter()
-            .filter_map(|(name, FunctionDefinition { args, body, c_type, var_bound, may_be_simple, .. })| {
+            .filter_map(|(name, FunctionDefinition { args, c_type, may_be_simple, .. })| {
                 if let CType::SpecializedF(_) = c_type && *may_be_simple {
                     Some((name.clone(), args.len()))
                 } else {
@@ -114,7 +114,7 @@ impl Signature {
                 }
             }).collect();
 
-        self.defs.iter_mut().for_each(|(name, FunctionDefinition { args, body, .. })| {
+        self.defs.iter_mut().for_each(|(name, FunctionDefinition { body, .. })| {
             let mut specializer = CallSpecializer { def_name: name, new_defs: &mut new_defs, primitive_wrapper_counter: 0, specializable_functions: &specializable_functions };
             specializer.transform_c_term(body);
         });

@@ -213,7 +213,7 @@ impl Transpiler {
                                 let (complex_effs, complex_handlers): (Vec<_>, Vec<_>) = complex_handlers.into_iter().map(|(a, b)| (a, b)).unzip();
                                 let (complex_effs_v, complex_effs_c) = s.transpile_values(complex_effs, context);
                                 let (complex_handlers_v, complex_handlers_c) = s.transpile_values(complex_handlers, context);
-                                s.transpile_value_and_map(input, context, |(s, input)| {
+                                s.transpile_value_and_map(input, context, |(_s, input)| {
                                     let handler = CTerm::Handler {
                                         parameter,
                                         parameter_disposer,
@@ -226,8 +226,7 @@ impl Transpiler {
                                     let handler = Self::squash_computations(handler, simple_effs_c);
                                     let handler = Self::squash_computations(handler, simple_handlers_c);
                                     let handler = Self::squash_computations(handler, complex_effs_c);
-                                    let handler = Self::squash_computations(handler, complex_handlers_c);
-                                    handler
+                                    Self::squash_computations(handler, complex_handlers_c)
                                 })
                             })
                         })

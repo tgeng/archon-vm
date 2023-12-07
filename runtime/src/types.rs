@@ -44,7 +44,7 @@ impl UniformType {
         }
     }
     pub fn to_uniform_sptr<T>(ptr: *const T) -> usize {
-        (ptr as usize | 0b01)
+        ptr as usize | 0b01
     }
 }
 
