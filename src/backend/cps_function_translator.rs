@@ -239,10 +239,19 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         let continuation_size_value = translator.function_builder.ins().iconst(I64, continuation_size as i64);
         let inst = translator.call_builtin_func(BuiltinFunction::Alloc, &[continuation_size_value]);
         let continuation = translator.function_builder.inst_results(inst)[0];
+        // initialize continuation object
+        let cps_impl_func_ref = translator.module.declare_func_in_func(cps_impl_func_id, translator.function_builder.func);
+        let cps_impl_func_addr = translator.function_builder.ins().func_addr(I64, cps_impl_func_ref);
+        // set up continuation impl function pointer
+        translator.function_builder.ins().store(MemFlags::new(), cps_impl_func_addr, continuation, 0);
+        // set up next continuation
+        translator.function_builder.ins().store(MemFlags::new(), next_continuation, continuation, 16);
+        // state defaults to 0 so there is nothing to do for it.
+        // frame height defaults to 0 so there is nothing to do for it.
+
         // Initially sets the last result pointer to the base address -8 so that the tip address is
         // updated correctly when the continuation implementation function is called.
         let last_result_ptr = translator.function_builder.ins().iadd_imm(translator.base_address, -8);
-        let cps_impl_func_ref = translator.module.declare_func_in_func(cps_impl_func_id, translator.function_builder.func);
         translator.function_builder.ins().return_call(cps_impl_func_ref, &[translator.base_address, continuation, last_result_ptr]);
         translator.function_builder.finalize();
 

@@ -4,3 +4,4 @@ handler! 0
       let r = p + x
       force! cont 0 r r
 "accumulate" #! {2}
+"accumulate" #! {4}
