@@ -72,18 +72,13 @@ pub unsafe fn runtime_handle_simple_operation(eff: usize, handler_call_base_addr
 /// - ptr + 0: the function pointer to the matched handler implementationon
 /// - ptr + 8: the base address used to find the arguments when invoking the handler implementation
 /// - ptr + 16: the next continuation after handler finishes execution
-/// - ptr + 24: the pointer to the pointer of the captured continuation. This captured continuation
-///             is just a struct containing all the necessary information. However, to actually use
-///             it, one need a normal thunk instead. Hence, caller of
-///             [runtime_prepare_complex_operation] will need to replace the value pointed by this
-///             pointer with a normal thunk by calling the built-in
-///             `ConvertCapturedContinuationToThunk` function.
 ///
-pub unsafe fn runtime_prepare_complex_operation(
+pub unsafe fn runtime_prepare_operation(
     eff: usize,
     handler_call_base_address: *const usize,
     tip_continuation: &mut Continuation,
     handler_num_args: usize,
+    captured_continuation_thunk_impl: RawFuncPtr,
 ) -> *const usize {
     let (handler_index, handler_impl) = find_matching_handler(eff, false);
     let handler_entry_fragment = HANDLERS.with(|handler| handler.borrow_mut().split_off(handler_index));
@@ -143,9 +138,13 @@ pub unsafe fn runtime_prepare_complex_operation(
     // order.
 
     // Firstly, set up the reified continuation.
-    let captured_continuation_ptr = new_tip_address.sub(1);
-    captured_continuation_ptr.write(UniformType::to_uniform_sptr(captured_continuation));
-    new_tip_address = captured_continuation_ptr;
+    let captured_continuation_thunk = runtime_alloc(3);
+    captured_continuation_thunk.write(UniformType::to_uniform_pptr(captured_continuation_thunk_impl));
+    captured_continuation_thunk.add(1).write(1);
+    captured_continuation_thunk.add(2).write(UniformType::to_uniform_sptr(captured_continuation));
+
+    new_tip_address = new_tip_address.sub(1);
+    new_tip_address.write(UniformType::to_uniform_sptr(captured_continuation_thunk));
 
     // Then set up explicit handler arguments.
     for i in (0..handler_num_args).rev() {
@@ -167,7 +166,6 @@ pub unsafe fn runtime_prepare_complex_operation(
     result_ptr.write(handler_function_ptr as usize);
     result_ptr.add(1).write(new_base_address as usize);
     result_ptr.add(2).write(next_continuation as usize);
-    result_ptr.add(3).write(captured_continuation_ptr as usize);
     result_ptr
 }
 

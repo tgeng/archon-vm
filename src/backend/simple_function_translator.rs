@@ -740,14 +740,13 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
 
     pub fn handle_complex_operation_call(&mut self, eff_value: Value, new_base_address: Value, continuation: Value, num_args: usize) {
         let num_args_value = self.function_builder.ins().iconst(I64, num_args as i64);
-        let inst = self.call_builtin_func(BuiltinFunction::PrepareComplexOperation, &[eff_value, new_base_address, continuation, num_args_value]);
+        let captured_continuation_thunk_impl_ref = self.module.declare_func_in_func(self.builtin_functions[BuiltinFunction::ConvertCapturedContinuationThunkImpl], self.function_builder.func);
+        let captured_continuation_thunk_impl_ptr = self.function_builder.ins().func_addr(I64, captured_continuation_thunk_impl_ref);
+        let inst = self.call_builtin_func(BuiltinFunction::PrepareOperation, &[eff_value, new_base_address, continuation, num_args_value, captured_continuation_thunk_impl_ptr]);
         let result_ptr = self.function_builder.inst_results(inst)[0];
         let handler_impl = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 0);
         let handler_base_address = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 8);
         let next_continuation = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 16);
-        let captured_continuation_ptr = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 24);
-
-        self.call_builtin_func(BuiltinFunction::ConvertCapturedContinuationToThunk, &[captured_continuation_ptr]);
 
         let signature = self.uniform_cps_func_signature.clone();
         let sig_ref = self.function_builder.import_signature(signature);

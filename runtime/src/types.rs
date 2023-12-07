@@ -46,6 +46,10 @@ impl UniformType {
     pub fn to_uniform_sptr<T>(ptr: *const T) -> usize {
         ptr as usize | 0b01
     }
+
+    pub fn to_uniform_pptr<T>(ptr: *const T) -> usize {
+        ptr as usize | 0b11
+    }
 }
 
 pub const UNIFORM_TAG_MASK: usize = 0b11;

@@ -1,7 +1,7 @@
 use cranelift::codegen::Context;
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
-use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_handle_simple_operation, runtime_prepare_complex_operation, runtime_pop_handler, runtime_register_handler, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation};
+use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_handle_simple_operation, runtime_prepare_operation, runtime_pop_handler, runtime_register_handler, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder};
@@ -57,7 +57,7 @@ pub enum BuiltinFunction {
     ForceThunk,
     AllocStack,
     HandleSimpleOperation,
-    PrepareComplexOperation,
+    PrepareOperation,
     PopHandler,
     RegisterHandlerAndGetTransformContinuation,
     AddSimpleHandler,
@@ -66,7 +66,7 @@ pub enum BuiltinFunction {
 
     // generated
     GetTrivialContinuation,
-    ConvertCapturedContinuationToThunk,
+    ConvertCapturedContinuationThunkImpl,
     /// Special CPS implementation that invokes pop handler and pass the "last result" as an
     /// argument to the actual transform function.
     TransformLoaderCpsImpl,
@@ -79,14 +79,14 @@ impl BuiltinFunction {
             BuiltinFunction::ForceThunk => "__runtime_force_thunk__",
             BuiltinFunction::AllocStack => "__runtime_alloc_stack__",
             BuiltinFunction::HandleSimpleOperation => "__runtime_handle_simple_operation",
-            BuiltinFunction::PrepareComplexOperation => "__runtime_prepare_complex_operation",
+            BuiltinFunction::PrepareOperation => "__runtime_prepare_complex_operation",
             BuiltinFunction::PopHandler => "__runtime_pop_handler",
             BuiltinFunction::RegisterHandlerAndGetTransformContinuation => "__runtime_register_handler_and_get_transform_continuation",
             BuiltinFunction::AddSimpleHandler => "__runtime_add_simple_handler",
             BuiltinFunction::AddComplexHandler => "__runtime_add_complex_handler",
             BuiltinFunction::PrepareResumeContinuation => "__runtime_prepare_resume_continuation",
             BuiltinFunction::GetTrivialContinuation => "__runtime_get_trivial_continuation",
-            BuiltinFunction::ConvertCapturedContinuationToThunk => "__runtime_convert_captured_continuation_to_thunk",
+            BuiltinFunction::ConvertCapturedContinuationThunkImpl => "__runtime_convert_captured_continuation_thunk_impl",
             BuiltinFunction::TransformLoaderCpsImpl => "__runtime_transform_loader_cps_impl"
         }
     }
@@ -97,14 +97,14 @@ impl BuiltinFunction {
             BuiltinFunction::ForceThunk => runtime_force_thunk as *const u8,
             BuiltinFunction::AllocStack => runtime_alloc_stack as *const u8,
             BuiltinFunction::HandleSimpleOperation => runtime_handle_simple_operation as *const u8,
-            BuiltinFunction::PrepareComplexOperation => runtime_prepare_complex_operation as *const u8,
+            BuiltinFunction::PrepareOperation => runtime_prepare_operation as *const u8,
             BuiltinFunction::PopHandler => runtime_pop_handler as *const u8,
             BuiltinFunction::RegisterHandlerAndGetTransformContinuation => runtime_register_handler as *const u8,
             BuiltinFunction::AddSimpleHandler => runtime_add_simple_handler as *const u8,
             BuiltinFunction::AddComplexHandler => runtime_add_complex_handler as *const u8,
             BuiltinFunction::PrepareResumeContinuation => runtime_prepare_resume_continuation as *const u8,
             BuiltinFunction::GetTrivialContinuation => return,
-            BuiltinFunction::ConvertCapturedContinuationToThunk => return,
+            BuiltinFunction::ConvertCapturedContinuationThunkImpl => return,
             BuiltinFunction::TransformLoaderCpsImpl => return,
         };
 
@@ -127,7 +127,7 @@ impl BuiltinFunction {
             BuiltinFunction::ForceThunk => declare_external_func(2, 1),
             BuiltinFunction::AllocStack => declare_external_func(0, 1),
             BuiltinFunction::HandleSimpleOperation => declare_external_func(3, 1),
-            BuiltinFunction::PrepareComplexOperation => declare_external_func(4, 1),
+            BuiltinFunction::PrepareOperation => declare_external_func(5, 1),
             BuiltinFunction::PopHandler => declare_external_func(0, 1),
             BuiltinFunction::RegisterHandlerAndGetTransformContinuation => declare_external_func(7, 1),
             BuiltinFunction::AddSimpleHandler => declare_external_func(3, 0),
@@ -143,15 +143,12 @@ impl BuiltinFunction {
                 m.define_function(func_id, &mut ctx).unwrap();
                 func_id
             }
-            BuiltinFunction::ConvertCapturedContinuationToThunk => {
+            BuiltinFunction::ConvertCapturedContinuationThunkImpl => {
                 let mut ctx = m.make_context();
                 let mut builder_context = FunctionBuilderContext::new();
                 let impl_func_id = Self::convert_captured_continuation_to_thunk_impl(m, &mut ctx, &mut builder_context);
                 m.define_function(impl_func_id, &mut ctx).unwrap();
-                ctx.clear();
-                let func_id = Self::convert_captured_continuation_to_thunk(m, impl_func_id, &mut ctx, &mut builder_context);
-                m.define_function(func_id, &mut ctx).unwrap();
-                func_id
+                impl_func_id
             }
             BuiltinFunction::TransformLoaderCpsImpl => {
                 let mut ctx = m.make_context();
@@ -239,7 +236,7 @@ impl BuiltinFunction {
         // and keeps the execution forward.
 
         let sig = create_cps_signature(module);
-        let func_id = module.declare_function("__runtime_convert_captured_continuation_to_thunk_impl", Linkage::Local, &sig).unwrap();
+        let func_id = module.declare_function(BuiltinFunction::ConvertCapturedContinuationThunkImpl.func_name(), Linkage::Local, &sig).unwrap();
         ctx.func.signature = sig;
         let mut builder = FunctionBuilder::new(&mut ctx.func, builder_ctx);
         let entry_block = builder.create_block();
@@ -304,48 +301,6 @@ impl BuiltinFunction {
         // default
         builder.switch_to_block(default_block);
         builder.ins().trap(TrapCode::UnreachableCodeReached);
-        builder.finalize();
-
-        func_id
-    }
-
-    fn convert_captured_continuation_to_thunk<M: Module>(module: &mut M, impl_func_id: FuncId, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(I64));
-        let func_id = module.declare_function(BuiltinFunction::ConvertCapturedContinuationToThunk.func_name(), Linkage::Local, &sig).unwrap();
-        ctx.func.signature = sig;
-        let mut builder = FunctionBuilder::new(&mut ctx.func, builder_ctx);
-        let entry_block = builder.create_block();
-        builder.append_block_params_for_function_params(entry_block);
-        builder.switch_to_block(entry_block);
-        builder.seal_block(entry_block);
-
-
-        // allocate a thunk object consisting the following
-        // * the impl function address
-        // * the number of arguments, which is always one
-        // * pointer to the captured continuation object
-        let alloc_func_id = BuiltinFunction::Alloc.declare(module);
-        let alloc_func_ref = module.declare_func_in_func(alloc_func_id, builder.func);
-        let thunk_size = builder.ins().iconst(I64, 3);
-        let inst = builder.ins().call(alloc_func_ref, &[thunk_size]);
-        let thunk_ptr = builder.inst_results(inst)[0];
-
-        // set values on the thunk pointer
-        let impl_func_ref = module.declare_func_in_func(impl_func_id, builder.func);
-        let impl_func_ptr = builder.ins().func_addr(I64, impl_func_ref);
-        let impl_func_ptr = builder.ins().iadd_imm(impl_func_ptr, 0b11); // tag it as a PPtr
-        builder.ins().store(MemFlags::new(), impl_func_ptr, thunk_ptr, 0);
-        let num_args = builder.ins().iconst(I64, 1);
-        builder.ins().store(MemFlags::new(), num_args, thunk_ptr, 8);
-        let captured_continuation_ptr = builder.block_params(entry_block)[0];
-        let captured_continuation = builder.ins().load(I64, MemFlags::new(), captured_continuation_ptr, 0);
-        builder.ins().store(MemFlags::new(), captured_continuation, thunk_ptr, 16);
-
-        // replace the pointer to the captured continuation object with the pointer to the thunk
-        let thunk_ptr = builder.ins().iadd_imm(thunk_ptr, 0b01); // tag it as a SPtr
-        builder.ins().store(MemFlags::new(), thunk_ptr, captured_continuation_ptr, 0);
-        builder.ins().return_(&[]);
         builder.finalize();
 
         func_id
