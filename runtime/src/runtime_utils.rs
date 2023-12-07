@@ -347,8 +347,8 @@ unsafe fn compare_uniform(a: Uniform, b: Uniform) -> bool {
         UniformType::SPtr => {
             let a_ptr = a.to_normal_ptr();
             let b_ptr = b.to_normal_ptr();
-            let a_size = a_ptr.sub(8).read();
-            let b_size = b_ptr.sub(8).read();
+            let a_size = a_ptr.sub(1).read();
+            let b_size = b_ptr.sub(1).read();
             if a_size != b_size {
                 return false;
             }
@@ -362,8 +362,8 @@ unsafe fn compare_uniform(a: Uniform, b: Uniform) -> bool {
         UniformType::PPtr => {
             let a_ptr = a.to_normal_ptr();
             let b_ptr = b.to_normal_ptr();
-            let a_size = a_ptr.sub(8).read();
-            let b_size = b_ptr.sub(8).read();
+            let a_size = a_ptr.sub(1).read();
+            let b_size = b_ptr.sub(1).read();
             if a_size != b_size {
                 return false;
             }
