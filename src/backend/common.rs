@@ -2,7 +2,7 @@ use cranelift::codegen::Context;
 use cranelift::codegen::ir::Inst;
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
-use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_handle_simple_operation, runtime_prepare_operation, runtime_pop_handler, runtime_register_handler, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation, runtime_process_simple_handler_result};
+use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, debug_helper, runtime_prepare_operation, runtime_pop_handler, runtime_register_handler, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation, runtime_process_simple_handler_result};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder};
@@ -57,7 +57,7 @@ pub enum BuiltinFunction {
     Alloc,
     ForceThunk,
     AllocStack,
-    HandleSimpleOperation,
+    DebugHelper,
     PrepareOperation,
     PopHandler,
     RegisterHandlerAndGetTransformContinuation,
@@ -93,10 +93,10 @@ pub enum BuiltinFunction {
 impl BuiltinFunction {
     fn func_name(&self) -> &'static str {
         match self {
+            BuiltinFunction::DebugHelper => "__runtime_debug_helper",
             BuiltinFunction::Alloc => "__runtime_alloc__",
             BuiltinFunction::ForceThunk => "__runtime_force_thunk__",
             BuiltinFunction::AllocStack => "__runtime_alloc_stack__",
-            BuiltinFunction::HandleSimpleOperation => "__runtime_handle_simple_operation",
             BuiltinFunction::PrepareOperation => "__runtime_prepare_complex_operation",
             BuiltinFunction::PopHandler => "__runtime_pop_handler",
             BuiltinFunction::RegisterHandlerAndGetTransformContinuation => "__runtime_register_handler_and_get_transform_continuation",
@@ -113,10 +113,10 @@ impl BuiltinFunction {
 
     pub fn declare_symbol(&self, builder: &mut JITBuilder) {
         let func_ptr = match self {
+            BuiltinFunction::DebugHelper => debug_helper as *const u8,
             BuiltinFunction::Alloc => runtime_alloc as *const u8,
             BuiltinFunction::ForceThunk => runtime_force_thunk as *const u8,
             BuiltinFunction::AllocStack => runtime_alloc_stack as *const u8,
-            BuiltinFunction::HandleSimpleOperation => runtime_handle_simple_operation as *const u8,
             BuiltinFunction::PrepareOperation => runtime_prepare_operation as *const u8,
             BuiltinFunction::PopHandler => runtime_pop_handler as *const u8,
             BuiltinFunction::RegisterHandlerAndGetTransformContinuation => runtime_register_handler as *const u8,
@@ -151,10 +151,10 @@ impl BuiltinFunction {
         };
 
         (match self {
+            BuiltinFunction::DebugHelper => declare_func(3, 1, Linkage::Import),
             BuiltinFunction::Alloc => declare_func(1, 1, Linkage::Import),
             BuiltinFunction::ForceThunk => declare_func(2, 1, Linkage::Import),
             BuiltinFunction::AllocStack => declare_func(0, 1, Linkage::Import),
-            BuiltinFunction::HandleSimpleOperation => declare_func(3, 1, Linkage::Import),
             BuiltinFunction::PrepareOperation => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::PopHandler => declare_func(0, 1, Linkage::Import),
             BuiltinFunction::RegisterHandlerAndGetTransformContinuation => declare_func(7, 1, Linkage::Import),
@@ -191,7 +191,7 @@ impl BuiltinFunction {
             BuiltinFunction::SimpleHandlerRunnerImpl => {
                 let mut ctx = m.make_context();
                 let mut builder_context = FunctionBuilderContext::new();
-                let impl_func_id = Self::simple_handler_thunk_impl(m, &mut ctx, &mut builder_context);
+                let impl_func_id = Self::simple_handler_runner_impl(m, &mut ctx, &mut builder_context);
                 m.define_function(impl_func_id, &mut ctx).unwrap();
                 impl_func_id
             }
@@ -348,7 +348,7 @@ impl BuiltinFunction {
         func_id
     }
 
-    fn simple_handler_thunk_impl<M: Module>(m: &mut M, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
+    fn simple_handler_runner_impl<M: Module>(m: &mut M, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
         let (func_id, sig) = BuiltinFunction::SimpleHandlerRunnerImpl.declare(m);
         ctx.func.signature = sig.clone();
         let mut builder = FunctionBuilder::new(&mut ctx.func, builder_ctx);
@@ -366,8 +366,9 @@ impl BuiltinFunction {
         let inst = Self::call_built_in(m, &mut builder, BuiltinFunction::GetTrivialContinuation, &[]);
         let trivial_continuation = builder.inst_results(inst)[0];
 
-        let new_base_address = builder.ins().load(I64, MemFlags::new(), base_address, 16);
+        let new_base_address = builder.ins().iadd_imm(base_address, 16);
         let sig_ref = builder.import_signature(sig);
+
         let inst = builder.ins().call_indirect(sig_ref, handler_function_ptr, &[new_base_address, trivial_continuation]);
         let result_ptr = builder.inst_results(inst)[0];
         let simple_handler_result = builder.ins().load(I64, MemFlags::new(), result_ptr, 0);
@@ -379,7 +380,7 @@ impl BuiltinFunction {
         let result = builder.inst_results(inst)[0];
 
         let new_base_address = builder.ins().iadd_imm(result_ptr, 8);
-        let next_continuation_impl_ptr = builder.ins().iadd_imm(next_continuation, 0);
+        let next_continuation_impl_ptr = builder.ins().load(I64, MemFlags::new(), next_continuation, 0);
         builder.ins().store(MemFlags::new(), result, result_ptr, 0);
         let cps_impl_sig = create_cps_impl_signature(m);
         let cps_impl_sig_ref = builder.import_signature(cps_impl_sig);

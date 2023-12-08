@@ -382,9 +382,9 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             }
             CTerm::Handler { .. } => {
                 let inst = self.call_builtin_func(BuiltinFunction::GetTrivialContinuation, &[]);
-                let next_continuation = self.function_builder.inst_results(inst)[0];
+                let trivial_continuation = self.function_builder.inst_results(inst)[0];
 
-                self.translate_handler(c_term, is_tail, next_continuation)
+                self.translate_handler(c_term, is_tail, trivial_continuation)
             }
             CTerm::LongJump { .. } => todo!(),
         }

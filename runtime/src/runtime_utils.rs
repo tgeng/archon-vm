@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use crate::runtime::{Continuation, HandlerEntry, Handler, Uniform, ThunkPtr, Eff, Generic, CapturedContinuation, RawFuncPtr};
-use crate::types::{UniformPtr, UniformType};
+use crate::runtime::HandlerEntry::SimpleOperationMarker;
+use crate::types::{UPtr, UniformPtr, UniformType};
 
 // TODO: use custom allocator that allocates through Boehm GC for vecs
 thread_local!(
@@ -62,10 +63,8 @@ pub unsafe fn runtime_alloc_stack() -> *mut usize {
 }
 
 /// Returns the result of the operation in uniform representation
-/// TODO: add args
-pub unsafe fn runtime_handle_simple_operation(eff: usize, handler_call_base_address: *const usize, handler_num_args: usize) -> usize {
-    let (handler_index, handler_impl, _) = find_matching_handler(eff, 0);
-    todo!()
+pub unsafe fn debug_helper(handler_function_ptr: *const usize, base_address: *const usize, trivial_continuation: *const usize) -> usize {
+    return 1 + 1;
 }
 
 /// Returns the following results on the argument stack.
@@ -75,7 +74,7 @@ pub unsafe fn runtime_handle_simple_operation(eff: usize, handler_call_base_addr
 ///
 pub unsafe fn runtime_prepare_operation(
     eff: usize,
-    handler_call_base_address: *const usize,
+    handler_call_base_address: *mut usize,
     tip_continuation: &mut Continuation,
     handler_num_args: usize,
     captured_continuation_thunk_impl: RawFuncPtr,
@@ -97,7 +96,6 @@ pub unsafe fn runtime_prepare_operation(
             prepare_simple_operation(
                 handler_call_base_address,
                 tip_continuation,
-                handler_num_args,
                 simple_handler_runner_impl_ptr,
                 handler_index,
                 handler_impl)
@@ -107,19 +105,6 @@ pub unsafe fn runtime_prepare_operation(
     result_ptr.add(1).write(new_base_address as usize);
     result_ptr.add(2).write(next_continuation as usize);
     result_ptr
-}
-
-#[repr(C, align(8))]
-pub struct SimpleResult<'a> {
-    handler_parameter: Uniform,
-    result_value: &'a SimpleResultValue,
-}
-
-#[repr(C, align(8))]
-struct SimpleResultValue {
-    /// 0 means exceptional. 1 means normal.
-    tag: usize,
-    value: Uniform,
 }
 
 unsafe fn prepare_complex_operation(
@@ -213,22 +198,60 @@ unsafe fn prepare_complex_operation(
     (handler_function_ptr, new_tip_address, next_continuation)
 }
 
+#[repr(C, align(8))]
+pub struct SimpleResult<'a> {
+    handler_parameter: Uniform,
+    result_value: UPtr<&'a SimpleResultValue>,
+}
+
+#[repr(C, align(8))]
+struct SimpleResultValue {
+    /// 0 means exceptional. 0b10 means normal (aka 1 in uniform representation).
+    tag: Uniform,
+    value: Uniform,
+}
+
 unsafe fn prepare_simple_operation(
-    handler_call_base_address: *const usize,
+    handler_call_base_address: *mut usize,
     tip_continuation: &mut Continuation,
-    handler_num_args: usize,
     simple_handler_runner_impl_ptr: *const usize,
     handler_index: usize,
     handler_impl: ThunkPtr,
 ) -> (*const usize, *mut usize, *mut Continuation) {
-    todo!()
+    let matching_handler = HANDLERS.with(|handler| match handler.borrow_mut().get_mut(handler_index).unwrap() {
+        HandlerEntry::Handler(handler) => handler as *mut Handler<*const usize>,
+        _ => panic!("Expect a handler entry")
+    });
+
+    HANDLERS.with(|handler| handler.borrow_mut().push(SimpleOperationMarker { handler_index }));
+
+    let mut tip_address = handler_call_base_address;
+    tip_address = tip_address.sub(1);
+    tip_address.write((*matching_handler).parameter);
+    let handler_impl_ptr = runtime_force_thunk(handler_impl, &mut tip_address);
+
+    tip_address = tip_address.sub(1);
+    tip_address.write(matching_handler as usize);
+
+    tip_address = tip_address.sub(1);
+    tip_address.write(handler_impl_ptr as usize);
+
+    (simple_handler_runner_impl_ptr, tip_address, tip_continuation)
 }
 
 /// Special function that may do long jump instead of normal return if the result is exceptional. If
 /// the result is exceptional. This function also takes care of disposing the handler parameters of
 /// all the evicted handlers.
 pub fn runtime_process_simple_handler_result(handler: &mut Handler<*const usize>, simple_result: &SimpleResult) -> Uniform {
-    // TODO: finish this
+    handler.parameter = simple_result.handler_parameter;
+    // pop the simple handler entry marker
+    HANDLERS.with(|handlers| {
+        let mut handlers = handlers.borrow_mut();
+        let handler_entry = handlers.pop().unwrap();
+        assert!(matches!(handler_entry, SimpleOperationMarker { .. }));
+    });
+
+    // TODO: implement exceptional result handling
     simple_result.result_value.value
 }
 
@@ -243,20 +266,29 @@ pub unsafe fn runtime_pop_handler() -> Uniform {
 }
 
 fn find_matching_handler(eff: Eff, may_be_complex: usize) -> (usize, ThunkPtr, bool) {
-    HANDLERS.with(|handler| {
-        for (i, e) in handler.borrow().iter().rev().enumerate() {
-            if let HandlerEntry::Handler(handler) = e {
-                if may_be_complex != 0 {
-                    for (e, handler_impl) in &handler.complex_handler {
-                        if unsafe { compare_uniform(eff, *e) } {
-                            return (i, *handler_impl, true);
+    HANDLERS.with(|handlers| {
+        let handlers = handlers.borrow();
+        let mut i = handlers.len();
+        while i > 0 {
+            let handler_index = i - 1;
+            match handlers.get(handler_index).unwrap() {
+                HandlerEntry::Handler(handler) => {
+                    if may_be_complex != 0 {
+                        for (e, handler_impl) in &handler.complex_handler {
+                            if unsafe { compare_uniform(eff, *e) } {
+                                return (handler_index, *handler_impl, true);
+                            }
                         }
                     }
-                }
-                for (e, handler_impl) in &handler.simple_handler {
-                    if unsafe { compare_uniform(eff, *e) } {
-                        return (i, *handler_impl, false);
+                    for (e, handler_impl) in &handler.simple_handler {
+                        if unsafe { compare_uniform(eff, *e) } {
+                            return (handler_index, *handler_impl, false);
+                        }
                     }
+                    i = handler_index;
+                }
+                HandlerEntry::SimpleOperationMarker { handler_index } => {
+                    i = *handler_index;
                 }
             }
         }

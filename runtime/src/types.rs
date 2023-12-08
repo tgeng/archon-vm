@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 // TODO: I need to figure out a way to force function pointers to be 4-byte aligned. This is true
 //  on 64-bit ARM as far as I know but may not be true on x86.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -77,3 +79,39 @@ impl UniformPtr<*const usize> for usize {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UPtr<T> (T);
+
+impl<'a, T> Deref for UPtr<&'a T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe {
+            let ptr = self.0 as *const T as usize;
+            let ptr = ptr & POINTER_MASK;
+            &*(ptr as *const T)
+        }
+    }
+}
+
+impl<'a, T> Deref for UPtr<&'a mut T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe {
+            let ptr = self.0 as *const T as usize;
+            let ptr = ptr & POINTER_MASK;
+            &*(ptr as *const T)
+        }
+    }
+}
+
+impl<'a, T> DerefMut for UPtr<&'a mut T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe {
+            let ptr = self.0 as *mut T as usize;
+            let ptr = ptr & POINTER_MASK;
+            &mut *(ptr as *mut T)
+        }
+    }
+}

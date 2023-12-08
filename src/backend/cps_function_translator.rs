@@ -158,7 +158,11 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                 self.handle_operation_call(eff_value, new_base_address, next_continuation, args.len(), true, true);
                 None
             }
-            _ => self.translate_c_term(c_term, is_tail),
+            // Don't use tail call because we need to pass the result to the next continuation.
+            // TODO[P2]: there should be some way to avoid creating a trivial continuation for tail
+            //  calls. Basically refactoring the simple function translator to take a next
+            //  continuation when translating a tail call.
+            _ => self.translate_c_term(c_term, false),
         }
     }
 }
@@ -493,7 +497,8 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 let continuation = self.continuation;
                 self.translate_handler(c_term, is_tail, continuation)
             }
-            _ => self.translate_c_term(c_term, is_tail),
+            // Don't use tail call because we need to pass the result to the next continuation.
+            _ => self.translate_c_term(c_term, false),
         }
     }
 

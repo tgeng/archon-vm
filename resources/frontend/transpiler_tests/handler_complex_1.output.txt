@@ -504,10 +504,9 @@ function u0:0(i64, i64) -> i64 tail {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64, i64) -> i64 apple_aarch64
     sig2 = (i64, i64) -> i64 tail
-    sig3 = (i64, i64, i64) -> i64 apple_aarch64
+    sig3 = (i64, i64, i64) -> i64 tail
     fn0 = colocated u0:12 sig0
     fn1 = u0:1 sig1
-    fn2 = %Memmove sig3
 
 block0(v0: i64, v1: i64):
     v2 = load.i64 v0
@@ -535,10 +534,16 @@ block0(v0: i64, v1: i64):
     v20 = load.i64 v14+8
     v21 = iadd v20, v19
     store v21, v14+8
-    v22 = iadd_imm v17, 24
-    v23 = isub v0, v17
-    v24 = call fn2(v22, v17, v23)
-    return_call_indirect sig2, v16(v22, v14)
+    v22 = call_indirect sig2, v16(v17, v14)
+    v23 = load.i64 v22
+    v24 = iadd_imm v22, 8
+    v25 = iadd_imm v0, 16
+    store v23, v25
+    v26 = load.i64 v1+8
+    v27 = ishl_imm v26, 3
+    v28 = iadd v0, v27
+    v29 = load.i64 v1
+    return_call_indirect sig3, v29(v28, v1, v25)
 }
 
 

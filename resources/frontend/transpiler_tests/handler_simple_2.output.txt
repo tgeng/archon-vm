@@ -66,8 +66,7 @@ Handler {
         },
         may_have_complex_effects: false,
     },
-    simple_handlers: [],
-    complex_handlers: [
+    simple_handlers: [
         (
             Int {
                 value: 11,
@@ -82,39 +81,32 @@ Handler {
                         "y",
                         Uniform,
                     ),
-                    (
-                        "cont",
-                        Uniform,
-                    ),
                 ],
-                body: Redex {
-                    function: Force {
-                        thunk: Identifier {
-                            name: "cont",
-                            may_have_complex_effects: false,
-                        },
-                        may_have_complex_effects: true,
-                    },
-                    args: [
-                        Int {
-                            value: 0,
-                        },
+                body: Struct {
+                    values: [
                         Int {
                             value: 3,
                         },
-                        Redex {
-                            function: Identifier {
-                                name: "_int_mul",
-                                may_have_complex_effects: false,
-                            },
-                            args: [
-                                Identifier {
-                                    name: "p",
-                                    may_have_complex_effects: false,
+                        Struct {
+                            values: [
+                                Int {
+                                    value: 1,
                                 },
-                                Identifier {
-                                    name: "y",
-                                    may_have_complex_effects: false,
+                                Redex {
+                                    function: Identifier {
+                                        name: "_int_mul",
+                                        may_have_complex_effects: false,
+                                    },
+                                    args: [
+                                        Identifier {
+                                            name: "p",
+                                            may_have_complex_effects: false,
+                                        },
+                                        Identifier {
+                                            name: "y",
+                                            may_have_complex_effects: false,
+                                        },
+                                    ],
                                 },
                             ],
                         },
@@ -124,6 +116,7 @@ Handler {
             },
         ),
     ],
+    complex_handlers: [],
     input: Thunk {
         computation: OperationCall {
             eff: Int {
@@ -134,9 +127,9 @@ Handler {
                     value: 5,
                 },
             ],
-            may_be_complex: true,
+            may_be_complex: false,
         },
-        may_have_complex_effects: true,
+        may_have_complex_effects: false,
     },
 }
 
@@ -181,7 +174,8 @@ Defs
                     },
                     may_have_complex_effects: true,
                 },
-                complex_handlers: [
+                complex_handlers: [],
+                simple_handlers: [
                     (
                         Int {
                             value: 11,
@@ -198,16 +192,15 @@ Defs
                         },
                     ),
                 ],
-                simple_handlers: [],
                 input: Thunk {
                     t: Redex {
                         function: Def {
                             name: "main$__lambda_4",
-                            may_have_complex_effects: true,
+                            may_have_complex_effects: false,
                         },
                         args: [],
                     },
-                    may_have_complex_effects: true,
+                    may_have_complex_effects: false,
                 },
             },
             c_type: SpecializedF(
@@ -313,42 +306,46 @@ Defs
                     1,
                     Uniform,
                 ),
-                (
-                    2,
-                    Uniform,
-                ),
             ],
             body: Let {
-                t: PrimitiveCall {
-                    name: "_int_mul",
-                    args: [
-                        Var {
-                            index: 0,
+                t: Let {
+                    t: PrimitiveCall {
+                        name: "_int_mul",
+                        args: [
+                            Var {
+                                index: 0,
+                            },
+                            Var {
+                                index: 1,
+                            },
+                        ],
+                    },
+                    bound_index: 2,
+                    body: Return {
+                        value: Struct {
+                            values: [
+                                Int {
+                                    value: 1,
+                                },
+                                Var {
+                                    index: 2,
+                                },
+                            ],
                         },
-                        Var {
-                            index: 1,
-                        },
-                    ],
+                    },
                 },
                 bound_index: 3,
-                body: Redex {
-                    function: Force {
-                        thunk: Var {
-                            index: 2,
-                        },
-                        may_have_complex_effects: true,
+                body: Return {
+                    value: Struct {
+                        values: [
+                            Int {
+                                value: 3,
+                            },
+                            Var {
+                                index: 3,
+                            },
+                        ],
                     },
-                    args: [
-                        Int {
-                            value: 0,
-                        },
-                        Int {
-                            value: 3,
-                        },
-                        Var {
-                            index: 3,
-                        },
-                    ],
                 },
             },
             c_type: Default,
@@ -371,7 +368,7 @@ Defs
                         value: 5,
                     },
                 ],
-                may_be_complex: true,
+                may_be_complex: false,
             },
             c_type: Default,
             var_bound: 0,
@@ -394,8 +391,8 @@ function u0:0(i64) -> i64 tail {
     sig4 = (i64, i64, i64) -> i64 tail
     sig5 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
     sig6 = (i64, i64, i64) apple_aarch64
-    sig7 = (i64, i64, i64) apple_aarch64
-    sig8 = (i64, i64) -> i64 tail
+    sig7 = (i64, i64) -> i64 tail
+    sig8 = (i64, i64, i64) apple_aarch64
     sig9 = (i64, i64) -> i64 tail
     sig10 = (i64, i64) -> i64 apple_aarch64
     sig11 = (i64, i64) -> i64 tail
@@ -406,8 +403,8 @@ function u0:0(i64) -> i64 tail {
     fn4 = colocated u0:15 sig4
     fn5 = u0:6 sig5
     fn6 = u0:7 sig6
-    fn7 = u0:8 sig7
-    fn8 = colocated u0:23 sig8
+    fn7 = colocated u0:23 sig7
+    fn8 = u0:8 sig8
     fn9 = colocated u0:25 sig9
     fn10 = u0:1 sig10
 
@@ -428,9 +425,9 @@ block0(v0: i64):
     v13 = stack_load.i64 ss0
     v14 = iconst.i64 11
     v15 = ishl_imm v14, 1  ; v14 = 11
-    v16 = func_addr.i64 fn8
+    v16 = func_addr.i64 fn7
     v17 = iadd_imm v16, 3
-    call fn7(v12, v15, v17)
+    call fn6(v12, v15, v17)
     v18 = load.i64 v12
     v19 = func_addr.i64 fn9
     v20 = iadd_imm v19, 3
@@ -522,87 +519,83 @@ block0(v0: i64, v1: i64):
 [main$__lambda_3__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
-    sig0 = () -> i64 apple_aarch64
-    sig1 = (i64, i64) -> i64 apple_aarch64
-    sig2 = (i64, i64) -> i64 tail
-    sig3 = (i64, i64, i64) -> i64 tail
-    fn0 = colocated u0:12 sig0
-    fn1 = u0:1 sig1
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64) -> i64 apple_aarch64
+    sig2 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+    fn1 = u0:0 sig1
 
 block0(v0: i64, v1: i64):
     v2 = load.i64 v0
     v3 = load.i64 v0+8
-    v4 = load.i64 v0+16
-    v5 = sshr_imm v2, 1
-    v6 = sshr_imm v3, 1
-    v7 = imul v5, v6
-    v8 = iconst.i64 0
-    v9 = ishl_imm v8, 1  ; v8 = 0
-    v10 = iconst.i64 3
-    v11 = ishl_imm v10, 1  ; v10 = 3
-    v12 = ishl_imm v7, 1
-    v13 = iadd_imm v0, -8
-    store aligned v12, v13
-    v14 = iadd_imm v13, -8
-    store aligned v11, v14
-    v15 = iadd_imm v14, -8
-    store aligned v9, v15
-    v16 = call fn0()
-    stack_store v15, ss0
-    v17 = stack_addr.i64 ss0
-    v18 = call fn1(v4, v17)
-    v19 = stack_load.i64 ss0
-    v20 = isub v15, v19
-    v21 = ushr_imm v20, 3
-    v22 = load.i64 v16+8
-    v23 = iadd v22, v21
-    store v23, v16+8
-    v24 = call_indirect sig2, v18(v19, v16)
-    v25 = load.i64 v24
-    v26 = iadd_imm v24, 8
-    v27 = iadd_imm v0, 16
-    store v25, v27
-    v28 = load.i64 v1+8
-    v29 = ishl_imm v28, 3
-    v30 = iadd v0, v29
-    v31 = load.i64 v1
-    return_call_indirect sig3, v31(v30, v1, v27)
+    v4 = sshr_imm v2, 1
+    v5 = sshr_imm v3, 1
+    v6 = imul v4, v5
+    v7 = iconst.i64 1
+    v8 = ishl_imm v7, 1  ; v7 = 1
+    v9 = ishl_imm v6, 1
+    v10 = iconst.i64 2
+    v11 = call fn0(v10)  ; v10 = 2
+    store aligned v8, v11
+    store aligned v9, v11+8
+    v12 = iconst.i64 3
+    v13 = ishl_imm v12, 1  ; v12 = 3
+    v14 = iadd_imm v11, 1
+    v15 = iconst.i64 2
+    v16 = call fn1(v15)  ; v15 = 2
+    store aligned v13, v16
+    store aligned v14, v16+8
+    v17 = iadd_imm v16, 1
+    v18 = iadd_imm v0, 8
+    store v17, v18
+    v19 = load.i64 v1+8
+    v20 = ishl_imm v19, 3
+    v21 = iadd v0, v20
+    v22 = load.i64 v1
+    return_call_indirect sig2, v22(v21, v1, v18)
 }
 
 
 [main$__lambda_4__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
-    sig0 = (i64, i64) -> i64 tail
+    sig0 = () -> i64 apple_aarch64
     sig1 = (i64, i64) -> i64 tail
-    sig2 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
-    sig3 = (i64, i64) -> i64 tail
-    fn0 = colocated u0:13 sig0
-    fn1 = colocated u0:14 sig1
-    fn2 = u0:4 sig2
+    sig2 = (i64, i64) -> i64 tail
+    sig3 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig4 = (i64, i64) -> i64 tail
+    sig5 = (i64, i64, i64) -> i64 tail
+    fn0 = colocated u0:12 sig0
+    fn1 = colocated u0:13 sig1
+    fn2 = colocated u0:14 sig2
+    fn3 = u0:4 sig3
 
 block0(v0: i64, v1: i64):
     v2 = iconst.i64 11
     v3 = ishl_imm v2, 1  ; v2 = 11
-    v4 = iconst.i64 5
-    v5 = ishl_imm v4, 1  ; v4 = 5
-    v6 = iadd_imm v0, -8
-    store aligned v5, v6
-    v7 = load.i64 v1+8
-    v8 = ishl_imm v7, 3
-    v9 = iadd v0, v8
-    v10 = isub v9, v6
-    v11 = ushr_imm v10, 3
-    store v11, v1+8
-    v12 = iconst.i64 1
-    v13 = func_addr.i64 fn0
-    v14 = func_addr.i64 fn1
-    v15 = iconst.i64 1
-    v16 = call fn2(v3, v6, v1, v12, v13, v14, v15)  ; v12 = 1, v15 = 1
+    v4 = call fn0()
+    v5 = iconst.i64 5
+    v6 = ishl_imm v5, 1  ; v5 = 5
+    v7 = iadd_imm v0, -8
+    store aligned v6, v7
+    v8 = iconst.i64 1
+    v9 = func_addr.i64 fn1
+    v10 = func_addr.i64 fn2
+    v11 = iconst.i64 0
+    v12 = call fn3(v3, v7, v4, v8, v9, v10, v11)  ; v8 = 1, v11 = 0
+    v13 = load.i64 v12
+    v14 = load.i64 v12+8
+    v15 = load.i64 v12+16
+    v16 = call_indirect sig4, v13(v14, v15)
     v17 = load.i64 v16
-    v18 = load.i64 v16+8
-    v19 = load.i64 v16+16
-    return_call_indirect sig3, v17(v18, v19)
+    v18 = iadd_imm v16, 8
+    v19 = iadd_imm v0, -8
+    store v17, v19
+    v20 = load.i64 v1+8
+    v21 = ishl_imm v20, 3
+    v22 = iadd v0, v21
+    v23 = load.i64 v1
+    return_call_indirect sig5, v23(v22, v1, v19)
 }
 
 

@@ -54,8 +54,7 @@ Handler {
         },
         may_have_complex_effects: false,
     },
-    simple_handlers: [],
-    complex_handlers: [
+    simple_handlers: [
         (
             Str {
                 value: "accumulate",
@@ -68,10 +67,6 @@ Handler {
                     ),
                     (
                         "x",
-                        Uniform,
-                    ),
-                    (
-                        "cont",
                         Uniform,
                     ),
                 ],
@@ -93,30 +88,27 @@ Handler {
                             },
                         ],
                     },
-                    body: Redex {
-                        function: Force {
-                            thunk: Identifier {
-                                name: "cont",
-                                may_have_complex_effects: false,
-                            },
-                            may_have_complex_effects: true,
-                        },
-                        args: [
-                            Int {
-                                value: 0,
-                            },
+                    body: Struct {
+                        values: [
                             Identifier {
                                 name: "r",
                                 may_have_complex_effects: false,
                             },
-                            Identifier {
-                                name: "r",
-                                may_have_complex_effects: false,
+                            Struct {
+                                values: [
+                                    Int {
+                                        value: 1,
+                                    },
+                                    Identifier {
+                                        name: "r",
+                                        may_have_complex_effects: false,
+                                    },
+                                ],
                             },
                         ],
                     },
                 },
-                may_have_complex_effects: true,
+                may_have_complex_effects: false,
             },
         ),
         (
@@ -131,10 +123,6 @@ Handler {
                     ),
                     (
                         "x",
-                        Uniform,
-                    ),
-                    (
-                        "cont",
                         Uniform,
                     ),
                 ],
@@ -156,30 +144,27 @@ Handler {
                             },
                         ],
                     },
-                    body: Redex {
-                        function: Force {
-                            thunk: Identifier {
-                                name: "cont",
-                                may_have_complex_effects: false,
-                            },
-                            may_have_complex_effects: true,
-                        },
-                        args: [
-                            Int {
-                                value: 0,
-                            },
+                    body: Struct {
+                        values: [
                             Identifier {
                                 name: "r",
                                 may_have_complex_effects: false,
                             },
-                            Identifier {
-                                name: "r",
-                                may_have_complex_effects: false,
+                            Struct {
+                                values: [
+                                    Int {
+                                        value: 1,
+                                    },
+                                    Identifier {
+                                        name: "r",
+                                        may_have_complex_effects: false,
+                                    },
+                                ],
                             },
                         ],
                     },
                 },
-                may_have_complex_effects: true,
+                may_have_complex_effects: false,
             },
         ),
         (
@@ -190,10 +175,6 @@ Handler {
                 arg_names: [
                     (
                         "p",
-                        Uniform,
-                    ),
-                    (
-                        "cont",
                         Uniform,
                     ),
                 ],
@@ -214,33 +195,31 @@ Handler {
                             },
                         ],
                     },
-                    body: Redex {
-                        function: Force {
-                            thunk: Identifier {
-                                name: "cont",
-                                may_have_complex_effects: false,
-                            },
-                            may_have_complex_effects: true,
-                        },
-                        args: [
-                            Int {
-                                value: 0,
-                            },
+                    body: Struct {
+                        values: [
                             Identifier {
                                 name: "r",
                                 may_have_complex_effects: false,
                             },
-                            Identifier {
-                                name: "r",
-                                may_have_complex_effects: false,
+                            Struct {
+                                values: [
+                                    Int {
+                                        value: 1,
+                                    },
+                                    Identifier {
+                                        name: "r",
+                                        may_have_complex_effects: false,
+                                    },
+                                ],
                             },
                         ],
                     },
                 },
-                may_have_complex_effects: true,
+                may_have_complex_effects: false,
             },
         ),
     ],
+    complex_handlers: [],
     input: Thunk {
         computation: Let {
             name: "_",
@@ -253,7 +232,7 @@ Handler {
                         value: 2,
                     },
                 ],
-                may_be_complex: true,
+                may_be_complex: false,
             },
             body: Let {
                 name: "_",
@@ -266,7 +245,7 @@ Handler {
                             value: 4,
                         },
                     ],
-                    may_be_complex: true,
+                    may_be_complex: false,
                 },
                 body: Let {
                     name: "_",
@@ -279,19 +258,19 @@ Handler {
                                 value: 1,
                             },
                         ],
-                        may_be_complex: true,
+                        may_be_complex: false,
                     },
                     body: OperationCall {
                         eff: Str {
                             value: "proliferate",
                         },
                         args: [],
-                        may_be_complex: true,
+                        may_be_complex: false,
                     },
                 },
             },
         },
-        may_have_complex_effects: true,
+        may_have_complex_effects: false,
     },
 }
 
@@ -336,7 +315,8 @@ Defs
                     },
                     may_have_complex_effects: true,
                 },
-                complex_handlers: [
+                complex_handlers: [],
+                simple_handlers: [
                     (
                         Str {
                             value: "accumulate",
@@ -345,7 +325,7 @@ Defs
                             t: Redex {
                                 function: Def {
                                     name: "main$__lambda_3",
-                                    may_have_complex_effects: true,
+                                    may_have_complex_effects: false,
                                 },
                                 args: [],
                             },
@@ -360,7 +340,7 @@ Defs
                             t: Redex {
                                 function: Def {
                                     name: "main$__lambda_4",
-                                    may_have_complex_effects: true,
+                                    may_have_complex_effects: false,
                                 },
                                 args: [],
                             },
@@ -375,7 +355,7 @@ Defs
                             t: Redex {
                                 function: Def {
                                     name: "main$__lambda_5",
-                                    may_have_complex_effects: true,
+                                    may_have_complex_effects: false,
                                 },
                                 args: [],
                             },
@@ -383,16 +363,15 @@ Defs
                         },
                     ),
                 ],
-                simple_handlers: [],
                 input: Thunk {
                     t: Redex {
                         function: Def {
                             name: "main$__lambda_6",
-                            may_have_complex_effects: true,
+                            may_have_complex_effects: false,
                         },
                         args: [],
                     },
-                    may_have_complex_effects: true,
+                    may_have_complex_effects: false,
                 },
             },
             c_type: SpecializedF(
@@ -492,10 +471,6 @@ Defs
                     1,
                     Uniform,
                 ),
-                (
-                    2,
-                    Uniform,
-                ),
             ],
             body: Let {
                 t: PrimitiveCall {
@@ -509,29 +484,29 @@ Defs
                         },
                     ],
                 },
-                bound_index: 3,
-                body: Redex {
-                    function: Force {
-                        thunk: Var {
-                            index: 2,
-                        },
-                        may_have_complex_effects: true,
+                bound_index: 2,
+                body: Return {
+                    value: Struct {
+                        values: [
+                            Var {
+                                index: 2,
+                            },
+                            Struct {
+                                values: [
+                                    Int {
+                                        value: 1,
+                                    },
+                                    Var {
+                                        index: 2,
+                                    },
+                                ],
+                            },
+                        ],
                     },
-                    args: [
-                        Int {
-                            value: 0,
-                        },
-                        Var {
-                            index: 3,
-                        },
-                        Var {
-                            index: 3,
-                        },
-                    ],
                 },
             },
             c_type: Default,
-            var_bound: 4,
+            var_bound: 3,
             may_be_simple: false,
             may_be_complex: true,
             may_be_specialized: false,
@@ -549,10 +524,6 @@ Defs
                     1,
                     Uniform,
                 ),
-                (
-                    2,
-                    Uniform,
-                ),
             ],
             body: Let {
                 t: PrimitiveCall {
@@ -566,29 +537,29 @@ Defs
                         },
                     ],
                 },
-                bound_index: 3,
-                body: Redex {
-                    function: Force {
-                        thunk: Var {
-                            index: 2,
-                        },
-                        may_have_complex_effects: true,
+                bound_index: 2,
+                body: Return {
+                    value: Struct {
+                        values: [
+                            Var {
+                                index: 2,
+                            },
+                            Struct {
+                                values: [
+                                    Int {
+                                        value: 1,
+                                    },
+                                    Var {
+                                        index: 2,
+                                    },
+                                ],
+                            },
+                        ],
                     },
-                    args: [
-                        Int {
-                            value: 0,
-                        },
-                        Var {
-                            index: 3,
-                        },
-                        Var {
-                            index: 3,
-                        },
-                    ],
                 },
             },
             c_type: Default,
-            var_bound: 4,
+            var_bound: 3,
             may_be_simple: false,
             may_be_complex: true,
             may_be_specialized: false,
@@ -600,10 +571,6 @@ Defs
             args: [
                 (
                     0,
-                    Uniform,
-                ),
-                (
-                    1,
                     Uniform,
                 ),
             ],
@@ -619,29 +586,29 @@ Defs
                         },
                     ],
                 },
-                bound_index: 2,
-                body: Redex {
-                    function: Force {
-                        thunk: Var {
-                            index: 1,
-                        },
-                        may_have_complex_effects: true,
+                bound_index: 1,
+                body: Return {
+                    value: Struct {
+                        values: [
+                            Var {
+                                index: 1,
+                            },
+                            Struct {
+                                values: [
+                                    Int {
+                                        value: 1,
+                                    },
+                                    Var {
+                                        index: 1,
+                                    },
+                                ],
+                            },
+                        ],
                     },
-                    args: [
-                        Int {
-                            value: 0,
-                        },
-                        Var {
-                            index: 2,
-                        },
-                        Var {
-                            index: 2,
-                        },
-                    ],
                 },
             },
             c_type: Default,
-            var_bound: 3,
+            var_bound: 2,
             may_be_simple: false,
             may_be_complex: true,
             may_be_specialized: false,
@@ -661,7 +628,7 @@ Defs
                             value: 2,
                         },
                     ],
-                    may_be_complex: true,
+                    may_be_complex: false,
                 },
                 bound_index: 0,
                 body: Let {
@@ -674,7 +641,7 @@ Defs
                                 value: 4,
                             },
                         ],
-                        may_be_complex: true,
+                        may_be_complex: false,
                     },
                     bound_index: 1,
                     body: Let {
@@ -687,7 +654,7 @@ Defs
                                     value: 1,
                                 },
                             ],
-                            may_be_complex: true,
+                            may_be_complex: false,
                         },
                         bound_index: 2,
                         body: OperationCall {
@@ -695,7 +662,7 @@ Defs
                                 value: "proliferate",
                             },
                             args: [],
-                            may_be_complex: true,
+                            may_be_complex: false,
                         },
                     },
                 },
@@ -714,9 +681,9 @@ CLIR
 [main__specialized]
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
-    gv0 = symbol colocated userextname8
-    gv1 = symbol colocated userextname10
-    gv2 = symbol colocated userextname12
+    gv0 = symbol colocated userextname7
+    gv1 = symbol colocated userextname9
+    gv2 = symbol colocated userextname11
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64, i64) -> i64 tail
     sig2 = (i64, i64) -> i64 tail
@@ -724,10 +691,10 @@ function u0:0(i64) -> i64 tail {
     sig4 = (i64, i64, i64) -> i64 tail
     sig5 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
     sig6 = (i64, i64, i64) apple_aarch64
-    sig7 = (i64, i64, i64) apple_aarch64
+    sig7 = (i64, i64) -> i64 tail
     sig8 = (i64, i64) -> i64 tail
     sig9 = (i64, i64) -> i64 tail
-    sig10 = (i64, i64) -> i64 tail
+    sig10 = (i64, i64, i64) apple_aarch64
     sig11 = (i64, i64) -> i64 tail
     sig12 = (i64, i64) -> i64 apple_aarch64
     sig13 = (i64, i64) -> i64 tail
@@ -738,10 +705,10 @@ function u0:0(i64) -> i64 tail {
     fn4 = colocated u0:15 sig4
     fn5 = u0:6 sig5
     fn6 = u0:7 sig6
-    fn7 = u0:8 sig7
-    fn8 = colocated u0:23 sig8
-    fn9 = colocated u0:25 sig9
-    fn10 = colocated u0:27 sig10
+    fn7 = colocated u0:23 sig7
+    fn8 = colocated u0:25 sig8
+    fn9 = colocated u0:27 sig9
+    fn10 = u0:8 sig10
     fn11 = colocated u0:29 sig11
     fn12 = u0:1 sig12
 
@@ -763,21 +730,21 @@ block0(v0: i64):
     v14 = symbol_value.i64 gv0
     v15 = iadd_imm v14, 8
     v16 = iadd_imm v15, 3
-    v17 = func_addr.i64 fn8
+    v17 = func_addr.i64 fn7
     v18 = iadd_imm v17, 3
-    call fn7(v12, v16, v18)
+    call fn6(v12, v16, v18)
     v19 = symbol_value.i64 gv1
     v20 = iadd_imm v19, 8
     v21 = iadd_imm v20, 3
-    v22 = func_addr.i64 fn9
+    v22 = func_addr.i64 fn8
     v23 = iadd_imm v22, 3
-    call fn7(v12, v21, v23)
+    call fn6(v12, v21, v23)
     v24 = symbol_value.i64 gv2
     v25 = iadd_imm v24, 8
     v26 = iadd_imm v25, 3
-    v27 = func_addr.i64 fn10
+    v27 = func_addr.i64 fn9
     v28 = iadd_imm v27, 3
-    call fn7(v12, v26, v28)
+    call fn6(v12, v26, v28)
     v29 = load.i64 v12
     v30 = func_addr.i64 fn11
     v31 = iadd_imm v30, 3
@@ -865,310 +832,244 @@ block0(v0: i64, v1: i64):
 [main$__lambda_3__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
-    sig0 = () -> i64 apple_aarch64
-    sig1 = (i64, i64) -> i64 apple_aarch64
-    sig2 = (i64, i64) -> i64 tail
-    sig3 = (i64, i64, i64) -> i64 tail
-    fn0 = colocated u0:12 sig0
-    fn1 = u0:1 sig1
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64) -> i64 apple_aarch64
+    sig2 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+    fn1 = u0:0 sig1
 
 block0(v0: i64, v1: i64):
     v2 = load.i64 v0
     v3 = load.i64 v0+8
-    v4 = load.i64 v0+16
-    v5 = sshr_imm v2, 1
-    v6 = sshr_imm v3, 1
-    v7 = iadd v5, v6
-    v8 = iconst.i64 0
-    v9 = ishl_imm v8, 1  ; v8 = 0
-    v10 = ishl_imm v7, 1
-    v11 = ishl_imm v7, 1
-    v12 = iadd_imm v0, -8
-    store aligned v11, v12
-    v13 = iadd_imm v12, -8
-    store aligned v10, v13
-    v14 = iadd_imm v13, -8
-    store aligned v9, v14
-    v15 = call fn0()
-    stack_store v14, ss0
-    v16 = stack_addr.i64 ss0
-    v17 = call fn1(v4, v16)
-    v18 = stack_load.i64 ss0
-    v19 = isub v14, v18
-    v20 = ushr_imm v19, 3
-    v21 = load.i64 v15+8
-    v22 = iadd v21, v20
-    store v22, v15+8
-    v23 = call_indirect sig2, v17(v18, v15)
-    v24 = load.i64 v23
-    v25 = iadd_imm v23, 8
-    v26 = iadd_imm v0, 16
-    store v24, v26
-    v27 = load.i64 v1+8
-    v28 = ishl_imm v27, 3
-    v29 = iadd v0, v28
-    v30 = load.i64 v1
-    return_call_indirect sig3, v30(v29, v1, v26)
+    v4 = sshr_imm v2, 1
+    v5 = sshr_imm v3, 1
+    v6 = iadd v4, v5
+    v7 = ishl_imm v6, 1
+    v8 = iconst.i64 1
+    v9 = ishl_imm v8, 1  ; v8 = 1
+    v10 = ishl_imm v6, 1
+    v11 = iconst.i64 2
+    v12 = call fn0(v11)  ; v11 = 2
+    store aligned v9, v12
+    store aligned v10, v12+8
+    v13 = iadd_imm v12, 1
+    v14 = iconst.i64 2
+    v15 = call fn1(v14)  ; v14 = 2
+    store aligned v7, v15
+    store aligned v13, v15+8
+    v16 = iadd_imm v15, 1
+    v17 = iadd_imm v0, 8
+    store v16, v17
+    v18 = load.i64 v1+8
+    v19 = ishl_imm v18, 3
+    v20 = iadd v0, v19
+    v21 = load.i64 v1
+    return_call_indirect sig2, v21(v20, v1, v17)
 }
 
 
 [main$__lambda_4__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
-    sig0 = () -> i64 apple_aarch64
-    sig1 = (i64, i64) -> i64 apple_aarch64
-    sig2 = (i64, i64) -> i64 tail
-    sig3 = (i64, i64, i64) -> i64 tail
-    fn0 = colocated u0:12 sig0
-    fn1 = u0:1 sig1
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64) -> i64 apple_aarch64
+    sig2 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+    fn1 = u0:0 sig1
 
 block0(v0: i64, v1: i64):
     v2 = load.i64 v0
     v3 = load.i64 v0+8
-    v4 = load.i64 v0+16
-    v5 = sshr_imm v2, 1
-    v6 = sshr_imm v3, 1
-    v7 = isub v5, v6
-    v8 = iconst.i64 0
-    v9 = ishl_imm v8, 1  ; v8 = 0
-    v10 = ishl_imm v7, 1
-    v11 = ishl_imm v7, 1
-    v12 = iadd_imm v0, -8
-    store aligned v11, v12
-    v13 = iadd_imm v12, -8
-    store aligned v10, v13
-    v14 = iadd_imm v13, -8
-    store aligned v9, v14
-    v15 = call fn0()
-    stack_store v14, ss0
-    v16 = stack_addr.i64 ss0
-    v17 = call fn1(v4, v16)
-    v18 = stack_load.i64 ss0
-    v19 = isub v14, v18
-    v20 = ushr_imm v19, 3
-    v21 = load.i64 v15+8
-    v22 = iadd v21, v20
-    store v22, v15+8
-    v23 = call_indirect sig2, v17(v18, v15)
-    v24 = load.i64 v23
-    v25 = iadd_imm v23, 8
-    v26 = iadd_imm v0, 16
-    store v24, v26
-    v27 = load.i64 v1+8
-    v28 = ishl_imm v27, 3
-    v29 = iadd v0, v28
-    v30 = load.i64 v1
-    return_call_indirect sig3, v30(v29, v1, v26)
+    v4 = sshr_imm v2, 1
+    v5 = sshr_imm v3, 1
+    v6 = isub v4, v5
+    v7 = ishl_imm v6, 1
+    v8 = iconst.i64 1
+    v9 = ishl_imm v8, 1  ; v8 = 1
+    v10 = ishl_imm v6, 1
+    v11 = iconst.i64 2
+    v12 = call fn0(v11)  ; v11 = 2
+    store aligned v9, v12
+    store aligned v10, v12+8
+    v13 = iadd_imm v12, 1
+    v14 = iconst.i64 2
+    v15 = call fn1(v14)  ; v14 = 2
+    store aligned v7, v15
+    store aligned v13, v15+8
+    v16 = iadd_imm v15, 1
+    v17 = iadd_imm v0, 8
+    store v16, v17
+    v18 = load.i64 v1+8
+    v19 = ishl_imm v18, 3
+    v20 = iadd v0, v19
+    v21 = load.i64 v1
+    return_call_indirect sig2, v21(v20, v1, v17)
 }
 
 
 [main$__lambda_5__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
-    sig0 = () -> i64 apple_aarch64
-    sig1 = (i64, i64) -> i64 apple_aarch64
-    sig2 = (i64, i64) -> i64 tail
-    sig3 = (i64, i64, i64) -> i64 tail
-    fn0 = colocated u0:12 sig0
-    fn1 = u0:1 sig1
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64) -> i64 apple_aarch64
+    sig2 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+    fn1 = u0:0 sig1
 
 block0(v0: i64, v1: i64):
     v2 = load.i64 v0
-    v3 = load.i64 v0+8
-    v4 = iconst.i64 2
-    v5 = sshr_imm v2, 1
-    v6 = imul v5, v4  ; v4 = 2
-    v7 = iconst.i64 0
-    v8 = ishl_imm v7, 1  ; v7 = 0
-    v9 = ishl_imm v6, 1
-    v10 = ishl_imm v6, 1
-    v11 = iadd_imm v0, -8
-    store aligned v10, v11
-    v12 = iadd_imm v11, -8
-    store aligned v9, v12
-    v13 = iadd_imm v12, -8
-    store aligned v8, v13
-    v14 = call fn0()
-    stack_store v13, ss0
-    v15 = stack_addr.i64 ss0
-    v16 = call fn1(v3, v15)
-    v17 = stack_load.i64 ss0
-    v18 = isub v13, v17
-    v19 = ushr_imm v18, 3
-    v20 = load.i64 v14+8
-    v21 = iadd v20, v19
-    store v21, v14+8
-    v22 = call_indirect sig2, v16(v17, v14)
-    v23 = load.i64 v22
-    v24 = iadd_imm v22, 8
-    v25 = iadd_imm v0, 8
-    store v23, v25
-    v26 = load.i64 v1+8
-    v27 = ishl_imm v26, 3
-    v28 = iadd v0, v27
-    v29 = load.i64 v1
-    return_call_indirect sig3, v29(v28, v1, v25)
-}
-
-
-[main$__lambda_6__cps_impl]
-function u0:0(i64, i64, i64) -> i64 tail {
-    ss0 = explicit_slot 8
-    gv0 = symbol colocated userextname0
-    gv1 = symbol colocated userextname0
-    gv2 = symbol colocated userextname4
-    gv3 = symbol colocated userextname5
-    sig0 = (i64, i64) -> i64 tail
-    sig1 = (i64, i64) -> i64 tail
-    sig2 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
-    sig3 = (i64, i64) -> i64 tail
-    sig4 = (i64, i64) -> i64 tail
-    sig5 = (i64, i64) -> i64 tail
-    sig6 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
-    sig7 = (i64, i64) -> i64 tail
-    sig8 = (i64, i64) -> i64 tail
-    sig9 = (i64, i64) -> i64 tail
-    sig10 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
-    sig11 = (i64, i64) -> i64 tail
-    sig12 = (i64, i64) -> i64 tail
-    sig13 = (i64, i64) -> i64 tail
-    sig14 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
-    sig15 = (i64, i64) -> i64 tail
-    fn0 = colocated u0:13 sig0
-    fn1 = colocated u0:14 sig1
-    fn2 = u0:4 sig2
-    fn3 = colocated u0:13 sig4
-    fn4 = colocated u0:14 sig5
-    fn5 = u0:4 sig6
-    fn6 = colocated u0:13 sig8
-    fn7 = colocated u0:14 sig9
-    fn8 = u0:4 sig10
-    fn9 = colocated u0:13 sig12
-    fn10 = colocated u0:14 sig13
-    fn11 = u0:4 sig14
-
-block0(v0: i64, v1: i64, v2: i64):
-    v3 = load.i64 v1+24
-    v4 = iadd_imm v1, 32
-    v5 = iadd_imm v2, 8
-    v6 = load.i64 v2
-    v7 = icmp_imm ugt v3, 0xffff_ffff
-    brif v7, block1, block5
-
-block5:
-    v8 = ireduce.i32 v3
-    br_table v8, block1, [block1, block2, block3, block4]
-
-block1:
-    v9 = symbol_value.i64 gv0
-    v10 = iadd_imm v9, 8
-    v11 = iadd_imm v10, 3
-    v12 = iconst.i64 2
-    v13 = ishl_imm v12, 1  ; v12 = 2
-    v14 = iadd_imm.i64 v5, -8
-    store aligned v13, v14
-    v15 = isub.i64 v0, v14
-    v16 = ushr_imm v15, 3
-    store v16, v1+8
-    v17 = iconst.i64 1
-    store v17, v1+24  ; v17 = 1
-    v18 = iconst.i64 1
-    v19 = func_addr.i64 fn0
-    v20 = func_addr.i64 fn1
-    v21 = iconst.i64 1
-    v22 = call fn2(v11, v14, v1, v18, v19, v20, v21)  ; v18 = 1, v21 = 1
-    v23 = load.i64 v22
-    v24 = load.i64 v22+8
-    v25 = load.i64 v22+16
-    return_call_indirect sig3, v23(v24, v25)
-
-block2:
-    v26 = symbol_value.i64 gv1
-    v27 = iadd_imm v26, 8
-    v28 = iadd_imm v27, 3
-    v29 = iconst.i64 4
-    v30 = ishl_imm v29, 1  ; v29 = 4
-    v31 = iadd_imm.i64 v5, -8
-    store aligned v30, v31
-    v32 = isub.i64 v0, v31
-    v33 = ushr_imm v32, 3
-    store v33, v1+8
-    v34 = iconst.i64 2
-    store v34, v1+24  ; v34 = 2
-    store.i64 v6, v4
-    v35 = iconst.i64 1
-    v36 = func_addr.i64 fn3
-    v37 = func_addr.i64 fn4
-    v38 = iconst.i64 1
-    v39 = call fn5(v28, v31, v1, v35, v36, v37, v38)  ; v35 = 1, v38 = 1
-    v40 = load.i64 v39
-    v41 = load.i64 v39+8
-    v42 = load.i64 v39+16
-    return_call_indirect sig7, v40(v41, v42)
-
-block3:
-    v43 = symbol_value.i64 gv2
-    v44 = iadd_imm v43, 8
-    v45 = iadd_imm v44, 3
-    v46 = iconst.i64 1
-    v47 = ishl_imm v46, 1  ; v46 = 1
-    v48 = iadd_imm.i64 v5, -8
-    store aligned v47, v48
-    v49 = isub.i64 v0, v48
-    v50 = ushr_imm v49, 3
-    store v50, v1+8
-    v51 = iconst.i64 3
-    store v51, v1+24  ; v51 = 3
-    store.i64 v6, v4+8
-    v52 = iconst.i64 1
-    v53 = func_addr.i64 fn6
-    v54 = func_addr.i64 fn7
-    v55 = iconst.i64 1
-    v56 = call fn8(v45, v48, v1, v52, v53, v54, v55)  ; v52 = 1, v55 = 1
-    v57 = load.i64 v56
-    v58 = load.i64 v56+8
-    v59 = load.i64 v56+16
-    return_call_indirect sig11, v57(v58, v59)
-
-block4:
-    v60 = symbol_value.i64 gv3
-    v61 = iadd_imm v60, 8
-    v62 = iadd_imm v61, 3
-    v63 = load.i64 v1+16
-    v64 = load.i64 v63+8
-    v65 = ishl_imm v64, 3
-    v66 = iadd.i64 v0, v65
-    v67 = isub v66, v5
-    v68 = ushr_imm v67, 3
-    store v68, v63+8
-    v69 = iconst.i64 0
-    v70 = func_addr.i64 fn9
-    v71 = func_addr.i64 fn10
-    v72 = iconst.i64 1
-    v73 = call fn11(v62, v5, v63, v69, v70, v71, v72)  ; v69 = 0, v72 = 1
-    v74 = load.i64 v73
-    v75 = load.i64 v73+8
-    v76 = load.i64 v73+16
-    return_call_indirect sig15, v74(v75, v76)
+    v3 = iconst.i64 2
+    v4 = sshr_imm v2, 1
+    v5 = imul v4, v3  ; v3 = 2
+    v6 = ishl_imm v5, 1
+    v7 = iconst.i64 1
+    v8 = ishl_imm v7, 1  ; v7 = 1
+    v9 = ishl_imm v5, 1
+    v10 = iconst.i64 2
+    v11 = call fn0(v10)  ; v10 = 2
+    store aligned v8, v11
+    store aligned v9, v11+8
+    v12 = iadd_imm v11, 1
+    v13 = iconst.i64 2
+    v14 = call fn1(v13)  ; v13 = 2
+    store aligned v6, v14
+    store aligned v12, v14+8
+    v15 = iadd_imm v14, 1
+    v16 = iadd_imm v0, 0
+    store v15, v16
+    v17 = load.i64 v1+8
+    v18 = ishl_imm v17, 3
+    v19 = iadd v0, v18
+    v20 = load.i64 v1
+    return_call_indirect sig2, v20(v19, v1, v16)
 }
 
 
 [main$__lambda_6__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
-    sig0 = (i64) -> i64 apple_aarch64
-    sig1 = (i64, i64, i64) -> i64 tail
-    fn0 = u0:0 sig0
-    fn1 = colocated u0:30 sig1
+    gv0 = symbol colocated userextname0
+    gv1 = symbol colocated userextname0
+    gv2 = symbol colocated userextname5
+    gv3 = symbol colocated userextname6
+    sig0 = () -> i64 apple_aarch64
+    sig1 = (i64, i64) -> i64 tail
+    sig2 = (i64, i64) -> i64 tail
+    sig3 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig4 = (i64, i64) -> i64 tail
+    sig5 = () -> i64 apple_aarch64
+    sig6 = (i64, i64) -> i64 tail
+    sig7 = (i64, i64) -> i64 tail
+    sig8 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig9 = (i64, i64) -> i64 tail
+    sig10 = () -> i64 apple_aarch64
+    sig11 = (i64, i64) -> i64 tail
+    sig12 = (i64, i64) -> i64 tail
+    sig13 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig14 = (i64, i64) -> i64 tail
+    sig15 = () -> i64 apple_aarch64
+    sig16 = (i64, i64) -> i64 tail
+    sig17 = (i64, i64) -> i64 tail
+    sig18 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig19 = (i64, i64) -> i64 tail
+    sig20 = (i64, i64, i64) -> i64 tail
+    fn0 = colocated u0:12 sig0
+    fn1 = colocated u0:13 sig1
+    fn2 = colocated u0:14 sig2
+    fn3 = u0:4 sig3
+    fn4 = colocated u0:12 sig5
+    fn5 = colocated u0:13 sig6
+    fn6 = colocated u0:14 sig7
+    fn7 = u0:4 sig8
+    fn8 = colocated u0:12 sig10
+    fn9 = colocated u0:13 sig11
+    fn10 = colocated u0:14 sig12
+    fn11 = u0:4 sig13
+    fn12 = colocated u0:12 sig15
+    fn13 = colocated u0:13 sig16
+    fn14 = colocated u0:14 sig17
+    fn15 = u0:4 sig18
 
 block0(v0: i64, v1: i64):
-    v2 = iconst.i64 56
-    v3 = call fn0(v2)  ; v2 = 56
-    v4 = func_addr.i64 fn1
-    store v4, v3
-    store v1, v3+16
-    v5 = iadd_imm v0, -8
-    return_call fn1(v0, v3, v5)
+    v2 = symbol_value.i64 gv0
+    v3 = iadd_imm v2, 8
+    v4 = iadd_imm v3, 3
+    v5 = call fn0()
+    v6 = iconst.i64 2
+    v7 = ishl_imm v6, 1  ; v6 = 2
+    v8 = iadd_imm v0, -8
+    store aligned v7, v8
+    v9 = iconst.i64 1
+    v10 = func_addr.i64 fn1
+    v11 = func_addr.i64 fn2
+    v12 = iconst.i64 0
+    v13 = call fn3(v4, v8, v5, v9, v10, v11, v12)  ; v9 = 1, v12 = 0
+    v14 = load.i64 v13
+    v15 = load.i64 v13+8
+    v16 = load.i64 v13+16
+    v17 = call_indirect sig4, v14(v15, v16)
+    v18 = load.i64 v17
+    v19 = iadd_imm v17, 8
+    v20 = symbol_value.i64 gv1
+    v21 = iadd_imm v20, 8
+    v22 = iadd_imm v21, 3
+    v23 = call fn4()
+    v24 = iconst.i64 4
+    v25 = ishl_imm v24, 1  ; v24 = 4
+    v26 = iadd_imm v19, -8
+    store aligned v25, v26
+    v27 = iconst.i64 1
+    v28 = func_addr.i64 fn5
+    v29 = func_addr.i64 fn6
+    v30 = iconst.i64 0
+    v31 = call fn7(v22, v26, v23, v27, v28, v29, v30)  ; v27 = 1, v30 = 0
+    v32 = load.i64 v31
+    v33 = load.i64 v31+8
+    v34 = load.i64 v31+16
+    v35 = call_indirect sig9, v32(v33, v34)
+    v36 = load.i64 v35
+    v37 = iadd_imm v35, 8
+    v38 = symbol_value.i64 gv2
+    v39 = iadd_imm v38, 8
+    v40 = iadd_imm v39, 3
+    v41 = call fn8()
+    v42 = iconst.i64 1
+    v43 = ishl_imm v42, 1  ; v42 = 1
+    v44 = iadd_imm v37, -8
+    store aligned v43, v44
+    v45 = iconst.i64 1
+    v46 = func_addr.i64 fn9
+    v47 = func_addr.i64 fn10
+    v48 = iconst.i64 0
+    v49 = call fn11(v40, v44, v41, v45, v46, v47, v48)  ; v45 = 1, v48 = 0
+    v50 = load.i64 v49
+    v51 = load.i64 v49+8
+    v52 = load.i64 v49+16
+    v53 = call_indirect sig14, v50(v51, v52)
+    v54 = load.i64 v53
+    v55 = iadd_imm v53, 8
+    v56 = symbol_value.i64 gv3
+    v57 = iadd_imm v56, 8
+    v58 = iadd_imm v57, 3
+    v59 = call fn12()
+    v60 = iconst.i64 0
+    v61 = func_addr.i64 fn13
+    v62 = func_addr.i64 fn14
+    v63 = iconst.i64 0
+    v64 = call fn15(v58, v55, v59, v60, v61, v62, v63)  ; v60 = 0, v63 = 0
+    v65 = load.i64 v64
+    v66 = load.i64 v64+8
+    v67 = load.i64 v64+16
+    v68 = call_indirect sig19, v65(v66, v67)
+    v69 = load.i64 v68
+    v70 = iadd_imm v68, 8
+    v71 = iadd_imm v0, -8
+    store v69, v71
+    v72 = load.i64 v1+8
+    v73 = ishl_imm v72, 3
+    v74 = iadd v0, v73
+    v75 = load.i64 v1
+    return_call_indirect sig20, v75(v74, v1, v71)
 }
 
 
