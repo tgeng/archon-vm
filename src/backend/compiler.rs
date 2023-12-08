@@ -57,7 +57,7 @@ impl Default for Compiler<JITModule> {
 
         let mut module = JITModule::new(builder);
 
-        let builtin_functions = EnumMap::from_fn(|e: BuiltinFunction| e.declare(&mut module));
+        let builtin_functions = EnumMap::from_fn(|e: BuiltinFunction| e.declare_or_define(&mut module));
 
         Self::new(module, builtin_functions)
     }

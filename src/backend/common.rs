@@ -1,7 +1,8 @@
 use cranelift::codegen::Context;
+use cranelift::codegen::ir::Inst;
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
-use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_handle_simple_operation, runtime_prepare_operation, runtime_pop_handler, runtime_register_handler, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation};
+use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, runtime_handle_simple_operation, runtime_prepare_operation, runtime_pop_handler, runtime_register_handler, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation, runtime_process_simple_handler_result};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder};
@@ -63,12 +64,29 @@ pub enum BuiltinFunction {
     AddSimpleHandler,
     AddComplexHandler,
     PrepareResumeContinuation,
+    ProcessSimpleHandlerResult,
 
     // generated
     GetTrivialContinuation,
-    ConvertCapturedContinuationThunkImpl,
+    /// CPS function implementing reified continuation record. This function takes a captured
+    /// continuation object, followed by a field projection and the needed arguments on the argument
+    /// stack. The signature is a normal CPS function signature ((base address, next continuation) -> final result).
+    CapturedContinuationRecordImpl,
+    /// CPS function that invokes the corresponding handler and processes the result. Simple
+    /// handlers always returns a pair: (new handler parameter, result), where result is either
+    /// a normal value (tag 1) or an exception value (tag 0).
+    /// The signature is a normal CPS function signature ((base address, next continuation) -> final result).
+    /// This function takes the following arguments from the argument stack (last argument list on
+    /// top):
+    /// - explicit handler arguments
+    /// - handler parameter
+    /// - implicit handler arguments (those captured in handler thunk)
+    /// - pointer to the matching handler object in raw pointer representation
+    /// - handler implementation function pointer in raw pointer representation
+    SimpleHandlerRunnerImpl,
     /// Special CPS implementation that invokes pop handler and pass the "last result" as an
-    /// argument to the actual transform function.
+    /// argument to the actual transform function. The signature follows that of a normal CPS impl
+    /// ((base address, current continuation, last result) -> final result).
     TransformLoaderCpsImpl,
 }
 
@@ -85,9 +103,11 @@ impl BuiltinFunction {
             BuiltinFunction::AddSimpleHandler => "__runtime_add_simple_handler",
             BuiltinFunction::AddComplexHandler => "__runtime_add_complex_handler",
             BuiltinFunction::PrepareResumeContinuation => "__runtime_prepare_resume_continuation",
+            BuiltinFunction::ProcessSimpleHandlerResult => "__runtime_process_simple_handler_result",
             BuiltinFunction::GetTrivialContinuation => "__runtime_get_trivial_continuation",
-            BuiltinFunction::ConvertCapturedContinuationThunkImpl => "__runtime_convert_captured_continuation_thunk_impl",
-            BuiltinFunction::TransformLoaderCpsImpl => "__runtime_transform_loader_cps_impl"
+            BuiltinFunction::CapturedContinuationRecordImpl => "__runtime_captured_continuation_record_impl",
+            BuiltinFunction::SimpleHandlerRunnerImpl => "__runtime_simple_handler_runner_impl",
+            BuiltinFunction::TransformLoaderCpsImpl => "__runtime_transform_loader_cps_impl",
         }
     }
 
@@ -103,36 +123,54 @@ impl BuiltinFunction {
             BuiltinFunction::AddSimpleHandler => runtime_add_simple_handler as *const u8,
             BuiltinFunction::AddComplexHandler => runtime_add_complex_handler as *const u8,
             BuiltinFunction::PrepareResumeContinuation => runtime_prepare_resume_continuation as *const u8,
+            BuiltinFunction::ProcessSimpleHandlerResult => runtime_process_simple_handler_result as *const u8,
             BuiltinFunction::GetTrivialContinuation => return,
-            BuiltinFunction::ConvertCapturedContinuationThunkImpl => return,
+            BuiltinFunction::CapturedContinuationRecordImpl => return,
+            BuiltinFunction::SimpleHandlerRunnerImpl => return,
             BuiltinFunction::TransformLoaderCpsImpl => return,
         };
 
         builder.symbol(self.func_name(), func_ptr);
     }
 
-    pub fn declare<M: Module>(&self, m: &mut M) -> FuncId {
+    pub fn declare<M: Module>(&self, m: &mut M) -> (FuncId, Signature) {
         let mut sig = m.make_signature();
-        let mut declare_external_func = |arg_count: usize, return_count: usize| {
+        let mut declare_func_with_call_conv = |m: &mut M, arg_count: usize, return_count: usize, linkage: Linkage, call_conv: CallConv| {
             for _ in 0..arg_count {
                 sig.params.push(AbiParam::new(I64));
             }
             for _ in 0..return_count {
                 sig.returns.push(AbiParam::new(I64));
             }
-            m.declare_function(self.func_name(), Linkage::Import, &sig).unwrap()
+            sig.call_conv = call_conv;
+            m.declare_function(self.func_name(), linkage, &sig).unwrap()
         };
+
+        let mut declare_func = |arg_count: usize, return_count: usize, linkage: Linkage| {
+            declare_func_with_call_conv(m, arg_count, return_count, linkage, m.isa().default_call_conv())
+        };
+
+        (match self {
+            BuiltinFunction::Alloc => declare_func(1, 1, Linkage::Import),
+            BuiltinFunction::ForceThunk => declare_func(2, 1, Linkage::Import),
+            BuiltinFunction::AllocStack => declare_func(0, 1, Linkage::Import),
+            BuiltinFunction::HandleSimpleOperation => declare_func(3, 1, Linkage::Import),
+            BuiltinFunction::PrepareOperation => declare_func(7, 1, Linkage::Import),
+            BuiltinFunction::PopHandler => declare_func(0, 1, Linkage::Import),
+            BuiltinFunction::RegisterHandlerAndGetTransformContinuation => declare_func(7, 1, Linkage::Import),
+            BuiltinFunction::AddSimpleHandler => declare_func(3, 0, Linkage::Import),
+            BuiltinFunction::AddComplexHandler => declare_func(3, 0, Linkage::Import),
+            BuiltinFunction::PrepareResumeContinuation => declare_func(5, 1, Linkage::Import),
+            BuiltinFunction::ProcessSimpleHandlerResult => declare_func(2, 1, Linkage::Import),
+            BuiltinFunction::GetTrivialContinuation => declare_func(0, 1, Linkage::Local),
+            BuiltinFunction::CapturedContinuationRecordImpl => declare_func_with_call_conv(m, 2, 1, Linkage::Local, CallConv::Tail),
+            BuiltinFunction::SimpleHandlerRunnerImpl => declare_func_with_call_conv(m, 2, 1, Linkage::Local, CallConv::Tail),
+            BuiltinFunction::TransformLoaderCpsImpl => declare_func_with_call_conv(m, 3, 1, Linkage::Local, CallConv::Tail),
+        }, sig)
+    }
+
+    pub fn declare_or_define<M: Module>(&self, m: &mut M) -> FuncId {
         match self {
-            BuiltinFunction::Alloc => declare_external_func(1, 1),
-            BuiltinFunction::ForceThunk => declare_external_func(2, 1),
-            BuiltinFunction::AllocStack => declare_external_func(0, 1),
-            BuiltinFunction::HandleSimpleOperation => declare_external_func(3, 1),
-            BuiltinFunction::PrepareOperation => declare_external_func(6, 1),
-            BuiltinFunction::PopHandler => declare_external_func(0, 1),
-            BuiltinFunction::RegisterHandlerAndGetTransformContinuation => declare_external_func(7, 1),
-            BuiltinFunction::AddSimpleHandler => declare_external_func(3, 0),
-            BuiltinFunction::AddComplexHandler => declare_external_func(3, 0),
-            BuiltinFunction::PrepareResumeContinuation => declare_external_func(5, 1),
             BuiltinFunction::GetTrivialContinuation => {
                 let mut ctx = m.make_context();
                 let mut builder_context = FunctionBuilderContext::new();
@@ -143,10 +181,17 @@ impl BuiltinFunction {
                 m.define_function(func_id, &mut ctx).unwrap();
                 func_id
             }
-            BuiltinFunction::ConvertCapturedContinuationThunkImpl => {
+            BuiltinFunction::CapturedContinuationRecordImpl => {
                 let mut ctx = m.make_context();
                 let mut builder_context = FunctionBuilderContext::new();
-                let impl_func_id = Self::convert_captured_continuation_to_thunk_impl(m, &mut ctx, &mut builder_context);
+                let impl_func_id = Self::captured_continuation_record_impl(m, &mut ctx, &mut builder_context);
+                m.define_function(impl_func_id, &mut ctx).unwrap();
+                impl_func_id
+            }
+            BuiltinFunction::SimpleHandlerRunnerImpl => {
+                let mut ctx = m.make_context();
+                let mut builder_context = FunctionBuilderContext::new();
+                let impl_func_id = Self::simple_handler_thunk_impl(m, &mut ctx, &mut builder_context);
                 m.define_function(impl_func_id, &mut ctx).unwrap();
                 impl_func_id
             }
@@ -157,6 +202,7 @@ impl BuiltinFunction {
                 m.define_function(impl_func_id, &mut ctx).unwrap();
                 impl_func_id
             }
+            _ => self.declare(m).0
         }
     }
 
@@ -182,11 +228,8 @@ impl BuiltinFunction {
         func_id
     }
 
-    fn generate_trivial_continuation_helper<M: Module>(module: &mut M, impl_func_id: FuncId, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
-        let mut sig = module.make_signature();
-        // The pointer to the created continuation object.
-        sig.returns.push(AbiParam::new(I64));
-        let func_id = module.declare_function(BuiltinFunction::GetTrivialContinuation.func_name(), Linkage::Local, &sig).unwrap();
+    fn generate_trivial_continuation_helper<M: Module>(m: &mut M, impl_func_id: FuncId, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
+        let (func_id, sig) = BuiltinFunction::GetTrivialContinuation.declare(m);
         ctx.func.signature = sig;
         let mut builder = FunctionBuilder::new(&mut ctx.func, builder_ctx);
         let entry_block = builder.create_block();
@@ -194,8 +237,8 @@ impl BuiltinFunction {
         builder.switch_to_block(entry_block);
         builder.seal_block(entry_block);
 
-        let alloc_func_id = BuiltinFunction::Alloc.declare(module);
-        let alloc_func_ref = module.declare_func_in_func(alloc_func_id, builder.func);
+        let alloc_func_id = BuiltinFunction::Alloc.declare_or_define(m);
+        let alloc_func_ref = m.declare_func_in_func(alloc_func_id, builder.func);
         // We only need the first two words for the trivial continuation. The height is only
         // allocated so that it can be written to. Its value does not matter because trivial
         // continuation does not care about base address as it doesn't have any arguments.
@@ -204,7 +247,7 @@ impl BuiltinFunction {
         let continuation_ptr = builder.inst_results(inst)[0];
 
         // first word of continuation is the continuation implementation
-        let impl_func_ref = module.declare_func_in_func(impl_func_id, builder.func);
+        let impl_func_ref = m.declare_func_in_func(impl_func_id, builder.func);
         let impl_func_ptr = builder.ins().func_addr(I64, impl_func_ref);
         builder.ins().store(MemFlags::new(), impl_func_ptr, continuation_ptr, 0);
 
@@ -218,7 +261,7 @@ impl BuiltinFunction {
         func_id
     }
 
-    fn convert_captured_continuation_to_thunk_impl<M: Module>(module: &mut M, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
+    fn captured_continuation_record_impl<M: Module>(m: &mut M, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
         // This function is the implementation function of the captured continuation record thunk.
         // It has the signature of a normal CPS function and it takes the following arguments on the
         // stack:
@@ -235,8 +278,7 @@ impl BuiltinFunction {
         // This function then invokes the built-in functions that implement the corresponding action
         // and keeps the execution forward.
 
-        let sig = create_cps_signature(module);
-        let func_id = module.declare_function(BuiltinFunction::ConvertCapturedContinuationThunkImpl.func_name(), Linkage::Local, &sig).unwrap();
+        let (func_id, sig) = BuiltinFunction::CapturedContinuationRecordImpl.declare(m);
         ctx.func.signature = sig;
         let mut builder = FunctionBuilder::new(&mut ctx.func, builder_ctx);
         let entry_block = builder.create_block();
@@ -275,15 +317,15 @@ impl BuiltinFunction {
         // resume
         builder.switch_to_block(resume_block);
         let result = builder.ins().load(I64, MemFlags::new(), base_address, 24);
-        let prepare_func_id = BuiltinFunction::PrepareResumeContinuation.declare(module);
-        let prepare_func_ref = module.declare_func_in_func(prepare_func_id, builder.func);
+        let prepare_func_id = BuiltinFunction::PrepareResumeContinuation.declare_or_define(m);
+        let prepare_func_ref = m.declare_func_in_func(prepare_func_id, builder.func);
         let inst = builder.ins().call(prepare_func_ref, &[base_address, next_continuation, captured_continuation, handler_parameter, result]);
         let prepare_result_ptr = builder.inst_results(inst)[0];
         let continuation = builder.ins().load(I64, MemFlags::new(), prepare_result_ptr, 0);
         let new_base_address = builder.ins().load(I64, MemFlags::new(), prepare_result_ptr, 8);
         let last_result_ptr = builder.ins().load(I64, MemFlags::new(), prepare_result_ptr, 16);
         let continuation_impl = builder.ins().load(I64, MemFlags::new(), continuation, 0);
-        let cps_impl_sig = create_cps_impl_signature(module);
+        let cps_impl_sig = create_cps_impl_signature(m);
         let cps_impl_sig_ref = builder.import_signature(cps_impl_sig);
         builder.ins().return_call_indirect(cps_impl_sig_ref, continuation_impl, &[new_base_address, continuation, last_result_ptr]);
 
@@ -306,9 +348,49 @@ impl BuiltinFunction {
         func_id
     }
 
-    fn transform_loader_cps_impl<M: Module>(module: &mut M, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
-        let sig = create_cps_impl_signature(module);
-        let func_id = module.declare_function(BuiltinFunction::TransformLoaderCpsImpl.func_name(), Linkage::Local, &sig).unwrap();
+    fn simple_handler_thunk_impl<M: Module>(m: &mut M, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
+        let (func_id, sig) = BuiltinFunction::SimpleHandlerRunnerImpl.declare(m);
+        ctx.func.signature = sig.clone();
+        let mut builder = FunctionBuilder::new(&mut ctx.func, builder_ctx);
+        let entry_block = builder.create_block();
+        builder.append_block_params_for_function_params(entry_block);
+        builder.switch_to_block(entry_block);
+        builder.seal_block(entry_block);
+
+        let base_address = builder.block_params(entry_block)[0];
+        let next_continuation = builder.block_params(entry_block)[1];
+
+        let handler_function_ptr = builder.ins().load(I64, MemFlags::new(), base_address, 0);
+        let matching_handler_object = builder.ins().load(I64, MemFlags::new(), base_address, 8);
+
+        let inst = Self::call_built_in(m, &mut builder, BuiltinFunction::GetTrivialContinuation, &[]);
+        let trivial_continuation = builder.inst_results(inst)[0];
+
+        let new_base_address = builder.ins().load(I64, MemFlags::new(), base_address, 16);
+        let sig_ref = builder.import_signature(sig);
+        let inst = builder.ins().call_indirect(sig_ref, handler_function_ptr, &[new_base_address, trivial_continuation]);
+        let result_ptr = builder.inst_results(inst)[0];
+        let simple_handler_result = builder.ins().load(I64, MemFlags::new(), result_ptr, 0);
+        let simple_handler_result_ptr = builder.ins().band_imm(simple_handler_result, !0b11);
+
+        let inst = Self::call_built_in(
+            m, &mut builder, BuiltinFunction::ProcessSimpleHandlerResult,
+            &[matching_handler_object, simple_handler_result_ptr]);
+        let result = builder.inst_results(inst)[0];
+
+        let new_base_address = builder.ins().iadd_imm(result_ptr, 8);
+        let next_continuation_impl_ptr = builder.ins().iadd_imm(next_continuation, 0);
+        builder.ins().store(MemFlags::new(), result, result_ptr, 0);
+        let cps_impl_sig = create_cps_impl_signature(m);
+        let cps_impl_sig_ref = builder.import_signature(cps_impl_sig);
+        builder.ins().return_call_indirect(cps_impl_sig_ref, next_continuation_impl_ptr, &[new_base_address, next_continuation, result_ptr]);
+        builder.finalize();
+
+        func_id
+    }
+
+    fn transform_loader_cps_impl<M: Module>(m: &mut M, ctx: &mut Context, builder_ctx: &mut FunctionBuilderContext) -> FuncId {
+        let (func_id, sig) = BuiltinFunction::TransformLoaderCpsImpl.declare(m);
         ctx.func.signature = sig;
         let mut builder = FunctionBuilder::new(&mut ctx.func, builder_ctx);
         let entry_block = builder.create_block();
@@ -326,8 +408,8 @@ impl BuiltinFunction {
         // creates the transform loader continuation.
         let transform_thunk = builder.ins().load(I64, MemFlags::new(), base_address, 0);
 
-        let pop_handler_func_id = BuiltinFunction::PopHandler.declare(module);
-        let pop_handler_func_ref = module.declare_func_in_func(pop_handler_func_id, builder.func);
+        let pop_handler_func_id = BuiltinFunction::PopHandler.declare_or_define(m);
+        let pop_handler_func_ref = m.declare_func_in_func(pop_handler_func_id, builder.func);
         let inst = builder.ins().call(pop_handler_func_ref, &[]);
         let handler_parameter = builder.inst_results(inst)[0];
 
@@ -335,8 +417,8 @@ impl BuiltinFunction {
         // is taken for the final tail call to the transform function.
         let tip_address = builder.ins().iadd_imm(base_address, 8);
 
-        let force_thunk_func_id = BuiltinFunction::ForceThunk.declare(module);
-        let force_thunk_func_ref = module.declare_func_in_func(force_thunk_func_id, builder.func);
+        let force_thunk_func_id = BuiltinFunction::ForceThunk.declare_or_define(m);
+        let force_thunk_func_ref = m.declare_func_in_func(force_thunk_func_id, builder.func);
 
         // push all the thunk arguments to the stack
         builder.ins().stack_store(tip_address, tip_address_slot, 0);
@@ -361,13 +443,20 @@ impl BuiltinFunction {
         builder.ins().store(MemFlags::new(), next_continuation_frame_height, next_continuation, 8);
 
         // call the next continuation
-        let sig = create_cps_signature(module);
+        let sig = create_cps_signature(m);
         let sig_ref = builder.import_signature(sig);
         builder.ins().return_call_indirect(sig_ref, transform_ptr, &[tip_address, next_continuation]);
 
         builder.finalize();
 
         func_id
+    }
+
+    fn call_built_in<M: Module>(module: &mut M, builder: &mut FunctionBuilder, func: BuiltinFunction, args: &[Value]) -> Inst {
+        let func_id = func.declare(module).0;
+        let func_ref = module.declare_func_in_func(func_id, builder.func);
+        let inst = builder.ins().call(func_ref, args);
+        inst
     }
 }
 

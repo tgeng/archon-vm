@@ -79,6 +79,7 @@ pub unsafe fn runtime_prepare_operation(
     tip_continuation: &mut Continuation,
     handler_num_args: usize,
     captured_continuation_thunk_impl: RawFuncPtr,
+    simple_handler_runner_impl_ptr: *const usize,
     may_be_complex: usize,
 ) -> *const usize {
     let (handler_index, handler_impl, complex) = find_matching_handler(eff, may_be_complex);
@@ -97,7 +98,7 @@ pub unsafe fn runtime_prepare_operation(
                 handler_call_base_address,
                 tip_continuation,
                 handler_num_args,
-                captured_continuation_thunk_impl,
+                simple_handler_runner_impl_ptr,
                 handler_index,
                 handler_impl)
         };
@@ -106,6 +107,19 @@ pub unsafe fn runtime_prepare_operation(
     result_ptr.add(1).write(new_base_address as usize);
     result_ptr.add(2).write(next_continuation as usize);
     result_ptr
+}
+
+#[repr(C, align(8))]
+pub struct SimpleResult<'a> {
+    handler_parameter: Uniform,
+    result_value: &'a SimpleResultValue,
+}
+
+#[repr(C, align(8))]
+struct SimpleResultValue {
+    /// 0 means exceptional. 1 means normal.
+    tag: usize,
+    value: Uniform,
 }
 
 unsafe fn prepare_complex_operation(
@@ -203,11 +217,19 @@ unsafe fn prepare_simple_operation(
     handler_call_base_address: *const usize,
     tip_continuation: &mut Continuation,
     handler_num_args: usize,
-    captured_continuation_thunk_impl: RawFuncPtr,
+    simple_handler_runner_impl_ptr: *const usize,
     handler_index: usize,
     handler_impl: ThunkPtr,
 ) -> (*const usize, *mut usize, *mut Continuation) {
     todo!()
+}
+
+/// Special function that may do long jump instead of normal return if the result is exceptional. If
+/// the result is exceptional. This function also takes care of disposing the handler parameters of
+/// all the evicted handlers.
+pub fn runtime_process_simple_handler_result(handler: &mut Handler<*const usize>, simple_result: &SimpleResult) -> Uniform {
+    // TODO: finish this
+    simple_result.result_value.value
 }
 
 pub unsafe fn runtime_pop_handler() -> Uniform {
