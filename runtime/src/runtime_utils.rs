@@ -82,6 +82,40 @@ pub unsafe fn runtime_prepare_operation(
     may_be_complex: usize,
 ) -> *const usize {
     let (handler_index, handler_impl, complex) = find_matching_handler(eff, may_be_complex);
+    let (handler_function_ptr, new_base_address, next_continuation) =
+        if complex {
+            prepare_complex_operation(
+                handler_call_base_address,
+                tip_continuation,
+                handler_num_args,
+                captured_continuation_thunk_impl,
+                handler_index,
+                handler_impl,
+            )
+        } else {
+            prepare_simple_operation(
+                handler_call_base_address,
+                tip_continuation,
+                handler_num_args,
+                captured_continuation_thunk_impl,
+                handler_index,
+                handler_impl)
+        };
+    let result_ptr = new_base_address.sub(4);
+    result_ptr.write(handler_function_ptr as usize);
+    result_ptr.add(1).write(new_base_address as usize);
+    result_ptr.add(2).write(next_continuation as usize);
+    result_ptr
+}
+
+unsafe fn prepare_complex_operation(
+    handler_call_base_address: *const usize,
+    tip_continuation: &mut Continuation,
+    handler_num_args: usize,
+    captured_continuation_thunk_impl: RawFuncPtr,
+    handler_index: usize,
+    handler_impl: ThunkPtr,
+) -> (*const usize, *mut usize, *mut Continuation) {
     let handler_entry_fragment = HANDLERS.with(|handler| handler.borrow_mut().split_off(handler_index));
     let matching_handler = match handler_entry_fragment.first().unwrap() {
         HandlerEntry::Handler(handler) => handler,
@@ -162,12 +196,18 @@ pub unsafe fn runtime_prepare_operation(
     let handler_function_ptr = runtime_force_thunk(handler_impl, &mut new_tip_address);
     // unpacking captured arguments of the handler would affect frame height of the next continuation as well.
     (*next_continuation).arg_stack_frame_height += tip_address_before_forcing_handler_impl.offset_from(new_tip_address) as usize;
-    let new_base_address = new_tip_address;
-    let result_ptr = new_tip_address.sub(4);
-    result_ptr.write(handler_function_ptr as usize);
-    result_ptr.add(1).write(new_base_address as usize);
-    result_ptr.add(2).write(next_continuation as usize);
-    result_ptr
+    (handler_function_ptr, new_tip_address, next_continuation)
+}
+
+unsafe fn prepare_simple_operation(
+    handler_call_base_address: *const usize,
+    tip_continuation: &mut Continuation,
+    handler_num_args: usize,
+    captured_continuation_thunk_impl: RawFuncPtr,
+    handler_index: usize,
+    handler_impl: ThunkPtr,
+) -> (*const usize, *mut usize, *mut Continuation) {
+    todo!()
 }
 
 pub unsafe fn runtime_pop_handler() -> Uniform {

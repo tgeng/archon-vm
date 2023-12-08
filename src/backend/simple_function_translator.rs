@@ -361,14 +361,24 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let return_value = (primitive_function.code_gen)(&mut self.function_builder, &arg_values);
                 Some((return_value, primitive_function.return_type))
             }
-            CTerm::OperationCall { eff, args, may_be_complex } => {
-                assert!(!may_be_complex);
+            CTerm::OperationCall { eff, args, .. } => {
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
+                let inst = self.call_builtin_func(BuiltinFunction::GetTrivialContinuation, &[]);
+                let trivial_continuation = self.function_builder.inst_results(inst)[0];
+                let use_tail_call = is_tail && !self.is_specialized;
                 self.push_arg_v_terms(args);
-                let inst = self.call_builtin_func(BuiltinFunction::HandleSimpleOperation, &[eff_value, self.tip_address]);
-                let result = self.function_builder.inst_results(inst)[0];
-                Some((result, Uniform))
+                let new_base_address = if use_tail_call {
+                    self.copy_tail_call_args_and_get_new_base()
+                } else {
+                    self.tip_address
+                };
+                let inst = self.handle_operation_call(eff_value, new_base_address, trivial_continuation, args.len(), false, use_tail_call);
+                if use_tail_call {
+                    None
+                } else {
+                    self.extract_return_value(inst)
+                }
             }
             CTerm::Handler { .. } => {
                 let inst = self.call_builtin_func(BuiltinFunction::GetTrivialContinuation, &[]);
@@ -491,7 +501,9 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         tip_address_ptr
     }
 
-    pub fn push_arg_v_terms(&mut self, args: &Vec<VTerm>) {
+    pub fn push_arg_v_terms(&mut self, args: &[VTerm]) {
+        // TODO: take an argument determining if it's tall call. If so, just copy existing arguments
+        //  to the correct location and push new args rest after that. This way we can copy less.
         let arg_values = args.iter().map(|arg| {
             let v = self.translate_v_term(arg);
             self.convert_to_uniform(v)
@@ -738,7 +750,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         });
     }
 
-    pub fn handle_complex_operation_call(&mut self, eff_value: Value, new_base_address: Value, continuation: Value, num_args: usize, may_be_complex: bool) {
+    pub fn handle_operation_call(&mut self, eff_value: Value, new_base_address: Value, continuation: Value, num_args: usize, may_be_complex: bool, use_return_call: bool) -> Inst {
         let num_args_value = self.function_builder.ins().iconst(I64, num_args as i64);
         let captured_continuation_thunk_impl_ref = self.module.declare_func_in_func(self.builtin_functions[BuiltinFunction::ConvertCapturedContinuationThunkImpl], self.function_builder.func);
         let captured_continuation_thunk_impl_ptr = self.function_builder.ins().func_addr(I64, captured_continuation_thunk_impl_ref);
@@ -752,6 +764,10 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         let signature = self.uniform_cps_func_signature.clone();
         let sig_ref = self.function_builder.import_signature(signature);
 
-        self.function_builder.ins().return_call_indirect(sig_ref, handler_impl, &[handler_base_address, next_continuation]);
+        if use_return_call {
+            self.function_builder.ins().return_call_indirect(sig_ref, handler_impl, &[handler_base_address, next_continuation])
+        } else {
+            self.function_builder.ins().call_indirect(sig_ref, handler_impl, &[handler_base_address, next_continuation])
+        }
     }
 }

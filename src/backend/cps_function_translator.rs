@@ -155,7 +155,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                 self.push_arg_v_terms(args);
                 let next_continuation = self.next_continuation;
                 let new_base_address = compute_cps_tail_call_base_address(self, next_continuation);
-                self.handle_complex_operation_call(eff_value, new_base_address, next_continuation, args.len(), true);
+                self.handle_operation_call(eff_value, new_base_address, next_continuation, args.len(), true, true);
                 None
             }
             _ => self.translate_c_term(c_term, is_tail),
@@ -482,7 +482,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                     (self.tip_address, self.continuation)
                 };
 
-                self.handle_complex_operation_call(eff_value, new_base_address, continuation, args.len(), true);
+                self.handle_operation_call(eff_value, new_base_address, continuation, args.len(), true, true);
                 if is_tail {
                     None
                 } else {
