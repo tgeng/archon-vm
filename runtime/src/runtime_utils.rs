@@ -73,12 +73,12 @@ pub unsafe fn debug_helper(handler_function_ptr: *const usize, base_address: *co
 /// - ptr + 16: the next continuation after handler finishes execution
 ///
 pub unsafe fn runtime_prepare_operation(
-    eff: usize,
+    eff: Uniform,
     handler_call_base_address: *mut usize,
     tip_continuation: &mut Continuation,
     handler_num_args: usize,
     captured_continuation_thunk_impl: RawFuncPtr,
-    simple_handler_runner_impl_ptr: *const usize,
+    simple_handler_runner_impl_ptr: RawFuncPtr,
     may_be_complex: usize,
 ) -> *const usize {
     let (handler_index, handler_impl, complex) = find_matching_handler(eff, may_be_complex);
@@ -214,7 +214,7 @@ struct SimpleResultValue {
 unsafe fn prepare_simple_operation(
     handler_call_base_address: *mut usize,
     tip_continuation: &mut Continuation,
-    simple_handler_runner_impl_ptr: *const usize,
+    simple_handler_runner_impl_ptr: RawFuncPtr,
     handler_index: usize,
     handler_impl: ThunkPtr,
 ) -> (*const usize, *mut usize, *mut Continuation) {
