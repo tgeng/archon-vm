@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::ops::{Deref, DerefMut};
 use crate::runtime::{Continuation, HandlerEntry, Handler, Uniform, ThunkPtr, Eff, Generic, CapturedContinuation, RawFuncPtr};
 use crate::runtime::HandlerEntry::SimpleOperationMarker;
 use crate::types::{UPtr, UniformPtr, UniformType};
@@ -11,9 +12,13 @@ thread_local!(
 static mut EMPTY_STRUCT: usize = 0;
 const TRANSFORM_LOADER_NUM_ARGS: usize = 1;
 
+unsafe fn empty_struct_ptr() -> *mut usize {
+    (&mut EMPTY_STRUCT as *mut usize).add(1)
+}
+
 pub unsafe fn runtime_alloc(num_words: usize) -> *mut usize {
     if num_words == 0 {
-        return (&mut EMPTY_STRUCT as *mut usize).add(1);
+        return empty_struct_ptr();
     }
     let mut vec = Vec::with_capacity(num_words + 1);
     let ptr: *mut usize = vec.as_mut_ptr();
@@ -33,12 +38,12 @@ pub unsafe fn runtime_word_box() -> *mut usize {
 
 /// Takes a pointer to a function or thunk, push any arguments to the tip of the stack, and return
 /// a pointer to the underlying raw function.
-pub unsafe fn runtime_force_thunk(thunk: *const usize, tip_address_ptr: *mut *mut usize) -> *const usize {
+pub unsafe fn runtime_force_thunk(thunk: ThunkPtr, tip_address_ptr: *mut *mut usize) -> RawFuncPtr {
     let thunk_ptr = thunk.to_normal_ptr();
     match UniformType::from_bits(thunk as usize) {
         UniformType::PPtr => thunk_ptr,
         UniformType::SPtr => {
-            let next_thunk = thunk_ptr.read() as *const usize;
+            let next_thunk = thunk_ptr.read() as ThunkPtr;
             let num_args = thunk_ptr.add(1).read();
             let mut tip_address = tip_address_ptr.read();
             for i in (0..num_args).rev() {
@@ -271,6 +276,29 @@ pub unsafe fn runtime_pop_handler() -> Uniform {
     })
 }
 
+unsafe fn dispose_handlers(base_address: *mut Uniform, matching_handler_index: usize, invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform) {
+    // Extract the value here so that the borrowed value is returned right after the closure closes.
+    // This is critical because disposer may be exceptional and hence this function may not return
+    // locally, skipping any rust drop calls.
+    let handlers = HANDLERS.with(|handlers| {
+        handlers.borrow_mut().deref_mut() as *mut Vec<HandlerEntry>
+    });
+    while (*handlers).len() > matching_handler_index {
+        let handler = (*handlers).pop().unwrap();
+        match handler {
+            HandlerEntry::Handler(Handler { parameter, parameter_disposer, .. }) => {
+                let mut tip_address = base_address;
+                tip_address = tip_address.sub(1);
+                tip_address.write(parameter);
+                let func_ptr = runtime_force_thunk(parameter_disposer, &mut tip_address);
+                // return value is simply ignored since disposers just return empty structs.
+                invoke_cps_function_with_trivial_continuation(func_ptr, tip_address);
+            }
+            HandlerEntry::SimpleOperationMarker { .. } => {} // simply skip markers
+        }
+    }
+}
+
 fn find_matching_handler(eff: Eff, may_be_complex: usize) -> (usize, ThunkPtr, bool) {
     HANDLERS.with(|handlers| {
         let handlers = handlers.borrow();
@@ -383,10 +411,12 @@ pub unsafe fn runtime_prepare_resume_continuation(
     // all the arguments for the handler transform function to the argument stack. Hence we need to
     // update the stack frame height of the next continuation.
     next_continuation.arg_stack_frame_height += TRANSFORM_LOADER_NUM_ARGS;
+    let resume_continuation_num_args = 4;
+    next_continuation.arg_stack_frame_height -= resume_continuation_num_args;
 
     // swallow the 4 arguments passed to the captured continuation record:
     // captured continuation object, field, handler parameter, and last result.
-    base_address = base_address.add(4);
+    base_address = base_address.add(resume_continuation_num_args);
 
     // The argument to transform loader is the transform thunk, which is set in
     // `runtime_register_handler` and got captured in `runtime_prepare_complex_operation` inside the
@@ -426,6 +456,61 @@ pub unsafe fn runtime_prepare_resume_continuation(
     base_address.add(2).write(last_result_address as usize);
 
     base_address
+}
+
+/// Returns a pointer pointing to the following:
+/// - ptr + 0: the function pointer to the resumed continuation
+/// - ptr + 8: the base address for the resumed continuation to find its arguments
+/// - ptr + 16: the pointer to the "last result" that should be passed to the resumed continuation
+pub unsafe fn runtime_dispose_continuation(
+    base_address: *mut usize,
+    next_continuation: &mut Continuation,
+    captured_continuation: *mut CapturedContinuation,
+    parameter: Uniform,
+    runtime_invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
+) -> *const usize {
+    let mut captured_continuation = captured_continuation.read();
+    let base_handler = captured_continuation.handler_fragment.first_mut().unwrap();
+    base_handler.parameter = parameter;
+
+    let matching_handler_index = HANDLERS.with(|handlers| handlers.borrow().len());
+
+    // swallow the 3 arguments passed to the captured continuation record:
+    // captured continuation object, field, handler parameter, and last result.
+    let tip_address = base_address.add(3);
+
+    // unpack the captured continuation because some disposers may need to perform simple effects
+    // encoded in them.
+    HANDLERS.with(|handlers| {
+        let mut handlers = handlers.borrow_mut();
+        for handler in captured_continuation.handler_fragment.into_iter() {
+            handlers.push(HandlerEntry::Handler(Handler {
+                // this value is not important because transform thunks won't be invoked during
+                // disposal.
+                transform_loader_base_address: tip_address,
+                transform_loader_continuation: handler.transform_loader_continuation,
+                parameter: handler.parameter,
+                parameter_disposer: handler.parameter_disposer,
+                parameter_replicator: handler.parameter_replicator,
+                simple_handler: handler.simple_handler,
+                complex_handler: handler.complex_handler,
+            }));
+        }
+    });
+    dispose_handlers(tip_address, matching_handler_index, runtime_invoke_cps_function_with_trivial_continuation);
+
+    // Write the last result
+    let last_result_address = tip_address.sub(1);
+    // Add 1 so it's tagged as an SPtr
+    last_result_address.write(empty_struct_ptr() as usize + 1);
+
+    // Write the return values of this helper function.
+    let return_values_address = last_result_address.sub(3);
+    return_values_address.write(next_continuation as *const Continuation as usize);
+    return_values_address.add(1).write((base_address.add(next_continuation.arg_stack_frame_height)) as usize);
+    return_values_address.add(2).write(last_result_address as usize);
+
+    return_values_address
 }
 
 unsafe fn compare_uniform(a: Uniform, b: Uniform) -> bool {

@@ -474,7 +474,7 @@ mod tests {
         let mut test_input_paths = fs::read_dir(resource_dir)
             .unwrap()
             .map(|r| r.unwrap().path())
-            .filter(|p| p.file_name().unwrap().to_str().unwrap().ends_with("input.txt"))
+            .filter(|p| p.file_name().unwrap().to_str().unwrap().ends_with(".input.txt"))
             .collect::<Vec<_>>();
         test_input_paths.sort();
         let all_results = test_input_paths.into_iter().map(|test_input_path| {

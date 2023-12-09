@@ -1,7 +1,7 @@
 use cranelift::codegen::ir::Inst;
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
-use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, debug_helper, runtime_prepare_operation, runtime_pop_handler, runtime_register_handler, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation, runtime_process_simple_handler_result};
+use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, debug_helper, runtime_prepare_operation, runtime_pop_handler, runtime_register_handler, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation, runtime_process_simple_handler_result, runtime_dispose_continuation};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder};
@@ -63,6 +63,7 @@ pub enum BuiltinFunction {
     AddSimpleHandler,
     AddComplexHandler,
     PrepareResumeContinuation,
+    DisposeContinuation,
     ProcessSimpleHandlerResult,
 
     // generated
@@ -106,13 +107,14 @@ impl BuiltinFunction {
             BuiltinFunction::AddSimpleHandler => "__runtime_add_simple_handler",
             BuiltinFunction::AddComplexHandler => "__runtime_add_complex_handler",
             BuiltinFunction::PrepareResumeContinuation => "__runtime_prepare_resume_continuation",
+            BuiltinFunction::DisposeContinuation => "__runtime_dispose_continuation",
             BuiltinFunction::ProcessSimpleHandlerResult => "__runtime_process_simple_handler_result",
             BuiltinFunction::GetTrivialContinuation => "__runtime_get_trivial_continuation",
             BuiltinFunction::TrivialContinuationImpl => "__runtime_trivial_continuation_impl",
             BuiltinFunction::CapturedContinuationRecordImpl => "__runtime_captured_continuation_record_impl",
             BuiltinFunction::SimpleHandlerRunnerImpl => "__runtime_simple_handler_runner_impl",
             BuiltinFunction::TransformLoaderCpsImpl => "__runtime_transform_loader_cps_impl",
-            BuiltinFunction::InvokeCpsFunctionWithTrivialContinuation => "__runtime_invoke_cps_function"
+            BuiltinFunction::InvokeCpsFunctionWithTrivialContinuation => "__runtime_invoke_cps_function",
         }
     }
 
@@ -128,6 +130,7 @@ impl BuiltinFunction {
             BuiltinFunction::AddSimpleHandler => runtime_add_simple_handler as *const u8,
             BuiltinFunction::AddComplexHandler => runtime_add_complex_handler as *const u8,
             BuiltinFunction::PrepareResumeContinuation => runtime_prepare_resume_continuation as *const u8,
+            BuiltinFunction::DisposeContinuation => runtime_dispose_continuation as *const u8,
             BuiltinFunction::ProcessSimpleHandlerResult => runtime_process_simple_handler_result as *const u8,
             BuiltinFunction::GetTrivialContinuation => return,
             BuiltinFunction::TrivialContinuationImpl => return,
@@ -168,6 +171,7 @@ impl BuiltinFunction {
             BuiltinFunction::AddSimpleHandler => declare_func(3, 0, Linkage::Import),
             BuiltinFunction::AddComplexHandler => declare_func(3, 0, Linkage::Import),
             BuiltinFunction::PrepareResumeContinuation => declare_func(5, 1, Linkage::Import),
+            BuiltinFunction::DisposeContinuation => declare_func(5, 1, Linkage::Import),
             BuiltinFunction::ProcessSimpleHandlerResult => declare_func(2, 1, Linkage::Import),
             BuiltinFunction::GetTrivialContinuation => declare_func(0, 1, Linkage::Local),
             BuiltinFunction::TrivialContinuationImpl => declare_func_with_call_conv(m, 3, 1, Linkage::Local, CallConv::Tail),
@@ -302,6 +306,31 @@ impl BuiltinFunction {
             BuiltinFunction::PrepareResumeContinuation,
             &[base_address, next_continuation, captured_continuation, handler_parameter, result],
         );
+        Self::tail_call_continuation(m, builder, inst);
+
+        // dispose
+        builder.switch_to_block(dispose_block);
+        let invoke_cps_function_with_trivial_continuation = Self::get_built_in_func_ptr(m, builder, BuiltinFunction::InvokeCpsFunctionWithTrivialContinuation);
+        let inst = Self::call_built_in(
+            m,
+            builder,
+            BuiltinFunction::DisposeContinuation,
+            &[base_address, next_continuation, captured_continuation, handler_parameter, invoke_cps_function_with_trivial_continuation],
+        );
+        Self::tail_call_continuation(m, builder, inst);
+
+        // replicate
+        builder.switch_to_block(replicate_block);
+        // TODO: implement replicate
+        let zero = builder.ins().iconst(I64, 0);
+        builder.ins().return_(&[zero]);
+
+        // default
+        builder.switch_to_block(default_block);
+        builder.ins().trap(TrapCode::UnreachableCodeReached);
+    }
+
+    fn tail_call_continuation<M: Module>(m: &mut M, builder: &mut FunctionBuilder, inst: Inst) {
         let prepare_result_ptr = builder.inst_results(inst)[0];
         let continuation = builder.ins().load(I64, MemFlags::new(), prepare_result_ptr, 0);
         let new_base_address = builder.ins().load(I64, MemFlags::new(), prepare_result_ptr, 8);
@@ -310,21 +339,6 @@ impl BuiltinFunction {
         let cps_impl_sig = create_cps_impl_signature(m);
         let cps_impl_sig_ref = builder.import_signature(cps_impl_sig);
         builder.ins().return_call_indirect(cps_impl_sig_ref, continuation_impl, &[new_base_address, continuation, last_result_ptr]);
-
-        // dispose
-        builder.switch_to_block(dispose_block);
-        // TODO: implement dispose
-        let zero = builder.ins().iconst(I64, 0);
-        builder.ins().return_(&[zero]);
-
-        // replicate
-        builder.switch_to_block(replicate_block);
-        // TODO: implement replicate
-        builder.ins().return_(&[zero]);
-
-        // default
-        builder.switch_to_block(default_block);
-        builder.ins().trap(TrapCode::UnreachableCodeReached);
     }
 
     fn simple_handler_runner_impl<M: Module>(m: &mut M, builder: &mut FunctionBuilder) {
