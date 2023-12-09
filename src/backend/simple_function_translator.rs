@@ -386,7 +386,6 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
 
                 self.translate_handler(c_term, is_tail, trivial_continuation)
             }
-            CTerm::LongJump { .. } => todo!(),
         }
     }
 

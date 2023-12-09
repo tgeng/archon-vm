@@ -43,7 +43,6 @@ pub trait Transformer {
             CTerm::PrimitiveCall { .. } => self.transform_primitive_call(c_term),
             CTerm::OperationCall { .. } => self.transform_operation_call(c_term),
             CTerm::Handler { .. } => self.transform_handler(c_term),
-            CTerm::LongJump { .. } => self.transform_long_return(c_term),
         }
     }
 
@@ -158,10 +157,5 @@ pub trait Transformer {
             self.transform_v_term(handler);
         }
         self.transform_v_term(input);
-    }
-
-    fn transform_long_return(&mut self, c_term: &mut CTerm) {
-        let CTerm::LongJump { value } = c_term else { unreachable!() };
-        self.transform_v_term(value);
     }
 }

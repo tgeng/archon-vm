@@ -45,7 +45,6 @@ pub trait Visitor {
             CTerm::PrimitiveCall { .. } => self.visit_primitive_call(c_term, ctx),
             CTerm::OperationCall { .. } => self.visit_operation_call(c_term, ctx),
             CTerm::Handler { .. } => self.visit_handler(c_term, ctx),
-            CTerm::LongJump { .. } => self.visit_long_return(c_term, ctx),
         }
     }
 
@@ -140,10 +139,5 @@ pub trait Visitor {
             self.visit_v_term(handler, ctx);
         }
         self.visit_v_term(input, ctx);
-    }
-
-    fn visit_long_return(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
-        let CTerm::LongJump { value } = c_term else { unreachable!() };
-        self.visit_v_term(value, ctx);
     }
 }

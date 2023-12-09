@@ -112,12 +112,4 @@ pub enum CTerm {
         /// the transform continuation between this input and the parent term of this handler.
         input: VTerm,
     },
-
-    // Internal operations used during optimization and code generation.
-
-    /// This can only appear inside a simple operation implementation. It means that the operation
-    /// returns to the return address of the caller of the matching simple effect handler. This is
-    /// used to implement simple exceptional effects, where a normal return means good call result
-    /// and a long return means exceptional call result.
-    LongJump { value: VTerm },
 }
