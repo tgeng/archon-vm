@@ -232,7 +232,7 @@ unsafe fn prepare_simple_operation(
     let handler_impl_ptr = runtime_force_thunk(handler_impl, &mut tip_address);
 
     tip_address = tip_address.sub(1);
-    tip_address.write(matching_handler as usize);
+    tip_address.write(handler_index);
 
     tip_address = tip_address.sub(1);
     tip_address.write(handler_impl_ptr as usize);
@@ -243,13 +243,18 @@ unsafe fn prepare_simple_operation(
 /// Special function that may do long jump instead of normal return if the result is exceptional. If
 /// the result is exceptional. This function also takes care of disposing the handler parameters of
 /// all the evicted handlers.
-pub fn runtime_process_simple_handler_result(handler: &mut Handler<*const usize>, simple_result: &SimpleResult) -> Uniform {
-    handler.parameter = simple_result.handler_parameter;
-    // pop the simple handler entry marker
+pub fn runtime_process_simple_handler_result(handler_index: usize, simple_result: &SimpleResult) -> Uniform {
     HANDLERS.with(|handlers| {
         let mut handlers = handlers.borrow_mut();
-        let handler_entry = handlers.pop().unwrap();
-        assert!(matches!(handler_entry, SimpleOperationMarker { .. }));
+        match handlers.get_mut(handler_index).unwrap() {
+            HandlerEntry::Handler(handler) => {
+                handler.parameter = simple_result.handler_parameter;
+            }
+            _ => panic!("Expect a handler entry")
+        }
+        // pop the simple handler entry marker
+        let last_entry = handlers.pop().unwrap();
+        assert!(matches!(last_entry, SimpleOperationMarker { .. }));
     });
 
     // TODO: implement exceptional result handling

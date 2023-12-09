@@ -88,6 +88,9 @@ pub enum BuiltinFunction {
     /// argument to the actual transform function. The signature follows that of a normal CPS impl
     /// ((base address, current continuation, last result) -> final result).
     TransformLoaderCpsImpl,
+    /// Arguments: CPS function pointer, base address
+    /// Returns: result pointer, used to update the base address
+    InvokeCpsFunctionWithTrivialContinuation,
 }
 
 impl BuiltinFunction {
@@ -109,6 +112,7 @@ impl BuiltinFunction {
             BuiltinFunction::CapturedContinuationRecordImpl => "__runtime_captured_continuation_record_impl",
             BuiltinFunction::SimpleHandlerRunnerImpl => "__runtime_simple_handler_runner_impl",
             BuiltinFunction::TransformLoaderCpsImpl => "__runtime_transform_loader_cps_impl",
+            BuiltinFunction::InvokeCpsFunctionWithTrivialContinuation => "__runtime_invoke_cps_function"
         }
     }
 
@@ -130,6 +134,7 @@ impl BuiltinFunction {
             BuiltinFunction::CapturedContinuationRecordImpl => return,
             BuiltinFunction::SimpleHandlerRunnerImpl => return,
             BuiltinFunction::TransformLoaderCpsImpl => return,
+            BuiltinFunction::InvokeCpsFunctionWithTrivialContinuation => return,
         };
 
         builder.symbol(self.func_name(), func_ptr);
@@ -169,6 +174,7 @@ impl BuiltinFunction {
             BuiltinFunction::CapturedContinuationRecordImpl => declare_func_with_call_conv(m, 2, 1, Linkage::Local, CallConv::Tail),
             BuiltinFunction::SimpleHandlerRunnerImpl => declare_func_with_call_conv(m, 2, 1, Linkage::Local, CallConv::Tail),
             BuiltinFunction::TransformLoaderCpsImpl => declare_func_with_call_conv(m, 3, 1, Linkage::Local, CallConv::Tail),
+            BuiltinFunction::InvokeCpsFunctionWithTrivialContinuation => declare_func(2, 1, Linkage::Local),
         };
         (func_id, sig, linkage)
     }
@@ -188,6 +194,7 @@ impl BuiltinFunction {
             BuiltinFunction::CapturedContinuationRecordImpl => Self::captured_continuation_record_impl(m, &mut builder),
             BuiltinFunction::SimpleHandlerRunnerImpl => Self::simple_handler_runner_impl(m, &mut builder),
             BuiltinFunction::TransformLoaderCpsImpl => Self::transform_loader_cps_impl(m, &mut builder),
+            BuiltinFunction::InvokeCpsFunctionWithTrivialContinuation => Self::invoke_cps_function_with_trivial_continuation(m, &mut builder),
             _ => { unreachable!() }
         }
         builder.finalize();
@@ -330,7 +337,7 @@ impl BuiltinFunction {
         let next_continuation = builder.block_params(entry_block)[1];
 
         let handler_function_ptr = builder.ins().load(I64, MemFlags::new(), base_address, 0);
-        let matching_handler_object = builder.ins().load(I64, MemFlags::new(), base_address, 8);
+        let handler_index = builder.ins().load(I64, MemFlags::new(), base_address, 8);
 
         let inst = Self::call_built_in(m, builder, BuiltinFunction::GetTrivialContinuation, &[]);
         let trivial_continuation = builder.inst_results(inst)[0];
@@ -346,7 +353,7 @@ impl BuiltinFunction {
 
         let inst = Self::call_built_in(
             m, builder, BuiltinFunction::ProcessSimpleHandlerResult,
-            &[matching_handler_object, simple_handler_result_ptr]);
+            &[handler_index, simple_handler_result_ptr]);
         let result = builder.inst_results(inst)[0];
 
         let new_base_address = builder.ins().iadd_imm(result_ptr, 8);
@@ -406,6 +413,25 @@ impl BuiltinFunction {
         let sig = create_cps_signature(m);
         let sig_ref = builder.import_signature(sig);
         builder.ins().return_call_indirect(sig_ref, transform_ptr, &[tip_address, next_continuation]);
+    }
+
+    fn invoke_cps_function_with_trivial_continuation<M: Module>(m: &mut M, builder: &mut FunctionBuilder) {
+        let entry_block = builder.create_block();
+        builder.append_block_params_for_function_params(entry_block);
+        builder.switch_to_block(entry_block);
+        builder.seal_block(entry_block);
+
+        let func_ptr = builder.block_params(entry_block)[0];
+        let base_address = builder.block_params(entry_block)[1];
+
+        let inst = Self::call_built_in(m, builder, BuiltinFunction::GetTrivialContinuation, &[]);
+        let trivial_continuation = builder.inst_results(inst)[0];
+
+        let sig = create_cps_signature(m);
+        let sig_ref = builder.import_signature(sig);
+        let inst = builder.ins().call_indirect(sig_ref, func_ptr, &[base_address, trivial_continuation]);
+        let result_ptr = builder.inst_results(inst)[0];
+        builder.ins().return_(&[result_ptr]);
     }
 
     fn call_built_in<M: Module>(m: &mut M, builder: &mut FunctionBuilder, func: BuiltinFunction, args: &[Value]) -> Inst {
