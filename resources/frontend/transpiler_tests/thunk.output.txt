@@ -424,9 +424,9 @@ function u0:0(i64) -> i64 tail {
     fn0 = colocated u0:16 sig0
     fn1 = u0:0 sig1
     fn2 = colocated u0:19 sig2
-    fn3 = colocated u0:12 sig3
+    fn3 = colocated u0:11 sig3
     fn4 = u0:1 sig4
-    fn5 = colocated u0:12 sig6
+    fn5 = colocated u0:11 sig6
     fn6 = u0:1 sig7
 
 block0(v0: i64):
