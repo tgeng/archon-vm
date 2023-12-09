@@ -412,7 +412,7 @@ pub unsafe fn runtime_prepare_resume_continuation(
     // update the stack frame height of the next continuation.
     next_continuation.arg_stack_frame_height += TRANSFORM_LOADER_NUM_ARGS;
     let resume_continuation_num_args = 4;
-    next_continuation.arg_stack_frame_height -= resume_continuation_num_args;
+    // next_continuation.arg_stack_frame_height -= resume_continuation_num_args;
 
     // swallow the 4 arguments passed to the captured continuation record:
     // captured continuation object, field, handler parameter, and last result.

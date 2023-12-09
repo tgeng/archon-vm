@@ -131,22 +131,22 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
     fn translate_c_term_cps(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
         match c_term {
             CTerm::Force { thunk, may_have_complex_effects: true } if is_tail => {
-                let continuation = self.next_continuation;
-                let func_pointer = self.process_thunk(thunk, continuation);
+                let next_continuation = self.next_continuation;
+                let func_pointer = self.process_thunk(thunk);
 
                 let signature = self.uniform_cps_func_signature.clone();
                 let sig_ref = self.function_builder.import_signature(signature);
-                let new_base_address = compute_cps_tail_call_base_address(self, continuation);
+                let new_base_address = compute_cps_tail_call_base_address(self, next_continuation);
                 self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
-                    new_base_address, continuation,
+                    new_base_address, next_continuation,
                 ]);
                 None
             }
             CTerm::Def { name, may_have_complex_effects: true } if is_tail => {
                 let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
-                let continuation = self.next_continuation;
-                let new_base_address = compute_cps_tail_call_base_address(self, continuation);
-                self.function_builder.ins().return_call(func_ref, &[new_base_address, continuation]);
+                let next_continuation = self.next_continuation;
+                let new_base_address = compute_cps_tail_call_base_address(self, next_continuation);
+                self.function_builder.ins().return_call(func_ref, &[new_base_address, next_continuation]);
                 None
             }
             CTerm::OperationCall { eff, args, may_be_complex: true } if is_tail => {
@@ -388,7 +388,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
             }
             CTerm::Force { thunk, may_have_complex_effects: true } => {
                 let continuation = self.continuation;
-                let func_pointer = self.process_thunk(thunk, continuation);
+                let func_pointer = self.process_thunk(thunk);
 
                 let signature = self.uniform_cps_func_signature.clone();
                 let sig_ref = self.function_builder.import_signature(signature);

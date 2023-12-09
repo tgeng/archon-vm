@@ -451,7 +451,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
     }
 
     fn invoke_thunk(&mut self, is_tail: bool, thunk: &VTerm, next_continuation: Value) -> Option<TypedValue> {
-        let func_pointer = self.process_thunk(thunk, next_continuation);
+        let func_pointer = self.process_thunk(thunk);
 
         let sig_ref = self.function_builder.import_signature(self.uniform_cps_func_signature.clone());
         if is_tail && !self.is_specialized {
@@ -470,7 +470,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         }
     }
 
-    pub fn process_thunk(&mut self, thunk: &VTerm, next_continuation: Value) -> Value {
+    pub fn process_thunk(&mut self, thunk: &VTerm) -> Value {
         let thunk_value = self.translate_v_term(thunk);
         // We must change the thunk value to uniform representation because the built-in
         // force thunk function expects a uniform representation in order to tell a thunk from a raw
@@ -480,13 +480,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         let tip_address_ptr = self.store_tip_address_to_stack();
         let inst = self.call_builtin_func(BuiltinFunction::ForceThunk, &[thunk_value, tip_address_ptr]);
         let func_pointer = self.function_builder.inst_results(inst)[0];
-        let old_tip_address = self.tip_address;
         self.load_tip_address_from_stack();
-        let continuation_frame_height_delta_bytes = self.function_builder.ins().isub(old_tip_address, self.tip_address);
-        let continuation_frame_height_delta = self.function_builder.ins().ushr_imm(continuation_frame_height_delta_bytes, 3);
-        let continuation_frame_height = self.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 8);
-        let new_continuation_frame_height = self.function_builder.ins().iadd(continuation_frame_height, continuation_frame_height_delta);
-        self.function_builder.ins().store(MemFlags::new(), new_continuation_frame_height, next_continuation, 8);
         func_pointer
     }
 
