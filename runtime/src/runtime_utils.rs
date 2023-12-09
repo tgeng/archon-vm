@@ -9,6 +9,7 @@ thread_local!(
 );
 
 static mut EMPTY_STRUCT: usize = 0;
+const TRANSFORM_LOADER_NUM_ARGS: usize = 1;
 
 pub unsafe fn runtime_alloc(num_words: usize) -> *mut usize {
     if num_words == 0 {
@@ -136,10 +137,10 @@ unsafe fn prepare_complex_operation(
 
     // Update the next continuation to make it ready for calling the handler implementation
     // Plus 2 for handler parameter and reified continuation
-    (*next_continuation).arg_stack_frame_height += handler_num_args + 2 - matching_handler.transform_loader_num_args;
+    (*next_continuation).arg_stack_frame_height += handler_num_args + 2 - TRANSFORM_LOADER_NUM_ARGS;
 
     // Copy the stack fragment.
-    let stack_fragment_end = matching_handler.transform_loader_base_address.add(matching_handler.transform_loader_num_args);
+    let stack_fragment_end = matching_handler.transform_loader_base_address.add(TRANSFORM_LOADER_NUM_ARGS);
     let stack_fragment_start = handler_call_base_address.add(handler_num_args);
     let stack_fragment_length = stack_fragment_end.offset_from(stack_fragment_start);
     assert!(stack_fragment_length >= 0);
@@ -335,7 +336,6 @@ pub unsafe fn runtime_register_handler(
         handlers.borrow_mut().push(HandlerEntry::Handler(Handler {
             transform_loader_continuation,
             transform_loader_base_address: new_tip_address,
-            transform_loader_num_args,
             parameter,
             parameter_disposer,
             parameter_replicator,
@@ -377,8 +377,7 @@ pub unsafe fn runtime_prepare_resume_continuation(
     // Chain the base of the captured continuation to the next continuation, where we need to add
     // all the arguments for the handler transform function to the argument stack. Hence we need to
     // update the stack frame height of the next continuation.
-    // TODO: replace this with a constant since it's always 1.
-    next_continuation.arg_stack_frame_height += base_handler.transform_loader_num_args;
+    next_continuation.arg_stack_frame_height += TRANSFORM_LOADER_NUM_ARGS;
 
     // swallow the 4 arguments passed to the captured continuation record:
     // captured continuation object, field, handler parameter, and last result.
@@ -387,7 +386,7 @@ pub unsafe fn runtime_prepare_resume_continuation(
     // The argument to transform loader is the transform thunk, which is set in
     // `runtime_register_handler` and got captured in `runtime_prepare_complex_operation` inside the
     // stack fragment. So this value is restored in the loop right below this statement.
-    let transform_loader_base_address = base_address.sub(base_handler.transform_loader_num_args);
+    let transform_loader_base_address = base_address.sub(TRANSFORM_LOADER_NUM_ARGS);
     for arg in captured_continuation.stack_fragment.iter().rev() {
         base_address = base_address.sub(1);
         base_address.write(*arg);
@@ -402,7 +401,6 @@ pub unsafe fn runtime_prepare_resume_continuation(
             handlers.push(HandlerEntry::Handler(Handler {
                 transform_loader_base_address: transform_loader_base_address.sub(handler.transform_loader_base_address),
                 transform_loader_continuation: handler.transform_loader_continuation,
-                transform_loader_num_args: handler.transform_loader_num_args,
                 parameter: handler.parameter,
                 parameter_disposer: handler.parameter_disposer,
                 parameter_replicator: handler.parameter_replicator,

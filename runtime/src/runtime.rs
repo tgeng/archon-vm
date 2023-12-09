@@ -32,7 +32,6 @@ pub struct Continuation {
 pub struct Handler<T> {
     pub transform_loader_continuation: *mut Continuation,
     pub transform_loader_base_address: T,
-    pub transform_loader_num_args: usize,
     pub parameter: Uniform,
     pub parameter_disposer: ThunkPtr,
     pub parameter_replicator: ThunkPtr,
