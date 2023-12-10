@@ -39,10 +39,9 @@ pub enum UniformType {
 impl UniformType {
     pub fn from_bits(input: usize) -> UniformType {
         match input & UNIFORM_TAG_MASK {
-            0b000 => UniformType::Raw,
-            0b001 => UniformType::SPtr,
-            0b011 => UniformType::PPtr,
-            _ => unreachable!(),
+            0b01 => UniformType::SPtr,
+            0b11 => UniformType::PPtr,
+            _ => UniformType::Raw,
         }
     }
     pub fn to_uniform_sptr<T>(ptr: *const T) -> usize {
