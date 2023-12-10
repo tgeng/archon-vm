@@ -496,12 +496,11 @@ block0(v0: i64, v1: i64):
 [main$__lambda_3__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
-    sig0 = () -> i64 apple_aarch64
-    sig1 = (i64, i64) -> i64 apple_aarch64
-    sig2 = (i64, i64) -> i64 tail
-    sig3 = (i64, i64, i64) -> i64 tail
-    fn0 = colocated u0:12 sig0
-    fn1 = u0:1 sig1
+    sig0 = (i64, i64) -> i64 apple_aarch64
+    sig1 = (i64, i64) -> i64 tail
+    sig2 = (i64, i64, i64) -> i64 apple_aarch64
+    fn0 = u0:1 sig0
+    fn1 = %Memmove sig2
 
 block0(v0: i64, v1: i64):
     v2 = load.i64 v0
@@ -519,21 +518,20 @@ block0(v0: i64, v1: i64):
     store aligned v2, v12
     v13 = iadd_imm v12, -8
     store aligned v9, v13
-    v14 = call fn0()
     stack_store v13, ss0
-    v15 = stack_addr.i64 ss0
-    v16 = call fn1(v4, v15)
-    v17 = stack_load.i64 ss0
-    v18 = call_indirect sig2, v16(v17, v14)
-    v19 = load.i64 v18
-    v20 = iadd_imm v18, 8
-    v21 = iadd_imm v0, 16
-    store v19, v21
-    v22 = load.i64 v1+8
-    v23 = ishl_imm v22, 3
-    v24 = iadd v0, v23
-    v25 = load.i64 v1
-    return_call_indirect sig3, v25(v24, v1, v21)
+    v14 = stack_addr.i64 ss0
+    v15 = call fn0(v4, v14)
+    v16 = stack_load.i64 ss0
+    v17 = iadd_imm v16, 24
+    v18 = isub v0, v16
+    v19 = call fn1(v17, v16, v18)
+    v20 = load.i64 v1+8
+    v21 = ishl_imm v20, 3
+    v22 = iadd v0, v21
+    v23 = isub v22, v17
+    v24 = ushr_imm v23, 3
+    store v24, v1+8
+    return_call_indirect sig1, v15(v17, v1)
 }
 
 

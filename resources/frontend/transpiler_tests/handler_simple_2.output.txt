@@ -554,43 +554,36 @@ block0(v0: i64, v1: i64):
 [main$__lambda_4__cps]
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
-    sig0 = () -> i64 apple_aarch64
+    sig0 = (i64, i64) -> i64 tail
     sig1 = (i64, i64) -> i64 tail
-    sig2 = (i64, i64) -> i64 tail
-    sig3 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
-    sig4 = (i64, i64) -> i64 tail
-    sig5 = (i64, i64, i64) -> i64 tail
-    fn0 = colocated u0:12 sig0
-    fn1 = colocated u0:14 sig1
-    fn2 = colocated u0:16 sig2
-    fn3 = u0:4 sig3
+    sig2 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig3 = (i64, i64) -> i64 tail
+    fn0 = colocated u0:14 sig0
+    fn1 = colocated u0:16 sig1
+    fn2 = u0:4 sig2
 
 block0(v0: i64, v1: i64):
     v2 = iconst.i64 11
     v3 = ishl_imm v2, 1  ; v2 = 11
-    v4 = call fn0()
-    v5 = iconst.i64 5
-    v6 = ishl_imm v5, 1  ; v5 = 5
-    v7 = iadd_imm v0, -8
-    store aligned v6, v7
-    v8 = iconst.i64 1
-    v9 = func_addr.i64 fn1
-    v10 = func_addr.i64 fn2
-    v11 = iconst.i64 0
-    v12 = call fn3(v3, v7, v4, v8, v9, v10, v11)  ; v8 = 1, v11 = 0
-    v13 = load.i64 v12
-    v14 = load.i64 v12+8
-    v15 = load.i64 v12+16
-    v16 = call_indirect sig4, v13(v14, v15)
+    v4 = iconst.i64 5
+    v5 = ishl_imm v4, 1  ; v4 = 5
+    v6 = iadd_imm v0, -8
+    store aligned v5, v6
+    v7 = load.i64 v1+8
+    v8 = ishl_imm v7, 3
+    v9 = iadd v0, v8
+    v10 = isub v9, v6
+    v11 = ushr_imm v10, 3
+    store v11, v1+8
+    v12 = iconst.i64 1
+    v13 = func_addr.i64 fn0
+    v14 = func_addr.i64 fn1
+    v15 = iconst.i64 1
+    v16 = call fn2(v3, v6, v1, v12, v13, v14, v15)  ; v12 = 1, v15 = 1
     v17 = load.i64 v16
-    v18 = iadd_imm v16, 8
-    v19 = iadd_imm v0, -8
-    store v17, v19
-    v20 = load.i64 v1+8
-    v21 = ishl_imm v20, 3
-    v22 = iadd v0, v21
-    v23 = load.i64 v1
-    return_call_indirect sig5, v23(v22, v1, v19)
+    v18 = load.i64 v16+8
+    v19 = load.i64 v16+16
+    return_call_indirect sig3, v17(v18, v19)
 }
 
 

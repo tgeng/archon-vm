@@ -275,60 +275,13 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                     self.extract_return_value(inst)
                 }
             }
-            CTerm::CaseInt { t, result_type, branches, default_branch } => {
-                let branch_map: HashMap<_, _> = branches.iter().map(|(i, v)| (i, v)).collect();
-                let t_value = self.translate_v_term(t);
-                let t_value = self.convert_to_special(t_value, Integer);
-
-                // Create next block
-                let joining_block = self.function_builder.create_block();
-                let result_v_type = match result_type {
-                    CType::Default => &Uniform,
-                    CType::SpecializedF(vty) => vty,
-                };
-                let result_value_type = result_v_type.get_type();
-                // return value
-                self.function_builder.append_block_param(joining_block, result_value_type);
-                // tip address
-                self.function_builder.append_block_param(joining_block, I64);
-
-                // Create branch blocks
-                let mut branch_blocks = HashMap::new();
-                for (value, _) in branches.iter() {
-                    let branch_block = self.function_builder.create_block();
-                    branch_blocks.insert(*value, branch_block);
-                }
-
-                let default_block = self.function_builder.create_block();
-
-                // Create table jump
-                let mut branch_blocks: Vec<_> = branch_blocks.into_iter().collect();
-                branch_blocks.sort_by_key(|(k, _)| *k);
-                let mut switch = Switch::new();
-                for (value, branch_block) in branch_blocks.iter() {
-                    switch.set_entry(*value as u128, *branch_block);
-                }
-                switch.emit(&mut self.function_builder, t_value, default_block);
-
-                // Fill branch blocks
-                let start_tip_address = self.tip_address;
-                for (value, branch_block) in branch_blocks.into_iter() {
-                    self.tip_address = start_tip_address;
-                    let branch = branch_map.get(&value).unwrap();
-                    self.create_branch_block(branch_block, is_tail, joining_block, result_v_type, Some(branch));
-                }
-
-                self.tip_address = start_tip_address;
-                self.create_branch_block(default_block, is_tail, joining_block, result_v_type, match default_branch {
-                    None => None,
-                    Some(box branch) => Some(branch),
-                });
-
-                // Switch to joining block for future code generation
-                self.function_builder.seal_all_blocks();
-                self.function_builder.switch_to_block(joining_block);
-                self.tip_address = self.function_builder.block_params(joining_block)[1];
-                Some((self.function_builder.block_params(joining_block)[0], *result_v_type))
+            CTerm::CaseInt { .. } => {
+                let s = self as *mut SimpleFunctionTranslator<M>;
+                self.translate_case_int(c_term, is_tail, |c_term, is_tail| {
+                    unsafe {
+                        (*s).translate_c_term(c_term, is_tail)
+                    }
+                })
             }
             CTerm::Lambda { .. } => unreachable!("lambda should have been lifted away"),
             CTerm::MemGet { base, offset } => {
@@ -366,13 +319,9 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let eff_value = self.convert_to_uniform(eff_value);
                 let inst = self.call_builtin_func(BuiltinFunction::GetTrivialContinuation, &[]);
                 let trivial_continuation = self.function_builder.inst_results(inst)[0];
-                let use_tail_call = is_tail && !self.is_specialized;
                 self.push_arg_v_terms(args);
-                let new_base_address = if use_tail_call {
-                    self.copy_tail_call_args_and_get_new_base()
-                } else {
-                    self.tip_address
-                };
+                let use_tail_call = is_tail && !self.is_specialized;
+                let new_base_address = self.get_new_base_address(use_tail_call);
                 let inst = self.handle_operation_call(eff_value, new_base_address, trivial_continuation, args.len(), false, use_tail_call);
                 if use_tail_call {
                     None
@@ -383,13 +332,80 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             CTerm::Handler { .. } => {
                 let inst = self.call_builtin_func(BuiltinFunction::GetTrivialContinuation, &[]);
                 let trivial_continuation = self.function_builder.inst_results(inst)[0];
-
-                self.translate_handler(c_term, is_tail, trivial_continuation)
+                let use_tail_call = is_tail && !self.is_specialized;
+                let new_base_address = self.get_new_base_address(use_tail_call);
+                self.translate_handler(is_tail, c_term, new_base_address, trivial_continuation)
             }
         }
     }
 
-    pub fn translate_handler(&mut self, handler_c_term: &CTerm, is_tail: bool, next_continuation: Value) -> TypedReturnValue {
+    pub fn translate_case_int<F>(&mut self, c_term: &CTerm, is_tail: bool, mut translate_c_term: F) -> Option<TypedValue> where F: FnMut(&CTerm, bool) -> TypedReturnValue {
+        let CTerm::CaseInt { t, branches, default_branch, result_type } = c_term else { unreachable!() };
+        let branch_map: HashMap<_, _> = branches.iter().map(|(i, v)| (i, v)).collect();
+        let t_value = self.translate_v_term(t);
+        let t_value = self.convert_to_special(t_value, Integer);
+
+        // Create next block
+        let joining_block = self.function_builder.create_block();
+        let result_v_type = match result_type {
+            CType::Default => &Uniform,
+            CType::SpecializedF(vty) => vty,
+        };
+        let result_value_type = result_v_type.get_type();
+        // return value
+        self.function_builder.append_block_param(joining_block, result_value_type);
+        // tip address
+        self.function_builder.append_block_param(joining_block, I64);
+
+        // Create branch blocks
+        let mut branch_blocks = HashMap::new();
+        for (value, _) in branches.iter() {
+            let branch_block = self.function_builder.create_block();
+            branch_blocks.insert(*value, branch_block);
+        }
+
+        let default_block = self.function_builder.create_block();
+
+        // Create table jump
+        let mut branch_blocks: Vec<_> = branch_blocks.into_iter().collect();
+        branch_blocks.sort_by_key(|(k, _)| *k);
+        let mut switch = Switch::new();
+        for (value, branch_block) in branch_blocks.iter() {
+            switch.set_entry(*value as u128, *branch_block);
+        }
+        switch.emit(&mut self.function_builder, t_value, default_block);
+
+        // Fill branch blocks
+        let start_tip_address = self.tip_address;
+        for (value, branch_block) in branch_blocks.into_iter() {
+            self.tip_address = start_tip_address;
+            let branch = branch_map.get(&value).unwrap();
+            self.create_branch_block(branch_block, is_tail, joining_block, result_v_type, Some(branch), &mut translate_c_term);
+        }
+
+        self.tip_address = start_tip_address;
+        self.create_branch_block(default_block, is_tail, joining_block, result_v_type, match default_branch {
+            None => None,
+            Some(box branch) => Some(branch),
+        }, translate_c_term);
+
+        // Switch to joining block for future code generation
+        self.function_builder.seal_all_blocks();
+        self.function_builder.switch_to_block(joining_block);
+        self.tip_address = self.function_builder.block_params(joining_block)[1];
+        Some((self.function_builder.block_params(joining_block)[0], *result_v_type))
+    }
+
+    fn get_new_base_address(&mut self, use_tail_call: bool) -> Value {
+        let new_base_address = if use_tail_call {
+            self.copy_tail_call_args_and_get_new_base()
+        } else {
+            self.tip_address
+        };
+        new_base_address
+    }
+
+    pub fn translate_handler(&mut self, is_tail: bool, handler_c_term: &CTerm, new_base_address: Value, next_continuation: Value) -> TypedReturnValue {
         let CTerm::Handler {
             parameter,
             parameter_disposer,
@@ -437,7 +453,21 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
 
         // The transform loader continuation is the first value inside the handler struct.
         let transform_loader_continuation = self.function_builder.ins().load(I64, MemFlags::new(), handler, 0);
-        self.invoke_thunk(is_tail, input, transform_loader_continuation)
+        let input_thunk_func_ptr = self.process_thunk(input);
+        let sig_ref = self.function_builder.import_signature(self.uniform_cps_func_signature.clone());
+        if is_tail && !self.is_specialized {
+            self.function_builder.ins().return_call_indirect(sig_ref, input_thunk_func_ptr, &[
+                new_base_address,
+                transform_loader_continuation,
+            ]);
+            None
+        } else {
+            let inst = self.function_builder.ins().call_indirect(sig_ref, input_thunk_func_ptr, &[
+                self.tip_address,
+                transform_loader_continuation,
+            ]);
+            self.extract_return_value(inst)
+        }
     }
 
     fn add_handlers(&mut self, handler: Value, add_handler_func_ref: FuncRef, handler_impls: &Vec<(VTerm, VTerm)>) {
@@ -504,14 +534,14 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         self.push_args(arg_values);
     }
 
-    fn create_branch_block(&mut self, branch_block: Block, is_tail: bool, joining_block: Block, result_v_type: &VType, branch: Option<&CTerm>) {
+    fn create_branch_block<F>(&mut self, branch_block: Block, is_tail: bool, joining_block: Block, result_v_type: &VType, branch: Option<&CTerm>, mut translate_c_term: F) where F: FnMut(&CTerm, bool) -> TypedReturnValue {
         self.function_builder.switch_to_block(branch_block);
         let typed_return_value = match branch {
             None => {
                 self.function_builder.ins().trap(TrapCode::UnreachableCodeReached);
                 None
             }
-            Some(branch) => self.translate_c_term(branch, is_tail),
+            Some(branch) => translate_c_term(branch, is_tail),
         };
         match typed_return_value {
             None => {

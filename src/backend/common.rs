@@ -239,8 +239,9 @@ impl BuiltinFunction {
         let impl_func_ptr = Self::get_built_in_func_ptr(m, builder, BuiltinFunction::TrivialContinuationImpl);
         builder.ins().store(MemFlags::new(), impl_func_ptr, continuation_ptr, 0);
 
-        // second word is the frame height, whose value does not matter.
-        let frame_height = builder.ins().iconst(I64, 0);
+        // second word is the frame height, whose value does not matter. But we set it to a large
+        // value so that it won't overflow or underflow easily.
+        let frame_height = builder.ins().iconst(I64, i64::MAX);
         builder.ins().store(MemFlags::new(), frame_height, continuation_ptr, 8);
 
         // return the pointer to the continuation object

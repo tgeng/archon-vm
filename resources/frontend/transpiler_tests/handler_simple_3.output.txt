@@ -962,12 +962,10 @@ function u0:0(i64, i64) -> i64 tail {
     sig12 = (i64, i64) -> i64 tail
     sig13 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
     sig14 = (i64, i64) -> i64 tail
-    sig15 = () -> i64 apple_aarch64
+    sig15 = (i64, i64) -> i64 tail
     sig16 = (i64, i64) -> i64 tail
-    sig17 = (i64, i64) -> i64 tail
-    sig18 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
-    sig19 = (i64, i64) -> i64 tail
-    sig20 = (i64, i64, i64) -> i64 tail
+    sig17 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig18 = (i64, i64) -> i64 tail
     fn0 = colocated u0:12 sig0
     fn1 = colocated u0:14 sig1
     fn2 = colocated u0:16 sig2
@@ -980,10 +978,9 @@ function u0:0(i64, i64) -> i64 tail {
     fn9 = colocated u0:14 sig11
     fn10 = colocated u0:16 sig12
     fn11 = u0:4 sig13
-    fn12 = colocated u0:12 sig15
-    fn13 = colocated u0:14 sig16
-    fn14 = colocated u0:16 sig17
-    fn15 = u0:4 sig18
+    fn12 = colocated u0:14 sig15
+    fn13 = colocated u0:16 sig16
+    fn14 = u0:4 sig17
 
 block0(v0: i64, v1: i64):
     v2 = symbol_value.i64 gv0
@@ -1046,25 +1043,21 @@ block0(v0: i64, v1: i64):
     v56 = symbol_value.i64 gv3
     v57 = iadd_imm v56, 8
     v58 = iadd_imm v57, 3
-    v59 = call fn12()
-    v60 = iconst.i64 0
-    v61 = func_addr.i64 fn13
-    v62 = func_addr.i64 fn14
-    v63 = iconst.i64 0
-    v64 = call fn15(v58, v55, v59, v60, v61, v62, v63)  ; v60 = 0, v63 = 0
-    v65 = load.i64 v64
-    v66 = load.i64 v64+8
-    v67 = load.i64 v64+16
-    v68 = call_indirect sig19, v65(v66, v67)
+    v59 = load.i64 v1+8
+    v60 = ishl_imm v59, 3
+    v61 = iadd v0, v60
+    v62 = isub v61, v55
+    v63 = ushr_imm v62, 3
+    store v63, v1+8
+    v64 = iconst.i64 0
+    v65 = func_addr.i64 fn12
+    v66 = func_addr.i64 fn13
+    v67 = iconst.i64 1
+    v68 = call fn14(v58, v55, v1, v64, v65, v66, v67)  ; v64 = 0, v67 = 1
     v69 = load.i64 v68
-    v70 = iadd_imm v68, 8
-    v71 = iadd_imm v0, -8
-    store v69, v71
-    v72 = load.i64 v1+8
-    v73 = ishl_imm v72, 3
-    v74 = iadd v0, v73
-    v75 = load.i64 v1
-    return_call_indirect sig20, v75(v74, v1, v71)
+    v70 = load.i64 v68+8
+    v71 = load.i64 v68+16
+    return_call_indirect sig18, v69(v70, v71)
 }
 
 
