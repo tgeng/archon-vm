@@ -240,8 +240,11 @@ impl BuiltinFunction {
         builder.ins().store(MemFlags::new(), impl_func_ptr, continuation_ptr, 0);
 
         // second word is the frame height, whose value does not matter. But we set it to a large
-        // value so that it won't overflow or underflow easily.
-        let frame_height = builder.ins().iconst(I64, i64::MAX);
+        // value so that it won't overflow or underflow easily (this only matters for debug build,
+        // where it panics when arithmetics overflows or underflows). Note that we can't go too
+        // close to the maximum value of I64 because we often shifts the frame height by 3 bits to
+        // the right to get the size in bytes for computation.
+        let frame_height = builder.ins().iconst(I64, 1 << 59);
         builder.ins().store(MemFlags::new(), frame_height, continuation_ptr, 8);
 
         // return the pointer to the continuation object

@@ -81,7 +81,7 @@ Handler {
                             name: "cont",
                             may_have_complex_effects: false,
                         },
-                        may_have_complex_effects: false,
+                        may_have_complex_effects: true,
                     },
                     args: [
                         Int {
@@ -109,7 +109,7 @@ Handler {
                         },
                     ],
                 },
-                may_have_complex_effects: false,
+                may_have_complex_effects: true,
             },
         ),
     ],
@@ -179,7 +179,7 @@ Defs
                             t: Redex {
                                 function: Def {
                                     name: "main$__lambda_3",
-                                    may_have_complex_effects: false,
+                                    may_have_complex_effects: true,
                                 },
                                 args: [],
                             },
@@ -319,7 +319,7 @@ Defs
                         thunk: Var {
                             index: 2,
                         },
-                        may_have_complex_effects: false,
+                        may_have_complex_effects: true,
                     },
                     args: [
                         Int {
