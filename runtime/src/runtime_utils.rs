@@ -67,12 +67,13 @@ pub unsafe fn runtime_alloc_stack() -> *mut usize {
     std::mem::forget(vec);
     let stack_end = start.add(stack_size);
     // write magic word for debugging
-    stack_end.write(0xDEADBEEFEFBEADDE);
-    stack_end.sub(1)
+    let last_word = stack_end.sub(1);
+    last_word.write(0xDEADBEEFEFBEADDE);
+    last_word
 }
 
 /// Returns the result of the operation in uniform representation
-pub unsafe fn debug_helper(base_address: *const usize, current_continuation: *const usize, last_result: *const usize) -> usize {
+pub unsafe fn debug_helper(base_address: *const usize, next_continuation: *const usize, tip_address: *const usize) -> usize {
     return 1 + 1;
 }
 
