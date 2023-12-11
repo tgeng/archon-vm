@@ -136,17 +136,19 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
 
                 let signature = self.uniform_cps_func_signature.clone();
                 let sig_ref = self.function_builder.import_signature(signature);
-                let new_base_address = compute_cps_tail_call_base_address(self, next_continuation);
+                compute_cps_tail_call_base_address(self, next_continuation);
+                let tip_address = self.tip_address;
                 self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
-                    new_base_address, next_continuation,
+                    tip_address, next_continuation,
                 ]);
                 None
             }
             CTerm::Def { name, .. } if is_tail => {
                 let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
                 let next_continuation = self.next_continuation;
-                let new_base_address = compute_cps_tail_call_base_address(self, next_continuation);
-                self.function_builder.ins().return_call(func_ref, &[new_base_address, next_continuation]);
+                compute_cps_tail_call_base_address(self, next_continuation);
+                let tip_address = self.tip_address;
+                self.function_builder.ins().return_call(func_ref, &[tip_address, next_continuation]);
                 None
             }
             CTerm::CaseInt { .. } => {
@@ -162,8 +164,8 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);
                 let next_continuation = self.next_continuation;
-                let new_base_address = compute_cps_tail_call_base_address(self, next_continuation);
-                self.handle_operation_call(eff_value, new_base_address, next_continuation, args.len(), true, true);
+                compute_cps_tail_call_base_address(self, next_continuation);
+                self.handle_operation_call(eff_value, next_continuation, args.len(), true, true);
                 None
             }
             CTerm::Redex { box function, args } => {
@@ -177,8 +179,8 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
             }
             CTerm::Handler { .. } if is_tail => {
                 let next_continuation = self.next_continuation;
-                let new_base_address = compute_cps_tail_call_base_address(self, next_continuation);
-                self.translate_handler(is_tail, c_term, new_base_address, next_continuation)
+                compute_cps_tail_call_base_address(self, next_continuation);
+                self.translate_handler(is_tail, c_term, next_continuation)
             }
             // Don't use tail call because we need to pass the result to the next continuation.
             // TODO[P2]: there should be some way to avoid creating a trivial continuation for tail
@@ -415,9 +417,10 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 let signature = self.uniform_cps_func_signature.clone();
                 let sig_ref = self.function_builder.import_signature(signature);
                 if is_tail {
-                    let (new_base_address, next_continuation) = self.adjust_next_continuation_frame_height(continuation);
+                    let next_continuation = self.adjust_next_continuation_frame_height(continuation);
+                    let tip_address = self.tip_address;
                     self.function_builder.ins().return_call_indirect(sig_ref, func_pointer, &[
-                        new_base_address, next_continuation,
+                        tip_address, next_continuation,
                     ]);
                     None
                 } else {
@@ -439,8 +442,9 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
             CTerm::Def { name, may_have_complex_effects: true } => {
                 let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
                 if is_tail {
-                    let (new_base_address, next_continuation) = self.adjust_next_continuation_frame_height(self.continuation);
-                    self.function_builder.ins().return_call(func_ref, &[new_base_address, next_continuation]);
+                    let next_continuation = self.adjust_next_continuation_frame_height(self.continuation);
+                    let tip_address = self.tip_address;
+                    self.function_builder.ins().return_call(func_ref, &[tip_address, next_continuation]);
                     None
                 } else {
                     self.pack_up_continuation();
@@ -501,14 +505,14 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);
-                let (new_base_address, continuation) = if is_tail {
+                let continuation = if is_tail {
                     self.adjust_next_continuation_frame_height(self.continuation)
                 } else {
                     self.pack_up_continuation();
-                    (self.tip_address, self.continuation)
+                    self.continuation
                 };
 
-                self.handle_operation_call(eff_value, new_base_address, continuation, args.len(), true, true);
+                self.handle_operation_call(eff_value, continuation, args.len(), true, true);
                 if is_tail {
                     None
                 } else {
@@ -516,24 +520,23 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 }
             }
             CTerm::Handler { .. } => {
-                let (new_base_address, continuation) = if is_tail {
+                let continuation = if is_tail {
                     self.adjust_next_continuation_frame_height(self.continuation)
                 } else {
                     self.pack_up_continuation();
-                    (self.tip_address, self.continuation)
+                    self.continuation
                 };
-                self.translate_handler(is_tail, c_term, new_base_address, continuation)
+                self.translate_handler(is_tail, c_term, continuation)
             }
             // Don't use tail call because we need to pass the result to the next continuation.
             _ => self.translate_c_term(c_term, false),
         }
     }
 
-    fn adjust_next_continuation_frame_height(&mut self, continuation: Value) -> (Value, Value) {
+    fn adjust_next_continuation_frame_height(&mut self, continuation: Value) -> Value {
         let next_continuation = self.function_builder.ins().load(I64, MemFlags::new(), continuation, 16);
-
-        let new_base_address = compute_cps_tail_call_base_address(self, next_continuation);
-        (new_base_address, next_continuation)
+        compute_cps_tail_call_base_address(self, next_continuation);
+        next_continuation
     }
 
     fn create_branch_block(&mut self, branch_block: Block, is_tail: bool, joining_block: Block, result_v_type: &VType, branch: Option<&CTerm>) {
@@ -605,7 +608,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
     }
 }
 
-fn compute_cps_tail_call_base_address<M: Module>(translator: &mut SimpleFunctionTranslator<M>, next_continuation: Value) -> Value {
+fn compute_cps_tail_call_base_address<M: Module>(translator: &mut SimpleFunctionTranslator<M>, next_continuation: Value) {
     // accommodate the height of the next continuation is updated here because tail
     // call causes the next continuation to be directly passed to the callee, which,
     // when later invokes the next continuation, will need to compute the base
@@ -619,7 +622,7 @@ fn compute_cps_tail_call_base_address<M: Module>(translator: &mut SimpleFunction
     let new_next_continuation_height_bytes = translator.function_builder.ins().isub(next_continuation_base, new_base_address);
     let new_next_continuation_height = translator.function_builder.ins().ushr_imm(new_next_continuation_height_bytes, 3);
     translator.function_builder.ins().store(MemFlags::new(), new_next_continuation_height, next_continuation, 8);
-    new_base_address
+    translator.tip_address = new_base_address;
 }
 
 fn invoke_next_continuation_in_the_end<M: Module>(translator: &mut SimpleFunctionTranslator<M>, return_address: Value, next_continuation: Value) {

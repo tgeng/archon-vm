@@ -65,11 +65,14 @@ pub unsafe fn runtime_alloc_stack() -> *mut usize {
     let mut vec: Vec<usize> = Vec::with_capacity(stack_size);
     let start: *mut usize = vec.as_mut_ptr();
     std::mem::forget(vec);
-    start.add(stack_size)
+    let stack_end = start.add(stack_size);
+    // write magic word for debugging
+    stack_end.write(0xDEADBEEFEFBEADDE);
+    stack_end.sub(1)
 }
 
 /// Returns the result of the operation in uniform representation
-pub unsafe fn debug_helper(base_address: *const usize, tip_address: *const usize, tip_address2: *const usize) -> usize {
+pub unsafe fn debug_helper(base_address: *const usize, current_continuation: *const usize, last_result: *const usize) -> usize {
     return 1 + 1;
 }
 

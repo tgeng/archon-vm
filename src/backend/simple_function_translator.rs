@@ -321,8 +321,8 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 let trivial_continuation = self.function_builder.inst_results(inst)[0];
                 self.push_arg_v_terms(args);
                 let use_tail_call = is_tail && !self.is_specialized;
-                let new_base_address = self.get_new_base_address(use_tail_call);
-                let inst = self.handle_operation_call(eff_value, new_base_address, trivial_continuation, args.len(), false, use_tail_call);
+                self.update_tip_address(use_tail_call);
+                let inst = self.handle_operation_call(eff_value, trivial_continuation, args.len(), false, use_tail_call);
                 if use_tail_call {
                     None
                 } else {
@@ -332,9 +332,8 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             CTerm::Handler { .. } => {
                 let inst = self.call_builtin_func(BuiltinFunction::GetTrivialContinuation, &[]);
                 let trivial_continuation = self.function_builder.inst_results(inst)[0];
-                let use_tail_call = is_tail && !self.is_specialized;
-                let new_base_address = self.get_new_base_address(use_tail_call);
-                self.translate_handler(is_tail, c_term, new_base_address, trivial_continuation)
+                self.update_tip_address(is_tail && !self.is_specialized);
+                self.translate_handler(is_tail, c_term, trivial_continuation)
             }
         }
     }
@@ -396,16 +395,13 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         Some((self.function_builder.block_params(joining_block)[0], *result_v_type))
     }
 
-    fn get_new_base_address(&mut self, use_tail_call: bool) -> Value {
-        let new_base_address = if use_tail_call {
-            self.copy_tail_call_args_and_get_new_base()
-        } else {
-            self.tip_address
-        };
-        new_base_address
+    fn update_tip_address(&mut self, use_tail_call: bool) {
+        if use_tail_call {
+            self.tip_address = self.copy_tail_call_args_and_get_new_base()
+        }
     }
 
-    pub fn translate_handler(&mut self, is_tail: bool, handler_c_term: &CTerm, new_base_address: Value, next_continuation: Value) -> TypedReturnValue {
+    pub fn translate_handler(&mut self, is_tail: bool, handler_c_term: &CTerm, next_continuation: Value) -> TypedReturnValue {
         let CTerm::Handler {
             parameter,
             parameter_disposer,
@@ -429,7 +425,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         );
         let transform_loader_cps_impl_func_ptr = self.function_builder.ins().func_addr(I64, transform_loader_cps_impl_func_ref);
         let tip_address_ptr = self.store_tip_address_to_stack();
-        let inst = self.call_builtin_func(BuiltinFunction::RegisterHandlerAndGetTransformContinuation, &[
+        let inst = self.call_builtin_func(BuiltinFunction::RegisterHandler, &[
             tip_address_ptr,
             next_continuation,
             parameter_value,
@@ -457,7 +453,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         let sig_ref = self.function_builder.import_signature(self.uniform_cps_func_signature.clone());
         if is_tail && !self.is_specialized {
             self.function_builder.ins().return_call_indirect(sig_ref, input_thunk_func_ptr, &[
-                new_base_address,
+                self.tip_address,
                 transform_loader_continuation,
             ]);
             None
@@ -773,7 +769,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         });
     }
 
-    pub fn handle_operation_call(&mut self, eff_value: Value, new_base_address: Value, continuation: Value, num_args: usize, may_be_complex: bool, use_return_call: bool) -> Inst {
+    pub fn handle_operation_call(&mut self, eff_value: Value, continuation: Value, num_args: usize, may_be_complex: bool, use_return_call: bool) -> Inst {
         let num_args_value = self.function_builder.ins().iconst(I64, num_args as i64);
         let captured_continuation_record_impl_ref = self.module.declare_func_in_func(self.builtin_functions[BuiltinFunction::CapturedContinuationRecordImpl], self.function_builder.func);
         let captured_continuation_record_impl_ptr = self.function_builder.ins().func_addr(I64, captured_continuation_record_impl_ref);
@@ -782,7 +778,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         let may_be_complex_value = self.function_builder.ins().iconst(I64, may_be_complex as i64);
         let inst = self.call_builtin_func(
             BuiltinFunction::PrepareOperation,
-            &[eff_value, new_base_address, continuation, num_args_value, captured_continuation_record_impl_ptr, simple_handler_runner_impl_ptr, may_be_complex_value],
+            &[eff_value, self.tip_address, continuation, num_args_value, captured_continuation_record_impl_ptr, simple_handler_runner_impl_ptr, may_be_complex_value],
         );
         let result_ptr = self.function_builder.inst_results(inst)[0];
         let handler_impl = self.function_builder.ins().load(I64, MemFlags::new(), result_ptr, 0);

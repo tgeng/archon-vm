@@ -59,7 +59,7 @@ pub enum BuiltinFunction {
     DebugHelper,
     PrepareOperation,
     PopHandler,
-    RegisterHandlerAndGetTransformContinuation,
+    RegisterHandler,
     AddSimpleHandler,
     AddComplexHandler,
     PrepareResumeContinuation,
@@ -103,7 +103,7 @@ impl BuiltinFunction {
             BuiltinFunction::AllocStack => "__runtime_alloc_stack__",
             BuiltinFunction::PrepareOperation => "__runtime_prepare_complex_operation",
             BuiltinFunction::PopHandler => "__runtime_pop_handler",
-            BuiltinFunction::RegisterHandlerAndGetTransformContinuation => "__runtime_register_handler_and_get_transform_continuation",
+            BuiltinFunction::RegisterHandler => "__runtime_register_handler",
             BuiltinFunction::AddSimpleHandler => "__runtime_add_simple_handler",
             BuiltinFunction::AddComplexHandler => "__runtime_add_complex_handler",
             BuiltinFunction::PrepareResumeContinuation => "__runtime_prepare_resume_continuation",
@@ -126,7 +126,7 @@ impl BuiltinFunction {
             BuiltinFunction::AllocStack => runtime_alloc_stack as *const u8,
             BuiltinFunction::PrepareOperation => runtime_prepare_operation as *const u8,
             BuiltinFunction::PopHandler => runtime_pop_handler as *const u8,
-            BuiltinFunction::RegisterHandlerAndGetTransformContinuation => runtime_register_handler as *const u8,
+            BuiltinFunction::RegisterHandler => runtime_register_handler as *const u8,
             BuiltinFunction::AddSimpleHandler => runtime_add_simple_handler as *const u8,
             BuiltinFunction::AddComplexHandler => runtime_add_complex_handler as *const u8,
             BuiltinFunction::PrepareResumeContinuation => runtime_prepare_resume_continuation as *const u8,
@@ -167,7 +167,7 @@ impl BuiltinFunction {
             BuiltinFunction::AllocStack => declare_func(0, 1, Linkage::Import),
             BuiltinFunction::PrepareOperation => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::PopHandler => declare_func(0, 1, Linkage::Import),
-            BuiltinFunction::RegisterHandlerAndGetTransformContinuation => declare_func(7, 1, Linkage::Import),
+            BuiltinFunction::RegisterHandler => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::AddSimpleHandler => declare_func(3, 0, Linkage::Import),
             BuiltinFunction::AddComplexHandler => declare_func(3, 0, Linkage::Import),
             BuiltinFunction::PrepareResumeContinuation => declare_func(5, 1, Linkage::Import),
@@ -393,6 +393,8 @@ impl BuiltinFunction {
         let current_continuation = builder.block_params(entry_block)[1];
         let last_result_ptr = builder.block_params(entry_block)[2];
         let last_result = builder.ins().load(I64, MemFlags::new(), last_result_ptr, 0);
+
+        Self::call_built_in(m, builder, BuiltinFunction::DebugHelper, &[base_address, current_continuation, last_result_ptr]);
 
         // transform thunk is set on the argument stack by `runtime_register_handler` when it
         // creates the transform loader continuation.
