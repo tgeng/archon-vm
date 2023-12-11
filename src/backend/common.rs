@@ -418,7 +418,6 @@ impl BuiltinFunction {
 
         let next_continuation = builder.ins().load(I64, MemFlags::new(), current_continuation, 16);
 
-        Self::call_built_in(m, builder, BuiltinFunction::DebugHelper, &[base_address, next_continuation, tip_address]);
         // update frame height of the next continuation to account for the transform arguments
         // pushed to the stack
         let next_continuation_frame_height = builder.ins().load(I64, MemFlags::new(), next_continuation, 8);
