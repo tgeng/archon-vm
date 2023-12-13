@@ -277,6 +277,7 @@ impl BuiltinFunction {
         let next_continuation = builder.block_params(entry_block)[1];
         let captured_continuation = builder.ins().load(I64, MemFlags::new(), base_address, 0);
         let captured_continuation = builder.ins().iadd_imm(captured_continuation, -0b01); // untag SPtr
+
         // Field is the field of the captured continuation record. Background: a captured
         // continuation is represented as a record in the core type theory. There are three fields:
         // resume, dispose, and replicate. Since records are compiled to function with integer input
@@ -285,7 +286,7 @@ impl BuiltinFunction {
         let field = builder.ins().load(I64, MemFlags::new(), base_address, 8);
         // The field is a tagged integer, so we need to shift it to the right by one to get the
         // actual value.
-        let field = builder.ins().sshr_imm(field, 1);
+        let field = builder.ins().ushr_imm(field, 1);
         // All three actions assume that there is a handler parameter argument
         let handler_parameter = builder.ins().load(I64, MemFlags::new(), base_address, 16);
 
@@ -293,9 +294,9 @@ impl BuiltinFunction {
         let resume_block = builder.create_block();
         switch.set_entry(0, resume_block);
         let dispose_block = builder.create_block();
-        switch.set_entry(1, resume_block);
+        switch.set_entry(1, dispose_block);
         let replicate_block = builder.create_block();
-        switch.set_entry(2, resume_block);
+        switch.set_entry(2, replicate_block);
         let default_block = builder.create_block();
         switch.emit(builder, field, default_block);
 

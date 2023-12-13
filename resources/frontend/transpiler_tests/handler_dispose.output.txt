@@ -1,0 +1,1246 @@
+FTerm
+========
+Handler {
+    parameter: Int {
+        value: 0,
+    },
+    parameter_disposer: Lambda {
+        arg_names: [
+            (
+                "_",
+                Uniform,
+            ),
+        ],
+        body: Struct {
+            values: [],
+        },
+        may_have_complex_effects: false,
+    },
+    parameter_replicator: Lambda {
+        arg_names: [
+            (
+                "p",
+                Uniform,
+            ),
+        ],
+        body: Struct {
+            values: [
+                Identifier {
+                    name: "p",
+                    may_have_complex_effects: false,
+                },
+                Identifier {
+                    name: "p",
+                    may_have_complex_effects: false,
+                },
+            ],
+        },
+        may_have_complex_effects: false,
+    },
+    transform: Lambda {
+        arg_names: [
+            (
+                "p",
+                Uniform,
+            ),
+            (
+                "r",
+                Uniform,
+            ),
+        ],
+        body: Identifier {
+            name: "r",
+            may_have_complex_effects: false,
+        },
+        may_have_complex_effects: false,
+    },
+    simple_handlers: [
+        (
+            Str {
+                value: "get",
+            },
+            Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                ],
+                body: Struct {
+                    values: [
+                        Identifier {
+                            name: "p",
+                            may_have_complex_effects: false,
+                        },
+                        Struct {
+                            values: [
+                                Int {
+                                    value: 0,
+                                },
+                                Identifier {
+                                    name: "p",
+                                    may_have_complex_effects: false,
+                                },
+                            ],
+                        },
+                    ],
+                },
+                may_have_complex_effects: false,
+            },
+        ),
+        (
+            Str {
+                value: "set",
+            },
+            Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                    (
+                        "x",
+                        Uniform,
+                    ),
+                ],
+                body: Struct {
+                    values: [
+                        Identifier {
+                            name: "x",
+                            may_have_complex_effects: false,
+                        },
+                        Struct {
+                            values: [
+                                Int {
+                                    value: 0,
+                                },
+                                Struct {
+                                    values: [],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                may_have_complex_effects: false,
+            },
+        ),
+    ],
+    complex_handlers: [],
+    input: Thunk {
+        computation: Handler {
+            parameter: Int {
+                value: 5,
+            },
+            parameter_disposer: Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                ],
+                body: OperationCall {
+                    eff: Str {
+                        value: "set",
+                    },
+                    args: [
+                        Identifier {
+                            name: "p",
+                            may_have_complex_effects: false,
+                        },
+                    ],
+                    may_be_complex: false,
+                },
+                may_have_complex_effects: false,
+            },
+            parameter_replicator: Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                ],
+                body: Struct {
+                    values: [
+                        Identifier {
+                            name: "p",
+                            may_have_complex_effects: false,
+                        },
+                        Identifier {
+                            name: "p",
+                            may_have_complex_effects: false,
+                        },
+                    ],
+                },
+                may_have_complex_effects: false,
+            },
+            transform: Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                    (
+                        "r",
+                        Uniform,
+                    ),
+                ],
+                body: Identifier {
+                    name: "r",
+                    may_have_complex_effects: false,
+                },
+                may_have_complex_effects: false,
+            },
+            simple_handlers: [],
+            complex_handlers: [
+                (
+                    Str {
+                        value: "exp",
+                    },
+                    Lambda {
+                        arg_names: [
+                            (
+                                "p",
+                                Uniform,
+                            ),
+                            (
+                                "cont",
+                                Uniform,
+                            ),
+                        ],
+                        body: Let {
+                            name: "_",
+                            t: Redex {
+                                function: Force {
+                                    thunk: Identifier {
+                                        name: "cont",
+                                        may_have_complex_effects: false,
+                                    },
+                                    may_have_complex_effects: false,
+                                },
+                                args: [
+                                    Int {
+                                        value: 1,
+                                    },
+                                    Identifier {
+                                        name: "p",
+                                        may_have_complex_effects: false,
+                                    },
+                                ],
+                            },
+                            body: OperationCall {
+                                eff: Str {
+                                    value: "get",
+                                },
+                                args: [],
+                                may_be_complex: false,
+                            },
+                        },
+                        may_have_complex_effects: false,
+                    },
+                ),
+            ],
+            input: Thunk {
+                computation: Let {
+                    name: "_",
+                    t: OperationCall {
+                        eff: Str {
+                            value: "exp",
+                        },
+                        args: [],
+                        may_be_complex: true,
+                    },
+                    body: Int {
+                        value: 1,
+                    },
+                },
+                may_have_complex_effects: true,
+            },
+        },
+        may_have_complex_effects: false,
+    },
+}
+
+Defs
+========
+[
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Handler {
+                parameter: Int {
+                    value: 0,
+                },
+                parameter_disposer: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "main$__lambda_0",
+                            may_have_complex_effects: false,
+                        },
+                        args: [],
+                    },
+                    may_have_complex_effects: true,
+                },
+                parameter_replicator: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "main$__lambda_1",
+                            may_have_complex_effects: false,
+                        },
+                        args: [],
+                    },
+                    may_have_complex_effects: true,
+                },
+                transform: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "main$__lambda_2",
+                            may_have_complex_effects: false,
+                        },
+                        args: [],
+                    },
+                    may_have_complex_effects: true,
+                },
+                complex_handlers: [],
+                simple_handlers: [
+                    (
+                        Str {
+                            value: "get",
+                        },
+                        Thunk {
+                            t: Redex {
+                                function: Def {
+                                    name: "main$__lambda_3",
+                                    may_have_complex_effects: false,
+                                },
+                                args: [],
+                            },
+                            may_have_complex_effects: true,
+                        },
+                    ),
+                    (
+                        Str {
+                            value: "set",
+                        },
+                        Thunk {
+                            t: Redex {
+                                function: Def {
+                                    name: "main$__lambda_4",
+                                    may_have_complex_effects: false,
+                                },
+                                args: [],
+                            },
+                            may_have_complex_effects: true,
+                        },
+                    ),
+                ],
+                input: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "main$__lambda_10",
+                            may_have_complex_effects: false,
+                        },
+                        args: [],
+                    },
+                    may_have_complex_effects: false,
+                },
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 0,
+            may_be_simple: false,
+            may_be_complex: false,
+            may_be_specialized: true,
+        },
+    ),
+    (
+        "main$__lambda_0",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
+            body: Return {
+                value: Struct {
+                    values: [],
+                },
+            },
+            c_type: Default,
+            var_bound: 1,
+            may_be_simple: false,
+            may_be_complex: true,
+            may_be_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_1",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
+            body: Return {
+                value: Struct {
+                    values: [
+                        Var {
+                            index: 0,
+                        },
+                        Var {
+                            index: 0,
+                        },
+                    ],
+                },
+            },
+            c_type: Default,
+            var_bound: 1,
+            may_be_simple: false,
+            may_be_complex: true,
+            may_be_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_10",
+        FunctionDefinition {
+            args: [],
+            body: Handler {
+                parameter: Int {
+                    value: 5,
+                },
+                parameter_disposer: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "main$__lambda_5",
+                            may_have_complex_effects: false,
+                        },
+                        args: [],
+                    },
+                    may_have_complex_effects: true,
+                },
+                parameter_replicator: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "main$__lambda_6",
+                            may_have_complex_effects: false,
+                        },
+                        args: [],
+                    },
+                    may_have_complex_effects: true,
+                },
+                transform: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "main$__lambda_7",
+                            may_have_complex_effects: false,
+                        },
+                        args: [],
+                    },
+                    may_have_complex_effects: true,
+                },
+                complex_handlers: [
+                    (
+                        Str {
+                            value: "exp",
+                        },
+                        Thunk {
+                            t: Redex {
+                                function: Def {
+                                    name: "main$__lambda_8",
+                                    may_have_complex_effects: false,
+                                },
+                                args: [],
+                            },
+                            may_have_complex_effects: true,
+                        },
+                    ),
+                ],
+                simple_handlers: [],
+                input: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "main$__lambda_9",
+                            may_have_complex_effects: true,
+                        },
+                        args: [],
+                    },
+                    may_have_complex_effects: true,
+                },
+            },
+            c_type: Default,
+            var_bound: 0,
+            may_be_simple: false,
+            may_be_complex: true,
+            may_be_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_2",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+            ],
+            body: Return {
+                value: Var {
+                    index: 1,
+                },
+            },
+            c_type: Default,
+            var_bound: 2,
+            may_be_simple: false,
+            may_be_complex: true,
+            may_be_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_3",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
+            body: Return {
+                value: Struct {
+                    values: [
+                        Var {
+                            index: 0,
+                        },
+                        Struct {
+                            values: [
+                                Int {
+                                    value: 0,
+                                },
+                                Var {
+                                    index: 0,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+            c_type: Default,
+            var_bound: 1,
+            may_be_simple: false,
+            may_be_complex: true,
+            may_be_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_4",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+            ],
+            body: Return {
+                value: Struct {
+                    values: [
+                        Var {
+                            index: 1,
+                        },
+                        Struct {
+                            values: [
+                                Int {
+                                    value: 0,
+                                },
+                                Struct {
+                                    values: [],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+            c_type: Default,
+            var_bound: 2,
+            may_be_simple: false,
+            may_be_complex: true,
+            may_be_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_5",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
+            body: OperationCall {
+                eff: Str {
+                    value: "set",
+                },
+                args: [
+                    Var {
+                        index: 0,
+                    },
+                ],
+                may_be_complex: false,
+            },
+            c_type: Default,
+            var_bound: 1,
+            may_be_simple: false,
+            may_be_complex: true,
+            may_be_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_6",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
+            body: Return {
+                value: Struct {
+                    values: [
+                        Var {
+                            index: 0,
+                        },
+                        Var {
+                            index: 0,
+                        },
+                    ],
+                },
+            },
+            c_type: Default,
+            var_bound: 1,
+            may_be_simple: false,
+            may_be_complex: true,
+            may_be_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_7",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+            ],
+            body: Return {
+                value: Var {
+                    index: 1,
+                },
+            },
+            c_type: Default,
+            var_bound: 2,
+            may_be_simple: false,
+            may_be_complex: true,
+            may_be_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_8",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+            ],
+            body: Let {
+                t: Redex {
+                    function: Force {
+                        thunk: Var {
+                            index: 1,
+                        },
+                        may_have_complex_effects: false,
+                    },
+                    args: [
+                        Int {
+                            value: 1,
+                        },
+                        Var {
+                            index: 0,
+                        },
+                    ],
+                },
+                bound_index: 2,
+                body: OperationCall {
+                    eff: Str {
+                        value: "get",
+                    },
+                    args: [],
+                    may_be_complex: false,
+                },
+            },
+            c_type: Default,
+            var_bound: 3,
+            may_be_simple: false,
+            may_be_complex: true,
+            may_be_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_9",
+        FunctionDefinition {
+            args: [],
+            body: Let {
+                t: OperationCall {
+                    eff: Str {
+                        value: "exp",
+                    },
+                    args: [],
+                    may_be_complex: true,
+                },
+                bound_index: 0,
+                body: Return {
+                    value: Int {
+                        value: 1,
+                    },
+                },
+            },
+            c_type: Default,
+            var_bound: 1,
+            may_be_simple: false,
+            may_be_complex: true,
+            may_be_specialized: false,
+        },
+    ),
+]
+
+CLIR
+========
+[main__specialized]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    gv0 = symbol colocated userextname7
+    gv1 = symbol colocated userextname9
+    sig0 = () -> i64 apple_aarch64
+    sig1 = (i64, i64) -> i64 tail
+    sig2 = (i64, i64) -> i64 tail
+    sig3 = (i64, i64) -> i64 tail
+    sig4 = (i64, i64, i64) -> i64 tail
+    sig5 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig6 = (i64, i64, i64) apple_aarch64
+    sig7 = (i64, i64) -> i64 tail
+    sig8 = (i64, i64) -> i64 tail
+    sig9 = (i64, i64, i64) apple_aarch64
+    sig10 = (i64, i64) -> i64 tail
+    sig11 = (i64, i64) -> i64 apple_aarch64
+    sig12 = (i64, i64) -> i64 tail
+    fn0 = colocated u0:12 sig0
+    fn1 = colocated u0:19 sig1
+    fn2 = colocated u0:21 sig2
+    fn3 = colocated u0:25 sig3
+    fn4 = colocated u0:17 sig4
+    fn5 = u0:6 sig5
+    fn6 = u0:7 sig6
+    fn7 = colocated u0:27 sig7
+    fn8 = colocated u0:29 sig8
+    fn9 = u0:8 sig9
+    fn10 = colocated u0:23 sig10
+    fn11 = u0:1 sig11
+
+block0(v0: i64):
+    v1 = call fn0()
+    v2 = iconst.i64 0
+    v3 = ishl_imm v2, 1  ; v2 = 0
+    v4 = func_addr.i64 fn1
+    v5 = iadd_imm v4, 3
+    v6 = func_addr.i64 fn2
+    v7 = iadd_imm v6, 3
+    v8 = func_addr.i64 fn3
+    v9 = iadd_imm v8, 3
+    v10 = func_addr.i64 fn4
+    stack_store v0, ss0
+    v11 = stack_addr.i64 ss0
+    v12 = call fn5(v11, v1, v3, v5, v7, v9, v10)
+    v13 = stack_load.i64 ss0
+    v14 = symbol_value.i64 gv0
+    v15 = iadd_imm v14, 8
+    v16 = iadd_imm v15, 3
+    v17 = func_addr.i64 fn7
+    v18 = iadd_imm v17, 3
+    call fn6(v12, v16, v18)
+    v19 = symbol_value.i64 gv1
+    v20 = iadd_imm v19, 8
+    v21 = iadd_imm v20, 3
+    v22 = func_addr.i64 fn8
+    v23 = iadd_imm v22, 3
+    call fn6(v12, v21, v23)
+    v24 = load.i64 v12
+    v25 = func_addr.i64 fn10
+    v26 = iadd_imm v25, 3
+    stack_store v13, ss0
+    v27 = stack_addr.i64 ss0
+    v28 = call fn11(v26, v27)
+    v29 = stack_load.i64 ss0
+    v30 = call_indirect sig12, v28(v29, v24)
+    v31 = load.i64 v30
+    v32 = iadd_imm v30, 8
+    v33 = sshr_imm v31, 1
+    return v33
+}
+
+
+[main$__lambda_0__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = iconst.i64 0
+    v4 = call fn0(v3)  ; v3 = 0
+    v5 = iadd_imm v4, 1
+    v6 = iadd_imm v0, 0
+    store v5, v6
+    v7 = load.i64 v1+8
+    v8 = ishl_imm v7, 3
+    v9 = iadd v0, v8
+    v10 = load.i64 v1
+    return_call_indirect sig1, v10(v9, v1, v6)
+}
+
+
+[main$__lambda_1__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = iconst.i64 2
+    v4 = call fn0(v3)  ; v3 = 2
+    store aligned v2, v4
+    store aligned v2, v4+8
+    v5 = iadd_imm v4, 1
+    v6 = iadd_imm v0, 0
+    store v5, v6
+    v7 = load.i64 v1+8
+    v8 = ishl_imm v7, 3
+    v9 = iadd v0, v8
+    v10 = load.i64 v1
+    return_call_indirect sig1, v10(v9, v1, v6)
+}
+
+
+[main$__lambda_10__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    gv0 = symbol colocated userextname7
+    sig0 = (i64, i64) -> i64 tail
+    sig1 = (i64, i64) -> i64 tail
+    sig2 = (i64, i64) -> i64 tail
+    sig3 = (i64, i64, i64) -> i64 tail
+    sig4 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig5 = (i64, i64, i64) apple_aarch64
+    sig6 = (i64, i64, i64) apple_aarch64
+    sig7 = (i64, i64) -> i64 tail
+    sig8 = (i64, i64) -> i64 tail
+    sig9 = (i64, i64) -> i64 apple_aarch64
+    sig10 = (i64, i64) -> i64 tail
+    fn0 = colocated u0:31 sig0
+    fn1 = colocated u0:33 sig1
+    fn2 = colocated u0:35 sig2
+    fn3 = colocated u0:17 sig3
+    fn4 = u0:6 sig4
+    fn5 = u0:7 sig5
+    fn6 = u0:8 sig6
+    fn7 = colocated u0:37 sig7
+    fn8 = colocated u0:39 sig8
+    fn9 = u0:1 sig9
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v1+8
+    v3 = ishl_imm v2, 3
+    v4 = iadd v0, v3
+    v5 = isub v4, v0
+    v6 = ushr_imm v5, 3
+    store v6, v1+8
+    v7 = iconst.i64 5
+    v8 = ishl_imm v7, 1  ; v7 = 5
+    v9 = func_addr.i64 fn0
+    v10 = iadd_imm v9, 3
+    v11 = func_addr.i64 fn1
+    v12 = iadd_imm v11, 3
+    v13 = func_addr.i64 fn2
+    v14 = iadd_imm v13, 3
+    v15 = func_addr.i64 fn3
+    stack_store v0, ss0
+    v16 = stack_addr.i64 ss0
+    v17 = call fn4(v16, v1, v8, v10, v12, v14, v15)
+    v18 = stack_load.i64 ss0
+    v19 = symbol_value.i64 gv0
+    v20 = iadd_imm v19, 8
+    v21 = iadd_imm v20, 3
+    v22 = func_addr.i64 fn7
+    v23 = iadd_imm v22, 3
+    call fn6(v17, v21, v23)
+    v24 = load.i64 v17
+    v25 = func_addr.i64 fn8
+    v26 = iadd_imm v25, 3
+    stack_store v18, ss0
+    v27 = stack_addr.i64 ss0
+    v28 = call fn9(v26, v27)
+    v29 = stack_load.i64 ss0
+    return_call_indirect sig10, v28(v29, v24)
+}
+
+
+[main$__lambda_2__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64, i64) -> i64 tail
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = load.i64 v0+8
+    v4 = iadd_imm v0, 8
+    store v3, v4
+    v5 = load.i64 v1+8
+    v6 = ishl_imm v5, 3
+    v7 = iadd v0, v6
+    v8 = load.i64 v1
+    return_call_indirect sig0, v8(v7, v1, v4)
+}
+
+
+[main$__lambda_3__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64) -> i64 apple_aarch64
+    sig2 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+    fn1 = u0:0 sig1
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = iconst.i64 0
+    v4 = ishl_imm v3, 1  ; v3 = 0
+    v5 = iconst.i64 2
+    v6 = call fn0(v5)  ; v5 = 2
+    store aligned v4, v6
+    store aligned v2, v6+8
+    v7 = iadd_imm v6, 1
+    v8 = iconst.i64 2
+    v9 = call fn1(v8)  ; v8 = 2
+    store aligned v2, v9
+    store aligned v7, v9+8
+    v10 = iadd_imm v9, 1
+    v11 = iadd_imm v0, 0
+    store v10, v11
+    v12 = load.i64 v1+8
+    v13 = ishl_imm v12, 3
+    v14 = iadd v0, v13
+    v15 = load.i64 v1
+    return_call_indirect sig2, v15(v14, v1, v11)
+}
+
+
+[main$__lambda_4__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64) -> i64 apple_aarch64
+    sig2 = (i64) -> i64 apple_aarch64
+    sig3 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+    fn1 = u0:0 sig1
+    fn2 = u0:0 sig2
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = load.i64 v0+8
+    v4 = iconst.i64 0
+    v5 = ishl_imm v4, 1  ; v4 = 0
+    v6 = iconst.i64 0
+    v7 = call fn0(v6)  ; v6 = 0
+    v8 = iadd_imm v7, 1
+    v9 = iconst.i64 2
+    v10 = call fn1(v9)  ; v9 = 2
+    store aligned v5, v10
+    store aligned v8, v10+8
+    v11 = iadd_imm v10, 1
+    v12 = iconst.i64 2
+    v13 = call fn2(v12)  ; v12 = 2
+    store aligned v3, v13
+    store aligned v11, v13+8
+    v14 = iadd_imm v13, 1
+    v15 = iadd_imm v0, 8
+    store v14, v15
+    v16 = load.i64 v1+8
+    v17 = ishl_imm v16, 3
+    v18 = iadd v0, v17
+    v19 = load.i64 v1
+    return_call_indirect sig3, v19(v18, v1, v15)
+}
+
+
+[main$__lambda_5__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    gv0 = symbol colocated userextname0
+    sig0 = (i64, i64, i64) -> i64 apple_aarch64
+    sig1 = (i64, i64) -> i64 tail
+    sig2 = (i64, i64) -> i64 tail
+    sig3 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig4 = (i64, i64) -> i64 tail
+    fn0 = %Memmove sig0
+    fn1 = colocated u0:14 sig1
+    fn2 = colocated u0:16 sig2
+    fn3 = u0:4 sig3
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = symbol_value.i64 gv0
+    v4 = iadd_imm v3, 8
+    v5 = iadd_imm v4, 3
+    v6 = iadd_imm v0, -8
+    store aligned v2, v6
+    v7 = iadd_imm v6, 8
+    v8 = isub v0, v6
+    v9 = call fn0(v7, v6, v8)
+    v10 = load.i64 v1+8
+    v11 = ishl_imm v10, 3
+    v12 = iadd v0, v11
+    v13 = isub v12, v7
+    v14 = ushr_imm v13, 3
+    store v14, v1+8
+    v15 = iconst.i64 1
+    v16 = func_addr.i64 fn1
+    v17 = func_addr.i64 fn2
+    v18 = iconst.i64 1
+    v19 = call fn3(v5, v7, v1, v15, v16, v17, v18)  ; v15 = 1, v18 = 1
+    v20 = load.i64 v19
+    v21 = load.i64 v19+8
+    v22 = load.i64 v19+16
+    return_call_indirect sig4, v20(v21, v22)
+}
+
+
+[main$__lambda_6__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = iconst.i64 2
+    v4 = call fn0(v3)  ; v3 = 2
+    store aligned v2, v4
+    store aligned v2, v4+8
+    v5 = iadd_imm v4, 1
+    v6 = iadd_imm v0, 0
+    store v5, v6
+    v7 = load.i64 v1+8
+    v8 = ishl_imm v7, 3
+    v9 = iadd v0, v8
+    v10 = load.i64 v1
+    return_call_indirect sig1, v10(v9, v1, v6)
+}
+
+
+[main$__lambda_7__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64, i64, i64) -> i64 tail
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = load.i64 v0+8
+    v4 = iadd_imm v0, 8
+    store v3, v4
+    v5 = load.i64 v1+8
+    v6 = ishl_imm v5, 3
+    v7 = iadd v0, v6
+    v8 = load.i64 v1
+    return_call_indirect sig0, v8(v7, v1, v4)
+}
+
+
+[main$__lambda_8__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    gv0 = symbol colocated userextname2
+    sig0 = () -> i64 apple_aarch64
+    sig1 = (i64, i64) -> i64 apple_aarch64
+    sig2 = (i64, i64) -> i64 tail
+    sig3 = (i64, i64, i64) -> i64 apple_aarch64
+    sig4 = (i64, i64) -> i64 tail
+    sig5 = (i64, i64) -> i64 tail
+    sig6 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig7 = (i64, i64) -> i64 tail
+    fn0 = colocated u0:12 sig0
+    fn1 = u0:1 sig1
+    fn2 = %Memmove sig3
+    fn3 = colocated u0:14 sig4
+    fn4 = colocated u0:16 sig5
+    fn5 = u0:4 sig6
+
+block0(v0: i64, v1: i64):
+    v2 = load.i64 v0
+    v3 = load.i64 v0+8
+    v4 = iconst.i64 1
+    v5 = ishl_imm v4, 1  ; v4 = 1
+    v6 = iadd_imm v0, -8
+    store aligned v2, v6
+    v7 = iadd_imm v6, -8
+    store aligned v5, v7
+    v8 = call fn0()
+    stack_store v7, ss0
+    v9 = stack_addr.i64 ss0
+    v10 = call fn1(v3, v9)
+    v11 = stack_load.i64 ss0
+    v12 = call_indirect sig2, v10(v11, v8)
+    v13 = load.i64 v12
+    v14 = iadd_imm v12, 8
+    v15 = symbol_value.i64 gv0
+    v16 = iadd_imm v15, 8
+    v17 = iadd_imm v16, 3
+    v18 = iadd_imm v14, 16
+    v19 = isub v0, v14
+    v20 = call fn2(v18, v14, v19)
+    v21 = load.i64 v1+8
+    v22 = ishl_imm v21, 3
+    v23 = iadd v0, v22
+    v24 = isub v23, v18
+    v25 = ushr_imm v24, 3
+    store v25, v1+8
+    v26 = iconst.i64 0
+    v27 = func_addr.i64 fn3
+    v28 = func_addr.i64 fn4
+    v29 = iconst.i64 1
+    v30 = call fn5(v17, v18, v1, v26, v27, v28, v29)  ; v26 = 0, v29 = 1
+    v31 = load.i64 v30
+    v32 = load.i64 v30+8
+    v33 = load.i64 v30+16
+    return_call_indirect sig7, v31(v32, v33)
+}
+
+
+[main$__lambda_9__cps_impl]
+function u0:0(i64, i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    gv0 = symbol colocated userextname0
+    sig0 = (i64, i64) -> i64 tail
+    sig1 = (i64, i64) -> i64 tail
+    sig2 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
+    sig3 = (i64, i64) -> i64 tail
+    sig4 = (i64, i64, i64) -> i64 tail
+    fn0 = colocated u0:14 sig0
+    fn1 = colocated u0:16 sig1
+    fn2 = u0:4 sig2
+
+block0(v0: i64, v1: i64, v2: i64):
+    v3 = load.i64 v1+24
+    v4 = iadd_imm v1, 32
+    v5 = iadd_imm v2, 8
+    v6 = load.i64 v2
+    v7 = icmp_imm ugt v3, 0xffff_ffff
+    brif v7, block1, block3
+
+block3:
+    v8 = ireduce.i32 v3
+    br_table v8, block1, [block1, block2]
+
+block1:
+    v9 = symbol_value.i64 gv0
+    v10 = iadd_imm v9, 8
+    v11 = iadd_imm v10, 3
+    v12 = isub.i64 v0, v5
+    v13 = ushr_imm v12, 3
+    store v13, v1+8
+    v14 = iconst.i64 1
+    store v14, v1+24  ; v14 = 1
+    v15 = iconst.i64 0
+    v16 = func_addr.i64 fn0
+    v17 = func_addr.i64 fn1
+    v18 = iconst.i64 1
+    v19 = call fn2(v11, v5, v1, v15, v16, v17, v18)  ; v15 = 0, v18 = 1
+    v20 = load.i64 v19
+    v21 = load.i64 v19+8
+    v22 = load.i64 v19+16
+    return_call_indirect sig3, v20(v21, v22)
+
+block2:
+    v23 = iconst.i64 1
+    v24 = ishl_imm v23, 1  ; v23 = 1
+    v25 = iadd_imm.i64 v0, -8
+    store v24, v25
+    v26 = load.i64 v1+16
+    v27 = load.i64 v26+8
+    v28 = ishl_imm v27, 3
+    v29 = iadd.i64 v0, v28
+    v30 = load.i64 v26
+    return_call_indirect sig4, v30(v29, v26, v25)
+}
+
+
+[main$__lambda_9__cps]
+function u0:0(i64, i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 apple_aarch64
+    sig1 = (i64, i64, i64) -> i64 tail
+    fn0 = u0:0 sig0
+    fn1 = colocated u0:40 sig1
+
+block0(v0: i64, v1: i64):
+    v2 = iconst.i64 40
+    v3 = call fn0(v2)  ; v2 = 40
+    v4 = func_addr.i64 fn1
+    store v4, v3
+    store v1, v3+16
+    v5 = iadd_imm v0, -8
+    return_call fn1(v0, v3, v5)
+}
+
+
+[__main__]
+function u0:0() -> i64 fast {
+    sig0 = () -> i64 apple_aarch64
+    sig1 = (i64) -> i64 tail
+    fn0 = u0:2 sig0
+    fn1 = colocated u0:18 sig1
+
+block0:
+    v0 = call fn0()
+    v1 = call fn1(v0)
+    return v1
+}
+
+
+Result
+========
+5
