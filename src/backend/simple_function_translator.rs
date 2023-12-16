@@ -5,7 +5,7 @@ use cranelift::frontend::Switch;
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, I32, I64};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
-use crate::ast::term::{CTerm, VTerm, VType, SpecializedType, PType, CType};
+use crate::ast::term::{CTerm, VTerm, VType, SpecializedType, PType, CType, Effect};
 use enum_map::{EnumMap};
 use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
@@ -226,10 +226,10 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
     pub fn translate_c_term(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
         match c_term {
             CTerm::Redex { box function, args } => {
-                if let CTerm::Def { name, .. } = function {
+                if let CTerm::Def { name, effect } = function {
                     // Handle specialized function call
                     let (arg_types, return_type) = self.local_function_arg_types.get(name).unwrap();
-                    if let CType::SpecializedF(return_type) = return_type && arg_types.len() == args.len() {
+                    if let CType::SpecializedF(return_type) = return_type && arg_types.len() == args.len() && (*effect == Effect::Basic || self.is_specialized) {
                         let tip_address = self.tip_address;
                         let all_args = iter::once(tip_address)
                             .chain(args.iter()

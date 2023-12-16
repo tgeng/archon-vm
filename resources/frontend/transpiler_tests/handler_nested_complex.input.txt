@@ -1,13 +1,13 @@
-handler! 0
-  "get" #! \p cont =>! force! cont 0 p p
-  "set" #! \p v cont =>! force! cont 0 v {}
+handler!! 0
+  "get" #!! \p cont =>!! force!! cont 0 p p
+  "set" #!! \p v cont =>!! force!! cont 0 v {}
 
-handler! 1
-  "inc" #! \p cont =>! force! cont 0 p ("set" #! {"get" #! {} + 1})
-  "dup" #! \p cont =>! force! cont 0 p ("set" #! {"get" #! {} * 2})
+handler!! 1
+  "inc" #!! \p cont =>!! force!! cont 0 p ("set" #!! {"get" #!! {} + 1})
+  "dup" #!! \p cont =>!! force!! cont 0 p ("set" #!! {"get" #!! {} * 2})
 
-"set" #! {1}
-"inc" #! {}
-"inc" #! {}
-"dup" #! {}
-"get" #! {}
+"set" #!! {1}
+"inc" #!! {}
+"inc" #!! {}
+"dup" #!! {}
+"get" #!! {}

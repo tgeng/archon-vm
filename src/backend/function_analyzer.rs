@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::ast::term::CTerm;
+use crate::ast::term::{CTerm, Effect};
 
 #[derive(Debug)]
 pub struct FunctionAnalyzer {
@@ -21,7 +21,7 @@ impl FunctionAnalyzer {
     pub(crate) fn analyze(&mut self, c_term: &CTerm, is_tail: bool) {
         match c_term {
             CTerm::Redex { function, .. } => self.analyze(function, is_tail),
-            CTerm::Force { may_have_complex_effects: true, .. } if !is_tail => {
+            CTerm::Force { effect: Effect::Complex, .. } if !is_tail => {
                 self.count += 1;
                 self.has_non_tail_complex_effects = true;
             }
@@ -29,7 +29,7 @@ impl FunctionAnalyzer {
                 self.analyze(t, false);
                 self.analyze(body, is_tail);
             }
-            CTerm::Def { may_have_complex_effects: true, .. } if !is_tail => {
+            CTerm::Def { effect: Effect::Complex, .. } if !is_tail => {
                 self.count += 1;
                 self.has_non_tail_complex_effects = true;
             }
@@ -51,7 +51,7 @@ impl FunctionAnalyzer {
                 self.count += 1;
                 self.case_blocks.insert(current_block_id, (branch_block_ids, default_block_id, joining_block_id));
             }
-            CTerm::OperationCall { may_be_complex: true, .. } if !is_tail => {
+            CTerm::OperationCall { effect: Effect::Complex, .. } if !is_tail => {
                 self.count += 1;
                 self.has_non_tail_complex_effects = true;
             }

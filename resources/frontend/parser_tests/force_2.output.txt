@@ -2,18 +2,18 @@ Redex {
     function: Force {
         thunk: Identifier {
             name: "x",
-            may_have_complex_effects: false,
+            effect: Basic,
         },
-        may_have_complex_effects: true,
+        effect: Complex,
     },
     args: [
         Identifier {
             name: "y",
-            may_have_complex_effects: false,
+            effect: Basic,
         },
         Identifier {
             name: "z",
-            may_have_complex_effects: false,
+            effect: Basic,
         },
     ],
 }

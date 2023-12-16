@@ -12,19 +12,19 @@ Handler {
         body: Redex {
             function: Identifier {
                 name: "_int_sub",
-                may_have_complex_effects: false,
+                effect: Basic,
             },
             args: [
                 Identifier {
                     name: "p",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
                 Int {
                     value: 1,
                 },
             ],
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     parameter_replicator: Lambda {
         arg_names: [
@@ -38,12 +38,12 @@ Handler {
                 Redex {
                     function: Identifier {
                         name: "_int_add",
-                        may_have_complex_effects: false,
+                        effect: Basic,
                     },
                     args: [
                         Identifier {
                             name: "p",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         Int {
                             value: 1,
@@ -53,12 +53,12 @@ Handler {
                 Redex {
                     function: Identifier {
                         name: "_int_add",
-                        may_have_complex_effects: false,
+                        effect: Basic,
                     },
                     args: [
                         Identifier {
                             name: "p",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         Int {
                             value: 2,
@@ -67,7 +67,7 @@ Handler {
                 },
             ],
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     transform: Lambda {
         arg_names: [
@@ -83,19 +83,19 @@ Handler {
         body: Redex {
             function: Identifier {
                 name: "_int_add",
-                may_have_complex_effects: false,
+                effect: Basic,
             },
             args: [
                 Identifier {
                     name: "r",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
                 Int {
                     value: 3,
                 },
             ],
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     simple_handlers: [
         (
@@ -116,19 +116,19 @@ Handler {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
-                        may_have_complex_effects: false,
+                        effect: Basic,
                     },
                     args: [
                         Identifier {
                             name: "x",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         Int {
                             value: 2,
                         },
                     ],
                 },
-                may_have_complex_effects: false,
+                effect: Basic,
             },
         ),
     ],
@@ -155,7 +155,7 @@ Handler {
                 body: Redex {
                     function: Identifier {
                         name: "cont",
-                        may_have_complex_effects: true,
+                        effect: Complex,
                     },
                     args: [
                         Int {
@@ -163,17 +163,17 @@ Handler {
                         },
                         Identifier {
                             name: "p",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         Redex {
                             function: Identifier {
                                 name: "_int_add",
-                                may_have_complex_effects: false,
+                                effect: Basic,
                             },
                             args: [
                                 Identifier {
                                     name: "x",
-                                    may_have_complex_effects: false,
+                                    effect: Basic,
                                 },
                                 Int {
                                     value: 1,
@@ -182,7 +182,7 @@ Handler {
                         },
                     ],
                 },
-                may_have_complex_effects: true,
+                effect: Complex,
             },
         ),
     ],
@@ -196,8 +196,8 @@ Handler {
                     value: 1,
                 },
             ],
-            may_be_complex: true,
+            effect: Complex,
         },
-        may_have_complex_effects: true,
+        effect: Basic,
     },
 }

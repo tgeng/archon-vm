@@ -12,7 +12,7 @@ Handler {
         body: Struct {
             values: [],
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     parameter_replicator: Lambda {
         arg_names: [
@@ -25,15 +25,15 @@ Handler {
             values: [
                 Identifier {
                     name: "p",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
                 Identifier {
                     name: "p",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
             ],
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     transform: Lambda {
         arg_names: [
@@ -48,9 +48,9 @@ Handler {
         ],
         body: Identifier {
             name: "r",
-            may_have_complex_effects: false,
+            effect: Basic,
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     simple_handlers: [],
     complex_handlers: [
@@ -76,7 +76,7 @@ Handler {
                 body: Redex {
                     function: Identifier {
                         name: "cont",
-                        may_have_complex_effects: true,
+                        effect: Complex,
                     },
                     args: [
                         Int {
@@ -84,17 +84,17 @@ Handler {
                         },
                         Identifier {
                             name: "p",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         Redex {
                             function: Identifier {
                                 name: "_int_add",
-                                may_have_complex_effects: false,
+                                effect: Basic,
                             },
                             args: [
                                 Identifier {
                                     name: "x",
-                                    may_have_complex_effects: false,
+                                    effect: Basic,
                                 },
                                 Int {
                                     value: 1,
@@ -103,7 +103,7 @@ Handler {
                         },
                     ],
                 },
-                may_have_complex_effects: true,
+                effect: Complex,
             },
         ),
     ],
@@ -117,8 +117,8 @@ Handler {
                     value: 1,
                 },
             ],
-            may_be_complex: true,
+            effect: Complex,
         },
-        may_have_complex_effects: true,
+        effect: Complex,
     },
 }

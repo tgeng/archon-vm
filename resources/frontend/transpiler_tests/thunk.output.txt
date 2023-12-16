@@ -28,28 +28,28 @@ Defs {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
-                        may_have_complex_effects: false,
+                        effect: Basic,
                     },
                     args: [
                         Redex {
                             function: Identifier {
                                 name: "_int_add",
-                                may_have_complex_effects: false,
+                                effect: Basic,
                             },
                             args: [
                                 Identifier {
                                     name: "x",
-                                    may_have_complex_effects: false,
+                                    effect: Basic,
                                 },
                                 Identifier {
                                     name: "y",
-                                    may_have_complex_effects: false,
+                                    effect: Basic,
                                 },
                             ],
                         },
                         Identifier {
                             name: "z",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                     ],
                 },
@@ -92,28 +92,28 @@ Defs {
                                         body: Redex {
                                             function: Identifier {
                                                 name: "f",
-                                                may_have_complex_effects: false,
+                                                effect: Basic,
                                             },
                                             args: [
                                                 Identifier {
                                                     name: "d",
-                                                    may_have_complex_effects: false,
+                                                    effect: Basic,
                                                 },
                                                 Identifier {
                                                     name: "a",
-                                                    may_have_complex_effects: false,
+                                                    effect: Basic,
                                                 },
                                                 Identifier {
                                                     name: "b",
-                                                    may_have_complex_effects: false,
+                                                    effect: Basic,
                                                 },
                                             ],
                                         },
-                                        may_have_complex_effects: false,
+                                        effect: Basic,
                                     },
-                                    may_have_complex_effects: false,
+                                    effect: Basic,
                                 },
-                                may_have_complex_effects: false,
+                                effect: Basic,
                             },
                             body: Let {
                                 name: "t2",
@@ -126,12 +126,12 @@ Defs {
                                         body: Redex {
                                             function: Identifier {
                                                 name: "_int_add",
-                                                may_have_complex_effects: false,
+                                                effect: Basic,
                                             },
                                             args: [
                                                 Identifier {
                                                     name: "e",
-                                                    may_have_complex_effects: false,
+                                                    effect: Basic,
                                                 },
                                                 Int {
                                                     value: 5,
@@ -139,27 +139,27 @@ Defs {
                                             ],
                                         },
                                     },
-                                    may_have_complex_effects: false,
+                                    effect: Basic,
                                 },
                                 body: Redex {
                                     function: Identifier {
                                         name: "_int_add",
-                                        may_have_complex_effects: false,
+                                        effect: Basic,
                                     },
                                     args: [
                                         Force {
                                             thunk: Identifier {
                                                 name: "t",
-                                                may_have_complex_effects: false,
+                                                effect: Basic,
                                             },
-                                            may_have_complex_effects: false,
+                                            effect: Basic,
                                         },
                                         Force {
                                             thunk: Identifier {
                                                 name: "t2",
-                                                may_have_complex_effects: false,
+                                                effect: Basic,
                                             },
-                                            may_have_complex_effects: false,
+                                            effect: Basic,
                                         },
                                     ],
                                 },
@@ -272,7 +272,7 @@ Defs
                                         t: Redex {
                                             function: Def {
                                                 name: "f",
-                                                may_have_complex_effects: false,
+                                                effect: Basic,
                                             },
                                             args: [
                                                 Var {
@@ -286,7 +286,7 @@ Defs
                                                 },
                                             ],
                                         },
-                                        may_have_complex_effects: false,
+                                        effect: Basic,
                                     },
                                 },
                                 bound_index: 4,
@@ -296,11 +296,11 @@ Defs
                                             t: Redex {
                                                 function: Def {
                                                     name: "main$__lambda_0",
-                                                    may_have_complex_effects: false,
+                                                    effect: Basic,
                                                 },
                                                 args: [],
                                             },
-                                            may_have_complex_effects: false,
+                                            effect: Basic,
                                         },
                                     },
                                     bound_index: 5,
@@ -309,7 +309,7 @@ Defs
                                             thunk: Var {
                                                 index: 4,
                                             },
-                                            may_have_complex_effects: false,
+                                            effect: Basic,
                                         },
                                         bound_index: 6,
                                         body: Let {
@@ -317,7 +317,7 @@ Defs
                                                 thunk: Var {
                                                     index: 5,
                                                 },
-                                                may_have_complex_effects: false,
+                                                effect: Basic,
                                             },
                                             bound_index: 7,
                                             body: PrimitiveCall {

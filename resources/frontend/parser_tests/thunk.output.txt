@@ -4,20 +4,20 @@ Thunk {
         body: Redex {
             function: Identifier {
                 name: "a",
-                may_have_complex_effects: false,
+                effect: Basic,
             },
             args: [
                 Identifier {
                     name: "b",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
                 Identifier {
                     name: "c",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
             ],
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
-    may_have_complex_effects: false,
+    effect: Basic,
 }

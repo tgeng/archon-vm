@@ -5,7 +5,7 @@ use cranelift::prelude::types::I64;
 use cranelift_module::{FuncId, Linkage, Module};
 use cranelift::frontend::Switch;
 use crate::ast::signature::FunctionDefinition;
-use crate::ast::term::{CTerm, CType, VType};
+use crate::ast::term::{CTerm, CType, Effect, VType};
 use crate::ast::term::SpecializedType::Integer;
 use crate::ast::term::VType::Uniform;
 use crate::backend::common::{BuiltinFunction, FunctionFlavor, HasType, TypedReturnValue};
@@ -410,7 +410,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 self.function_translator.push_arg_v_terms(args);
                 self.translate_c_term_cps_impl(function, is_tail)
             }
-            CTerm::Force { thunk, may_have_complex_effects: true } => {
+            CTerm::Force { thunk, effect: Effect::Complex } => {
                 let continuation = self.continuation;
                 let func_pointer = self.process_thunk(thunk);
 
@@ -439,7 +439,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 self.touched_vars_in_current_session.insert(*bound_index);
                 self.translate_c_term_cps_impl(body, is_tail)
             }
-            CTerm::Def { name, may_have_complex_effects: true } => {
+            CTerm::Def { name, effect: Effect::Complex } => {
                 let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
                 if is_tail {
                     let next_continuation = self.adjust_next_continuation_frame_height(self.continuation);
@@ -501,7 +501,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 self.tip_address = self.function_builder.block_params(joining_block)[1];
                 Some((self.function_builder.block_params(joining_block)[0], *result_v_type))
             }
-            CTerm::OperationCall { eff, args, may_be_complex: true } => {
+            CTerm::OperationCall { eff, args, effect: Effect::Complex } => {
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);

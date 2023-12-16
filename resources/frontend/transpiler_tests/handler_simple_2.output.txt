@@ -14,7 +14,7 @@ Handler {
         body: Struct {
             values: [],
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     parameter_replicator: Lambda {
         arg_names: [
@@ -27,15 +27,15 @@ Handler {
             values: [
                 Identifier {
                     name: "p",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
                 Identifier {
                     name: "p",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
             ],
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     transform: Lambda {
         arg_names: [
@@ -51,20 +51,20 @@ Handler {
         body: Redex {
             function: Identifier {
                 name: "_int_mul",
-                may_have_complex_effects: false,
+                effect: Basic,
             },
             args: [
                 Identifier {
                     name: "x",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
                 Identifier {
                     name: "p",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
             ],
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     simple_handlers: [
         (
@@ -95,16 +95,16 @@ Handler {
                                 Redex {
                                     function: Identifier {
                                         name: "_int_mul",
-                                        may_have_complex_effects: false,
+                                        effect: Basic,
                                     },
                                     args: [
                                         Identifier {
                                             name: "p",
-                                            may_have_complex_effects: false,
+                                            effect: Basic,
                                         },
                                         Identifier {
                                             name: "y",
-                                            may_have_complex_effects: false,
+                                            effect: Basic,
                                         },
                                     ],
                                 },
@@ -112,7 +112,7 @@ Handler {
                         },
                     ],
                 },
-                may_have_complex_effects: false,
+                effect: Basic,
             },
         ),
     ],
@@ -127,9 +127,9 @@ Handler {
                     value: 5,
                 },
             ],
-            may_be_complex: false,
+            effect: Simple,
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
 }
 
@@ -148,31 +148,31 @@ Defs
                     t: Redex {
                         function: Def {
                             name: "main$__lambda_0",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         args: [],
                     },
-                    may_have_complex_effects: true,
+                    effect: Basic,
                 },
                 parameter_replicator: Thunk {
                     t: Redex {
                         function: Def {
                             name: "main$__lambda_1",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         args: [],
                     },
-                    may_have_complex_effects: true,
+                    effect: Basic,
                 },
                 transform: Thunk {
                     t: Redex {
                         function: Def {
                             name: "main$__lambda_2",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         args: [],
                     },
-                    may_have_complex_effects: true,
+                    effect: Basic,
                 },
                 complex_handlers: [],
                 simple_handlers: [
@@ -184,11 +184,11 @@ Defs
                             t: Redex {
                                 function: Def {
                                     name: "main$__lambda_3",
-                                    may_have_complex_effects: false,
+                                    effect: Basic,
                                 },
                                 args: [],
                             },
-                            may_have_complex_effects: true,
+                            effect: Basic,
                         },
                     ),
                 ],
@@ -196,11 +196,11 @@ Defs
                     t: Redex {
                         function: Def {
                             name: "main$__lambda_4",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         args: [],
                     },
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
             },
             c_type: SpecializedF(
@@ -368,7 +368,7 @@ Defs
                         value: 5,
                     },
                 ],
-                may_be_complex: false,
+                effect: Simple,
             },
             c_type: Default,
             var_bound: 0,

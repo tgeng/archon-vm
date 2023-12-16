@@ -20,30 +20,30 @@ Let {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
-                        may_have_complex_effects: false,
+                        effect: Basic,
                     },
                     args: [
                         Identifier {
                             name: "x",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         Identifier {
                             name: "a",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                     ],
                 },
-                may_have_complex_effects: false,
+                effect: Basic,
             },
-            may_have_complex_effects: false,
+            effect: Basic,
         },
         body: Redex {
             function: Force {
                 thunk: Identifier {
                     name: "f",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
-                may_have_complex_effects: false,
+                effect: Basic,
             },
             args: [
                 Int {
@@ -74,7 +74,7 @@ Defs
                             t: Redex {
                                 function: Def {
                                     name: "main$__lambda_0",
-                                    may_have_complex_effects: false,
+                                    effect: Basic,
                                 },
                                 args: [
                                     Var {
@@ -82,7 +82,7 @@ Defs
                                     },
                                 ],
                             },
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                     },
                     bound_index: 1,
@@ -91,7 +91,7 @@ Defs
                             thunk: Var {
                                 index: 1,
                             },
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         args: [
                             Int {

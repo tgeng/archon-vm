@@ -1,18 +1,18 @@
 Redex {
     function: Identifier {
         name: "f",
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     args: [
         Redex {
             function: Identifier {
                 name: "g",
-                may_have_complex_effects: false,
+                effect: Basic,
             },
             args: [
                 Identifier {
                     name: "a",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
             ],
         },

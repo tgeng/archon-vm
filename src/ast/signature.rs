@@ -2,7 +2,7 @@ use std::cmp::{min, Ordering};
 use std::collections::{HashMap};
 use crate::ast::free_var::HasFreeVar;
 use crate::ast::primitive_functions::{PRIMITIVE_FUNCTIONS, PrimitiveFunction};
-use crate::ast::term::{CTerm, CType, VTerm, VType};
+use crate::ast::term::{CTerm, CType, Effect, VTerm, VType};
 use crate::ast::transformer::Transformer;
 use crate::ast::visitor::Visitor;
 
@@ -25,13 +25,6 @@ impl FunctionDefinition {
     fn is_specializable(&self) -> bool {
         matches!(self.c_type, CType::SpecializedF(_))
     }
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum FunctionEnablement {
-    MayBeSimple,
-    MayBeComplex,
-    MayBeSpecialized,
 }
 
 pub struct Signature {
@@ -62,26 +55,26 @@ impl Signature {
         self.rename_local_vars();
     }
 
-    pub fn enable(&mut self, name: &str, function_enablement: FunctionEnablement) {
+    pub fn enable(&mut self, name: &str, function_enablement: Effect) {
         let function_definition = self.defs.get_mut(name).unwrap();
         match function_enablement {
-            FunctionEnablement::MayBeSimple => {
+            Effect::Basic => {
+                if function_definition.may_be_specialized {
+                    return;
+                }
+                function_definition.may_be_specialized = true;
+            }
+            Effect::Simple => {
                 if function_definition.may_be_simple {
                     return;
                 }
                 function_definition.may_be_simple = true;
             }
-            FunctionEnablement::MayBeComplex => {
+            Effect::Complex => {
                 if function_definition.may_be_complex {
                     return;
                 }
                 function_definition.may_be_complex = true;
-            }
-            FunctionEnablement::MayBeSpecialized => {
-                if function_definition.may_be_specialized {
-                    return;
-                }
-                function_definition.may_be_specialized = true;
             }
         }
 
@@ -91,7 +84,7 @@ impl Signature {
         // in a separate data structure outside of Signature. Both are annoying and requires more
         // work.
         unsafe {
-            self.visit_c_term(&*c_term_ptr, function_enablement != FunctionEnablement::MayBeComplex);
+            self.visit_c_term(&*c_term_ptr, function_enablement);
         }
     }
 
@@ -186,9 +179,9 @@ impl Signature {
 // This visitor just marks functions that should be enabled recursively. It's not intended to be
 // callable outside of this file.
 impl Visitor for Signature {
-    type Ctx = bool;
+    type Ctx = Effect;
 
-    fn visit_thunk(&mut self, v_term: &VTerm, in_simple_context: bool) {
+    fn visit_thunk(&mut self, v_term: &VTerm, context_effect: Effect) {
         let VTerm::Thunk { box t, .. } = v_term else { unreachable!() };
         let empty_vec = vec![];
         let (name, args) = match t {
@@ -196,41 +189,43 @@ impl Visitor for Signature {
             CTerm::Def { name, .. } => (name, &empty_vec),
             _ => panic!("all thunks should have been lifted at this point"),
         };
-        args.iter().for_each(|arg| self.visit_v_term(arg, in_simple_context));
+        args.iter().for_each(|arg| self.visit_v_term(arg, context_effect));
         // All thunked functions are treated effectful to simplify compilation.
-        self.enable(name, FunctionEnablement::MayBeComplex);
+        self.enable(name, Effect::Complex);
     }
 
-    fn visit_redex(&mut self, c_term: &CTerm, in_simple_context: bool) {
+    fn visit_redex(&mut self, c_term: &CTerm, context_effect: Effect) {
         let CTerm::Redex { box function, args } = c_term else { unreachable!() };
-        args.iter().for_each(|arg| self.visit_v_term(arg, in_simple_context));
-        let CTerm::Def { name, may_have_complex_effects } = function else {
-            self.visit_c_term(function, in_simple_context);
+        args.iter().for_each(|arg| self.visit_v_term(arg, context_effect));
+        let CTerm::Def { name, effect } = function else {
+            self.visit_c_term(function, context_effect);
             return;
         };
-        if *may_have_complex_effects && !in_simple_context {
-            self.enable(name, FunctionEnablement::MayBeComplex);
+        let effect = effect.intersect(context_effect);
+        if effect == Effect::Complex {
+            self.enable(name, Effect::Complex);
         } else {
             let function_def = self.defs.get(name).unwrap();
-            if function_def.args.len() == args.len() && function_def.is_specializable() {
-                self.enable(name, FunctionEnablement::MayBeSpecialized);
+            if function_def.args.len() == args.len() && function_def.is_specializable() && effect == Effect::Basic {
+                self.enable(name, Effect::Basic);
             } else {
-                self.enable(name, FunctionEnablement::MayBeSimple);
+                self.enable(name, Effect::Simple);
             }
         }
     }
 
 
-    fn visit_def(&mut self, c_term: &CTerm, in_simple_context: bool) {
-        let CTerm::Def { name, may_have_complex_effects } = c_term else { unreachable!() };
-        if *may_have_complex_effects && !in_simple_context {
-            self.enable(name, FunctionEnablement::MayBeComplex);
+    fn visit_def(&mut self, c_term: &CTerm, context_effect: Effect) {
+        let CTerm::Def { name, effect } = c_term else { unreachable!() };
+        let effect = effect.intersect(context_effect);
+        if effect == Effect::Complex {
+            self.enable(name, Effect::Complex);
         } else {
             let function_def = self.defs.get(name).unwrap();
-            if function_def.args.is_empty() && function_def.is_specializable() {
-                self.enable(name, FunctionEnablement::MayBeSpecialized);
+            if function_def.args.is_empty() && function_def.is_specializable() && effect == Effect::Basic {
+                self.enable(name, Effect::Basic);
             } else {
-                self.enable(name, FunctionEnablement::MayBeSimple);
+                self.enable(name, Effect::Simple);
             }
         }
     }
@@ -304,9 +299,9 @@ impl Transformer for RedundancyRemover {
 
     fn transform_lambda(&mut self, c_term: &mut CTerm) {
         self.transform_lambda_default(c_term);
-        let CTerm::Lambda { args, box body, may_have_complex_effects } = c_term else { unreachable!() };
-        if let CTerm::Lambda { args: sub_args, body: box sub_body, may_have_complex_effects: sub_may_have_complex_effects } = body {
-            *may_have_complex_effects |= *sub_may_have_complex_effects;
+        let CTerm::Lambda { args, box body, effect } = c_term else { unreachable!() };
+        if let CTerm::Lambda { args: sub_args, body: box sub_body, effect: sub_effect } = body {
+            *effect = effect.union(*sub_effect);
             args.extend(sub_args.iter().copied());
             let mut placeholder = CTerm::Return { value: VTerm::Int { value: 0 } };
             std::mem::swap(&mut placeholder, sub_body);
@@ -331,14 +326,14 @@ impl<'a> Transformer for CallSpecializer<'a> {
     fn transform_redex(&mut self, c_term: &mut CTerm) {
         self.transform_redex_default(c_term);
         let CTerm::Redex { box function, args } = c_term else { unreachable!() };
-        let CTerm::Def { name, may_have_complex_effects: has_handler_effects } = function else { return; };
+        let CTerm::Def { name, effect } = function else { return; };
         if let Some((name, PrimitiveFunction { arg_types, return_type, .. })) = PRIMITIVE_FUNCTIONS.get_entry(name) {
             match arg_types.len().cmp(&args.len()) {
                 Ordering::Greater => {
                     let primitive_wrapper_name = format!("{}$__primitive_wrapper_{}", self.def_name, self.primitive_wrapper_counter);
                     // Primitive calls cannot be effectful.
-                    assert!(!*has_handler_effects);
-                    *function = CTerm::Def { name: primitive_wrapper_name.clone(), may_have_complex_effects: false };
+                    assert_eq!(*effect, Effect::Basic);
+                    *function = CTerm::Def { name: primitive_wrapper_name.clone(), effect: Effect::Basic };
                     self.new_defs.push((primitive_wrapper_name, FunctionDefinition {
                         args: arg_types.iter().enumerate().map(|(i, t)| (i, *t)).collect(),
                         body: CTerm::PrimitiveCall {
@@ -376,13 +371,13 @@ struct LambdaLifter<'a> {
 }
 
 impl<'a> LambdaLifter<'a> {
-    fn create_new_redex(&mut self, free_vars: &[usize], may_have_complex_effects: bool) -> (String, CTerm) {
+    fn create_new_redex(&mut self, free_vars: &[usize], effect: Effect) -> (String, CTerm) {
         let thunk_def_name = format!("{}$__lambda_{}", self.def_name, self.counter);
         self.counter += 1;
 
         let redex =
             CTerm::Redex {
-                function: Box::new(CTerm::Def { name: thunk_def_name.clone(), may_have_complex_effects }),
+                function: Box::new(CTerm::Def { name: thunk_def_name.clone(), effect }),
                 args: free_vars.iter().map(|i| VTerm::Var { index: *i }).collect(),
             };
         (thunk_def_name, redex)
@@ -405,7 +400,7 @@ impl<'a> LambdaLifter<'a> {
 
 impl<'a> Transformer for LambdaLifter<'a> {
     fn transform_thunk(&mut self, v_term: &mut VTerm) {
-        let VTerm::Thunk { t: box c_term, may_have_complex_effects } = v_term else { unreachable!() };
+        let VTerm::Thunk { t: box c_term, effect } = v_term else { unreachable!() };
         self.transform_c_term(c_term);
 
         if let CTerm::Redex { function: box CTerm::Def { .. }, .. } | CTerm::Def { .. } = c_term {
@@ -416,7 +411,7 @@ impl<'a> Transformer for LambdaLifter<'a> {
         let mut free_vars: Vec<_> = c_term.free_vars().into_iter().collect();
         free_vars.sort();
 
-        let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars, *may_have_complex_effects);
+        let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars, *effect);
         std::mem::swap(c_term, &mut redex);
         self.create_new_def(thunk_def_name, free_vars, &[], redex);
     }
@@ -426,9 +421,9 @@ impl<'a> Transformer for LambdaLifter<'a> {
         let mut free_vars: Vec<_> = c_term.free_vars().iter().copied().collect();
         free_vars.sort();
 
-        let CTerm::Lambda { args, may_have_complex_effects, .. } = c_term else { unreachable!() };
+        let CTerm::Lambda { args, effect, .. } = c_term else { unreachable!() };
 
-        let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars, *may_have_complex_effects);
+        let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars, *effect);
         let args = args.clone();
         std::mem::swap(c_term, &mut redex);
 

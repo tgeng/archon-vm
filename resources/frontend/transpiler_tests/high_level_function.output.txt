@@ -22,16 +22,16 @@ Defs {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
-                        may_have_complex_effects: false,
+                        effect: Basic,
                     },
                     args: [
                         Identifier {
                             name: "x",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         Identifier {
                             name: "y",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                     ],
                 },
@@ -81,16 +81,16 @@ Defs {
                             t: Redex {
                                 function: Identifier {
                                     name: "_int_lt",
-                                    may_have_complex_effects: false,
+                                    effect: Basic,
                                 },
                                 args: [
                                     Identifier {
                                         name: "i",
-                                        may_have_complex_effects: false,
+                                        effect: Basic,
                                     },
                                     Identifier {
                                         name: "size",
-                                        may_have_complex_effects: false,
+                                        effect: Basic,
                                     },
                                 ],
                             },
@@ -105,55 +105,55 @@ Defs {
                                     Redex {
                                         function: Identifier {
                                             name: "fold",
-                                            may_have_complex_effects: false,
+                                            effect: Basic,
                                         },
                                         args: [
                                             Identifier {
                                                 name: "size",
-                                                may_have_complex_effects: false,
+                                                effect: Basic,
                                             },
                                             Identifier {
                                                 name: "array",
-                                                may_have_complex_effects: false,
+                                                effect: Basic,
                                             },
                                             Redex {
                                                 function: Force {
                                                     thunk: Identifier {
                                                         name: "f",
-                                                        may_have_complex_effects: false,
+                                                        effect: Basic,
                                                     },
-                                                    may_have_complex_effects: false,
+                                                    effect: Basic,
                                                 },
                                                 args: [
                                                     Identifier {
                                                         name: "acc",
-                                                        may_have_complex_effects: false,
+                                                        effect: Basic,
                                                     },
                                                     MemGet {
                                                         base: Identifier {
                                                             name: "array",
-                                                            may_have_complex_effects: false,
+                                                            effect: Basic,
                                                         },
                                                         offset: Identifier {
                                                             name: "i",
-                                                            may_have_complex_effects: false,
+                                                            effect: Basic,
                                                         },
                                                     },
                                                 ],
                                             },
                                             Identifier {
                                                 name: "f",
-                                                may_have_complex_effects: false,
+                                                effect: Basic,
                                             },
                                             Redex {
                                                 function: Identifier {
                                                     name: "_int_add",
-                                                    may_have_complex_effects: false,
+                                                    effect: Basic,
                                                 },
                                                 args: [
                                                     Identifier {
                                                         name: "i",
-                                                        may_have_complex_effects: false,
+                                                        effect: Basic,
                                                     },
                                                     Int {
                                                         value: 1,
@@ -167,7 +167,7 @@ Defs {
                                     0,
                                     Identifier {
                                         name: "acc",
-                                        may_have_complex_effects: false,
+                                        effect: Basic,
                                     },
                                 ),
                             ],
@@ -185,7 +185,7 @@ Defs {
                 Redex {
                     function: Identifier {
                         name: "fold",
-                        may_have_complex_effects: false,
+                        effect: Basic,
                     },
                     args: [
                         Int {
@@ -210,9 +210,9 @@ Defs {
                         Thunk {
                             computation: Identifier {
                                 name: "add",
-                                may_have_complex_effects: false,
+                                effect: Basic,
                             },
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         Int {
                             value: 0,
@@ -338,7 +338,7 @@ Defs
                                             thunk: Var {
                                                 index: 3,
                                             },
-                                            may_have_complex_effects: false,
+                                            effect: Basic,
                                         },
                                         args: [
                                             Var {
@@ -367,7 +367,7 @@ Defs
                                     body: Redex {
                                         function: Def {
                                             name: "fold",
-                                            may_have_complex_effects: false,
+                                            effect: Basic,
                                         },
                                         args: [
                                             Var {
@@ -420,7 +420,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "fold",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
                 args: [
                     Int {
@@ -445,9 +445,9 @@ Defs
                     Thunk {
                         t: Def {
                             name: "add",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
-                        may_have_complex_effects: false,
+                        effect: Basic,
                     },
                     Int {
                         value: 0,

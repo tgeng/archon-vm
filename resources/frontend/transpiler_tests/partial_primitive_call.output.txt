@@ -9,7 +9,7 @@ Defs {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
-                        may_have_complex_effects: false,
+                        effect: Basic,
                     },
                     args: [
                         Int {
@@ -25,7 +25,7 @@ Defs {
         Redex {
             function: Identifier {
                 name: "f",
-                may_have_complex_effects: false,
+                effect: Basic,
             },
             args: [
                 Int {
@@ -46,7 +46,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "f$__primitive_wrapper_0",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
                 args: [
                     Int {
@@ -107,7 +107,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "f",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
                 args: [
                     Int {

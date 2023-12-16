@@ -17,24 +17,24 @@ Redex {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
-                        may_have_complex_effects: false,
+                        effect: Basic,
                     },
                     args: [
                         Identifier {
                             name: "x",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         Identifier {
                             name: "y",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                     ],
                 },
-                may_have_complex_effects: false,
+                effect: Basic,
             },
-            may_have_complex_effects: false,
+            effect: Basic,
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     args: [
         Int {

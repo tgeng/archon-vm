@@ -14,7 +14,7 @@ Handler {
         body: Struct {
             values: [],
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     parameter_replicator: Lambda {
         arg_names: [
@@ -27,15 +27,15 @@ Handler {
             values: [
                 Identifier {
                     name: "p",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
                 Identifier {
                     name: "p",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
             ],
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     transform: Lambda {
         arg_names: [
@@ -50,9 +50,9 @@ Handler {
         ],
         body: Identifier {
             name: "r",
-            may_have_complex_effects: false,
+            effect: Basic,
         },
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     simple_handlers: [],
     complex_handlers: [
@@ -79,9 +79,9 @@ Handler {
                     function: Force {
                         thunk: Identifier {
                             name: "cont",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
-                        may_have_complex_effects: true,
+                        effect: Complex,
                     },
                     args: [
                         Int {
@@ -89,27 +89,27 @@ Handler {
                         },
                         Identifier {
                             name: "p",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         Redex {
                             function: Identifier {
                                 name: "_int_add",
-                                may_have_complex_effects: false,
+                                effect: Basic,
                             },
                             args: [
                                 Identifier {
                                     name: "p",
-                                    may_have_complex_effects: false,
+                                    effect: Basic,
                                 },
                                 Identifier {
                                     name: "x",
-                                    may_have_complex_effects: false,
+                                    effect: Basic,
                                 },
                             ],
                         },
                     ],
                 },
-                may_have_complex_effects: true,
+                effect: Complex,
             },
         ),
     ],
@@ -123,9 +123,9 @@ Handler {
                     value: 3,
                 },
             ],
-            may_be_complex: true,
+            effect: Complex,
         },
-        may_have_complex_effects: true,
+        effect: Complex,
     },
 }
 
@@ -144,31 +144,31 @@ Defs
                     t: Redex {
                         function: Def {
                             name: "main$__lambda_0",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         args: [],
                     },
-                    may_have_complex_effects: true,
+                    effect: Basic,
                 },
                 parameter_replicator: Thunk {
                     t: Redex {
                         function: Def {
                             name: "main$__lambda_1",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         args: [],
                     },
-                    may_have_complex_effects: true,
+                    effect: Basic,
                 },
                 transform: Thunk {
                     t: Redex {
                         function: Def {
                             name: "main$__lambda_2",
-                            may_have_complex_effects: false,
+                            effect: Basic,
                         },
                         args: [],
                     },
-                    may_have_complex_effects: true,
+                    effect: Basic,
                 },
                 complex_handlers: [
                     (
@@ -179,11 +179,11 @@ Defs
                             t: Redex {
                                 function: Def {
                                     name: "main$__lambda_3",
-                                    may_have_complex_effects: true,
+                                    effect: Complex,
                                 },
                                 args: [],
                             },
-                            may_have_complex_effects: true,
+                            effect: Complex,
                         },
                     ),
                 ],
@@ -192,11 +192,11 @@ Defs
                     t: Redex {
                         function: Def {
                             name: "main$__lambda_4",
-                            may_have_complex_effects: true,
+                            effect: Complex,
                         },
                         args: [],
                     },
-                    may_have_complex_effects: true,
+                    effect: Complex,
                 },
             },
             c_type: SpecializedF(
@@ -319,7 +319,7 @@ Defs
                         thunk: Var {
                             index: 2,
                         },
-                        may_have_complex_effects: true,
+                        effect: Complex,
                     },
                     args: [
                         Int {
@@ -354,7 +354,7 @@ Defs
                         value: 3,
                     },
                 ],
-                may_be_complex: true,
+                effect: Complex,
             },
             c_type: Default,
             var_bound: 0,

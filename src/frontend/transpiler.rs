@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use either::{Either, Left, Right};
 use crate::ast::signature::{FunctionDefinition, Signature};
-use crate::ast::term::{CTerm, CType, SpecializedType, VTerm, VType};
+use crate::ast::term::{CTerm, CType, Effect, SpecializedType, VTerm, VType};
 use crate::frontend::f_term::{Def, FTerm};
 use crate::ast::primitive_functions::PRIMITIVE_FUNCTIONS;
 
@@ -40,8 +40,8 @@ impl Transpiler {
 
     fn transpile_impl(&mut self, f_term: FTerm, context: &Context) -> CTerm {
         match f_term {
-            FTerm::Identifier { name, may_have_complex_effects } =>
-                match self.transpile_identifier(&name, context, may_have_complex_effects) {
+            FTerm::Identifier { name, effect } =>
+                match self.transpile_identifier(&name, context, effect) {
                     Left(c) => c,
                     Right(v) => CTerm::Return { value: v },
                 },
@@ -51,7 +51,7 @@ impl Transpiler {
                 let (transpiled_values, transpiled_computations) = self.transpile_values(values, context);
                 Self::squash_computations(CTerm::Return { value: VTerm::Struct { values: transpiled_values } }, transpiled_computations)
             }
-            FTerm::Lambda { arg_names, body, may_have_complex_effects } => {
+            FTerm::Lambda { arg_names, body, effect } => {
                 let mut var_map = context.var_map.clone();
                 let args: Vec<_> = arg_names.iter().map(|(name, v_type)| {
                     let index = self.new_local_index();
@@ -63,20 +63,20 @@ impl Transpiler {
                     def_map: context.def_map,
                     var_map: &var_map,
                 });
-                CTerm::Lambda { args, body: Box::new(transpiled_body), may_have_complex_effects }
+                CTerm::Lambda { args, body: Box::new(transpiled_body), effect }
             }
             FTerm::Redex { function, args } => {
                 let (transpiled_args, transpiled_computations) = self.transpile_values(args, context);
                 let body = CTerm::Redex { function: Box::new(self.transpile_impl(*function, context)), args: transpiled_args };
                 Self::squash_computations(body, transpiled_computations)
             }
-            FTerm::Force { thunk, may_have_complex_effects } =>
-                self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t, may_have_complex_effects }),
-            FTerm::Thunk { computation, may_have_complex_effects } =>
+            FTerm::Force { thunk, effect } =>
+                self.transpile_value_and_map(*thunk, context, |(_, t)| CTerm::Force { thunk: t, effect }),
+            FTerm::Thunk { computation, effect } =>
                 CTerm::Return {
                     value: VTerm::Thunk {
                         t: Box::new(self.transpile_impl(*computation, context)),
-                        may_have_complex_effects,
+                        effect,
                     }
                 },
             FTerm::CaseInt { t, result_type, branches, default_branch } => {
@@ -187,10 +187,10 @@ impl Transpiler {
                     })
                 }
             }
-            FTerm::OperationCall { box eff, args, may_be_complex } => {
+            FTerm::OperationCall { box eff, args, effect } => {
                 self.transpile_value_and_map(eff, context, |(s, eff)| {
                     let (transpiled_args, transpiled_computations) = s.transpile_values(args, context);
-                    let operation_call = CTerm::OperationCall { eff, args: transpiled_args, may_be_complex };
+                    let operation_call = CTerm::OperationCall { eff, args: transpiled_args, effect };
                     Self::squash_computations(operation_call, transpiled_computations)
                 })
             }
@@ -238,7 +238,7 @@ impl Transpiler {
 
     fn transpile_value(&mut self, f_term: FTerm, context: &Context) -> (VTerm, Option<(usize, CTerm)>) {
         match f_term {
-            FTerm::Identifier { name, may_have_complex_effects } => match self.transpile_identifier(&name, context, may_have_complex_effects) {
+            FTerm::Identifier { name, effect } => match self.transpile_identifier(&name, context, effect) {
                 Left(c_term) => self.new_computation(c_term),
                 Right(v_term) => (v_term, None),
             }
@@ -250,12 +250,12 @@ impl Transpiler {
                     c_term => self.new_computation(c_term),
                 }
             }
-            FTerm::Lambda { .. } => {
+            FTerm::Lambda { effect, .. } => {
                 let c_term = self.transpile_impl(f_term, context);
-                (VTerm::Thunk { t: Box::new(c_term), may_have_complex_effects: true }, None)
+                (VTerm::Thunk { t: Box::new(c_term), effect }, None)
             }
-            FTerm::Thunk { computation, may_have_complex_effects } => {
-                (VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)), may_have_complex_effects }, None)
+            FTerm::Thunk { computation, effect } => {
+                (VTerm::Thunk { t: Box::new(self.transpile_impl(*computation, context)), effect }, None)
             }
             FTerm::CaseInt { .. } |
             FTerm::MemGet { .. } |
@@ -300,17 +300,17 @@ impl Transpiler {
         (VTerm::Var { index }, Some((index, c_term)))
     }
 
-    fn transpile_identifier(&self, name: &str, context: &Context, may_have_complex_effects: bool) -> Either<CTerm, VTerm> {
+    fn transpile_identifier(&self, name: &str, context: &Context, effect: Effect) -> Either<CTerm, VTerm> {
         if let Some(index) = context.var_map.get(name) {
             Right(VTerm::Var { index: *index })
         } else if let Some((name, args)) = context.def_map.get(name) {
             let term = CTerm::Redex {
-                function: Box::new(CTerm::Def { name: name.to_owned(), may_have_complex_effects }),
+                function: Box::new(CTerm::Def { name: name.to_owned(), effect }),
                 args: args.to_owned(),
             };
             Left(term.clone())
         } else if let Some(name) = PRIMITIVE_FUNCTIONS.get_key(name) {
-            Left(CTerm::Def { name: (*name).to_owned(), may_have_complex_effects })
+            Left(CTerm::Def { name: (*name).to_owned(), effect })
         } else {
             // properly returning a Result is better but very annoying since that requires transposing out of various collection
             panic!("Unknown identifier: {}", name)
@@ -420,7 +420,8 @@ mod tests {
     use cranelift_jit::JITModule;
     use crate::backend::compiler::Compiler;
     use crate::frontend::parser::parse_f_term;
-    use crate::ast::signature::{FunctionEnablement, Signature};
+    use crate::ast::signature::{Signature};
+    use crate::ast::term::Effect;
     use crate::frontend::transpiler::Transpiler;
 
     fn check(test_input_path: &str, test_output_path: &str) -> Result<(), String> {
@@ -434,7 +435,7 @@ mod tests {
         transpiler.transpile(f_term.clone());
         let mut signature = transpiler.into_signature();
         signature.optimize();
-        signature.enable("main", FunctionEnablement::MayBeSpecialized);
+        signature.enable("main", Effect::Basic);
         let mut defs = signature.into_defs().into_iter().collect::<Vec<_>>();
         defs.sort_by_key(|(name, _)| name.clone());
         let mut compiler: Compiler<JITModule> = Default::default();
@@ -474,7 +475,7 @@ mod tests {
         let mut test_input_paths = fs::read_dir(resource_dir)
             .unwrap()
             .map(|r| r.unwrap().path())
-            .filter(|p| p.file_name().unwrap().to_str().unwrap().ends_with("dispose.input.txt"))
+            .filter(|p| p.file_name().unwrap().to_str().unwrap().ends_with("input.txt"))
             .collect::<Vec<_>>();
         test_input_paths.sort();
         let all_results = test_input_paths.into_iter().map(|test_input_path| {

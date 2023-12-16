@@ -1,13 +1,13 @@
 handler 0
-  "get" # \p => {p, {0, p}}
-  "set" # \p v => {v, {0, {}}}
+  "get" #! \p => {p, {0, p}}
+  "set" #! \p v => {v, {0, {}}}
 
 handler 1
-  "inc" # \p => {p, {0, "set" # {"get" # {} + 1}}}
-  "dup" # \p => {p, {0, "set" # {"get" # {} * 2}}}
+  "inc" #! \p => {p, {0, "set" #! {"get" #! {} + 1}}}
+  "dup" #! \p => {p, {0, "set" #! {"get" #! {} * 2}}}
 
-"set" # {1}
-"inc" # {}
-"inc" # {}
-"dup" # {}
-"get" # {}
+"set" #! {1}
+"inc" #! {}
+"inc" #! {}
+"dup" #! {}
+"get" #! {}

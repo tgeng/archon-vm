@@ -1,26 +1,26 @@
 Redex {
     function: Identifier {
         name: "f",
-        may_have_complex_effects: false,
+        effect: Basic,
     },
     args: [
         Identifier {
             name: "a",
-            may_have_complex_effects: false,
+            effect: Basic,
         },
         Identifier {
             name: "b",
-            may_have_complex_effects: false,
+            effect: Basic,
         },
         Redex {
             function: Identifier {
                 name: "c",
-                may_have_complex_effects: false,
+                effect: Basic,
             },
             args: [
                 Identifier {
                     name: "d",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
             ],
         },
@@ -29,7 +29,7 @@ Redex {
             t: Redex {
                 function: Identifier {
                     name: "g",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
                 args: [
                     Int {
@@ -43,7 +43,7 @@ Redex {
             body: Redex {
                 function: Identifier {
                     name: "h",
-                    may_have_complex_effects: false,
+                    effect: Basic,
                 },
                 args: [
                     Int {

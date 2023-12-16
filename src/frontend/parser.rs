@@ -11,7 +11,7 @@ use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use crate::frontend::f_term::{Def, FTerm};
 use nom_locate::{LocatedSpan};
 use crate::frontend::parser::Fixity::{*};
-use crate::ast::term::{CType, SpecializedType, PType, VType};
+use crate::ast::term::{CType, SpecializedType, PType, VType, Effect};
 
 type Span<'a> = LocatedSpan<&'a str>;
 
@@ -31,14 +31,14 @@ static PRECEDENCE: &[(&[OperatorAndName], Fixity)] = &[
     (&[("*", "_int_mul"), ("/", "_int_div"), ("%", "_int_mod")], Infixl),
     (&[("+", "_int_add"), ("-", "_int_sub")], Infixl),
     (&[(">", "_int_gt"), ("<", "_int_lt"), (">=", "_int_gte"), ("<=", "_int_lte"), ("==", "_int_eq"), ("!=", "_int_ne")], Infix),
-    (&[("!", "_bool_not")], Prefix),
+    (&[("~", "_bool_not")], Prefix),
     (&[("&&", "_bool_and")], Infixl),
     (&[("||", "_bool_or")], Infixl),
 ];
 
 // keywords
 static KEYWORDS: &[&str] = &[
-    "let", "def", "case", "force", "thunk", "handler", "=>", "=", "(", ")", ",", "\\", "{", "}", "@", "_", ":", "->", "!", "#", "=>!", "#!", "disposer", "replicator"
+    "let", "def", "case", "force", "thunk", "handler", "=>", "=>!", "=>!!", "=", "(", ")", ",", "\\", "{", "}", "@", "_", ":", "->", "!", "!!", "#", "#!", "#!!", "disposer", "replicator"
 ];
 
 // tokenizer
@@ -305,8 +305,33 @@ fn id(input: Input) -> IResult<Input, String> {
     })(input)
 }
 
+fn effect(input: Input) -> IResult<Input, Effect> {
+    map(
+        opt(alt((
+            token("!").map(|_| Effect::Simple),
+            token("!!").map(|_| Effect::Complex),
+        ))),
+        |effect_opt| effect_opt.unwrap_or(Effect::Basic),
+    )(input)
+}
+
+fn op_effect(input: Input) -> IResult<Input, Effect> {
+    alt((
+        token("#!").map(|_| Effect::Simple),
+        token("#!!").map(|_| Effect::Complex),
+    ))(input)
+}
+
+fn lambda_effect(input: Input) -> IResult<Input, Effect> {
+    alt((
+        token("=>").map(|_| Effect::Basic),
+        token("=>!").map(|_| Effect::Simple),
+        token("=>!!").map(|_| Effect::Complex),
+    ))(input)
+}
+
 fn id_term(input: Input) -> IResult<Input, FTerm> {
-    context("id_term", map(pair(id, opt(token("!"))), |(name, effectful)| FTerm::Identifier { name, may_have_complex_effects: effectful.is_some() }))(input)
+    context("id_term", map(pair(id, effect), |(name, effect)| FTerm::Identifier { name, effect }))(input)
 }
 
 fn int(input: Input) -> IResult<Input, i64> {
@@ -358,7 +383,7 @@ fn atom(input: Input) -> IResult<Input, FTerm> {
 }
 
 fn force(input: Input) -> IResult<Input, FTerm> {
-    context("force", map(preceded(token("force"), pair(opt(token("!")), cut(atom))), |(effectful, t)| FTerm::Force { thunk: Box::new(t), may_have_complex_effects: effectful.is_some() }))(input)
+    context("force", map(preceded(token("force"), pair(effect, cut(atom))), |(effect, t)| FTerm::Force { thunk: Box::new(t), effect }))(input)
 }
 
 fn atomic_call(input: Input) -> IResult<Input, FTerm> {
@@ -367,7 +392,7 @@ fn atomic_call(input: Input) -> IResult<Input, FTerm> {
                 pair(
                     atom,
                     alt((
-                        map(pair(boolean(token("#"), token("#!")), cut(struct_)), Either::Right),
+                        map(pair(op_effect, cut(struct_)), Either::Right),
                         map(many0(pair(preceded(token("@"), cut(atom)), opt(preceded(token("="), cut(f_term))))), Either::Left),
                     )),
                 ),
@@ -379,8 +404,8 @@ fn atomic_call(input: Input) -> IResult<Input, FTerm> {
                                 Some(value) => FTerm::MemSet { base: Box::new(t), offset: Box::new(index), value: Box::new(value) },
                             }
                         }),
-                        Either::Right((may_be_complex, FTerm::Struct { values })) => {
-                            FTerm::OperationCall { eff: Box::new(t), args: values, may_be_complex }
+                        Either::Right((effect, FTerm::Struct { values })) => {
+                            FTerm::OperationCall { eff: Box::new(t), args: values, effect }
                         }
                         _ => unreachable!()
                     }
@@ -422,7 +447,7 @@ fn operator_id(operators: &'static [OperatorAndName]) -> impl FnMut(Input) -> IR
                         None
                     })
                 .next()
-                .map(|fun_name| FTerm::Identifier { name: fun_name.to_string(), may_have_complex_effects: false })
+                .map(|fun_name| FTerm::Identifier { name: fun_name.to_string(), effect: Effect::Basic })
         }
         _ => None,
     })
@@ -675,10 +700,10 @@ fn lambda(input: Input) -> IResult<Input, FTerm> {
                     token("\\"),
                     separated_list0(newline_opt, pair(id, v_type_decl)),
                 ),
-                boolean(token("=>"), token("=>!")),
+                lambda_effect,
                 preceded(opt(newline), cut(computation)))),
-            |(arg_names, may_have_complex_effects, body)|
-                FTerm::Lambda { arg_names, body: Box::new(body), may_have_complex_effects },
+            |(arg_names, effect, body)|
+                FTerm::Lambda { arg_names, body: Box::new(body), effect },
         )))(input)
 }
 
@@ -733,7 +758,7 @@ enum HandlerComponent {
     Disposer(FTerm),
     Replicator(FTerm),
     Transform(FTerm),
-    Handler { eff: FTerm, handler: FTerm, complex: bool },
+    Handler { eff: FTerm, handler: FTerm, effect: Effect },
 }
 
 fn handler_component(input: Input) -> IResult<Input, HandlerComponent> {
@@ -744,10 +769,10 @@ fn handler_component(input: Input) -> IResult<Input, HandlerComponent> {
         map(
             tuple((
                 atom,
-                boolean(token("#"), token("#!")),
+                op_effect,
                 preceded(opt(newline), computation),
             )),
-            |(eff, complex, handler, )| HandlerComponent::Handler { eff, handler, complex },
+            |(eff, effect, handler, )| HandlerComponent::Handler { eff, handler, effect },
         ),
     ))(input)
 }
@@ -756,18 +781,18 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
     context("handler_term", map(
         pair(
             scoped(tuple((
-                preceded(token("handler"), pair(opt(token("!")), cut(opt(atom)))),
+                preceded(token("handler"), pair(effect, cut(opt(atom)))),
                 many0(preceded(newline, cut(handler_component))),
             ))),
             preceded(newline, f_term),
         ),
-        |(((effectful, parameter, ), handler_components), input)| {
+        |(((effect, parameter, ), handler_components), input)| {
             let mut handler = FTerm::Handler {
                 parameter: Box::new(parameter.unwrap_or(FTerm::Struct { values: vec![] })),
                 parameter_disposer: Box::new(FTerm::Lambda {
                     arg_names: vec![("_".to_owned(), VType::Uniform)],
                     body: Box::new(FTerm::Struct { values: vec![] }),
-                    may_have_complex_effects: false,
+                    effect: Effect::Basic,
                 }),
                 parameter_replicator: Box::new(FTerm::Lambda {
                     arg_names: vec![("p".to_owned(), VType::Uniform)],
@@ -775,23 +800,23 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
                         values: vec![
                             FTerm::Identifier {
                                 name: "p".to_owned(),
-                                may_have_complex_effects: false,
+                                effect: Effect::Basic,
                             },
                             FTerm::Identifier {
                                 name: "p".to_owned(),
-                                may_have_complex_effects: false,
+                                effect: Effect::Basic,
                             }]
                     }),
-                    may_have_complex_effects: false,
+                    effect: Effect::Basic,
                 }),
                 transform: Box::new(FTerm::Lambda {
                     arg_names: vec![("p".to_owned(), VType::Uniform), ("r".to_owned(), VType::Uniform)],
-                    body: Box::new(FTerm::Identifier { name: "r".to_owned(), may_have_complex_effects: false }),
-                    may_have_complex_effects: false,
+                    body: Box::new(FTerm::Identifier { name: "r".to_owned(), effect: Effect::Basic }),
+                    effect: Effect::Basic,
                 }),
                 simple_handlers: vec![],
                 complex_handlers: vec![],
-                input: Box::new(FTerm::Thunk { computation: Box::new(input), may_have_complex_effects: effectful.is_some() }),
+                input: Box::new(FTerm::Thunk { computation: Box::new(input), effect }),
             };
             for handler_component in handler_components.into_iter() {
                 let FTerm::Handler {
@@ -813,11 +838,13 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
                     HandlerComponent::Transform(t) => {
                         *transform = t;
                     }
-                    HandlerComponent::Handler { eff, handler, complex } => {
-                        if complex {
+                    HandlerComponent::Handler { eff, handler, effect } => {
+                        if effect == Effect::Complex {
                             complex_handlers.push((eff, handler));
-                        } else {
+                        } else if effect == Effect::Simple {
                             simple_handlers.push((eff, handler));
+                        } else {
+                            unreachable!()
                         }
                     }
                 }
@@ -836,8 +863,8 @@ fn thunk(input: Input) -> IResult<Input, FTerm> {
         "thunk",
         scoped(
             map(
-                preceded(preceded(token("thunk"), newline_opt), pair(opt(token("!")), cut(computation))),
-                |(effectful, t)| FTerm::Thunk { computation: Box::new(t), may_have_complex_effects: effectful.is_some() })
+                preceded(preceded(token("thunk"), newline_opt), pair(effect, cut(computation))),
+                |(effect, t)| FTerm::Thunk { computation: Box::new(t), effect })
         ))(input)
 }
 
