@@ -141,6 +141,8 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             true,
             |function_builder, entry_block| function_builder.block_params(entry_block)[0],
             |translator, entry_block, i, v_type| {
+                // Parameters of specialized functions are just passed normally.
+
                 // v is the variable index and i is the offset in the parameter list. The parameter
                 // stack grows from higher address to lower address, so parameter list grows in the
                 // reverse order and hence the offset is the index of the parameter in the parameter
@@ -179,8 +181,6 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         base_address_getter: F,
         parameter_initializer: fn(&mut SimpleFunctionTranslator<M>, Block, usize, &VType) -> TypedReturnValue,
     ) -> SimpleFunctionTranslator<'a, M> where F: FnOnce(&mut FunctionBuilder, Block) -> Value {
-        // Parameters of specialized functions are just passed normally.
-
         compiler.ctx.clear();
         compiler.ctx.func.signature = sig;
 
