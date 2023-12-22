@@ -1,5 +1,6 @@
+use std::arch::global_asm;
 use std::cell::RefCell;
-use std::ops::{Deref, DerefMut};
+use std::ops::{DerefMut};
 use crate::runtime::{Continuation, HandlerEntry, Handler, Uniform, ThunkPtr, Eff, Generic, CapturedContinuation, RawFuncPtr};
 use crate::runtime::HandlerEntry::SimpleOperationMarker;
 use crate::types::{UPtr, UniformPtr, UniformType};
@@ -8,6 +9,39 @@ use crate::types::{UPtr, UniformPtr, UniformType};
 thread_local!(
     static HANDLERS: RefCell<Vec<HandlerEntry>> = RefCell::new(Vec::new());
 );
+
+#[cfg(target_arch = "aarch64")]
+global_asm!(r#"
+    .global runtime_mark_handler
+    .global long_jump
+
+    runtime_mark_handler:
+        ret
+
+    long_jump:
+        ret
+"#);
+
+extern "C" {
+    /// Store FP, SP, and return address to the handler entry, then invoke the input function.
+    pub fn runtime_mark_handler(
+        fp_storage_ptr: *mut *const u8,
+        sp_storage_ptr: *mut *const u8,
+        return_address_storage_ptr: *mut *const u8,
+        input_func_ptr: RawFuncPtr,
+        input_base_address: *mut Uniform,
+        next_continuation: *mut Continuation,
+    );
+
+    /// Restore FP and SP, then jump to the return address.
+    fn long_jump(
+        fp: *const u8,
+        sp: *const u8,
+        return_address: *const u8,
+        return_value: Uniform,
+    );
+}
+
 
 static mut EMPTY_STRUCT: usize = 0;
 const TRANSFORM_LOADER_NUM_ARGS: usize = 1;
@@ -379,6 +413,10 @@ pub unsafe fn runtime_register_handler(
             // TODO: use custom allocator that allocates through Boehm GC for vecs
             simple_handler: Vec::new(),
             complex_handler: Vec::new(),
+            // These are updated by runtime_mark_handler
+            frame_pointer: std::ptr::null(),
+            stack_pointer: std::ptr::null(),
+            return_address: std::ptr::null(),
         }));
         match handlers.borrow().last().unwrap()
         {
@@ -406,6 +444,8 @@ pub unsafe fn runtime_prepare_resume_continuation(
     captured_continuation: *mut CapturedContinuation,
     parameter: Uniform,
     result: Uniform,
+    frame_pointer: *const u8,
+    stack_pointer: *const u8,
 ) -> *const usize {
     let mut captured_continuation = captured_continuation.read();
     let base_handler = captured_continuation.handler_fragment.first_mut().unwrap();
@@ -445,6 +485,11 @@ pub unsafe fn runtime_prepare_resume_continuation(
                 parameter_replicator: handler.parameter_replicator,
                 simple_handler: handler.simple_handler,
                 complex_handler: handler.complex_handler,
+                // Captured continuation must be CPS transformed, which means all calls must be tail-optimized, and
+                // hence the frame pointer and stack pointer are all the same across all handler entries.
+                frame_pointer,
+                stack_pointer,
+                return_address: handler.return_address,
             }));
         }
     });
@@ -472,6 +517,8 @@ pub unsafe fn runtime_dispose_continuation(
     captured_continuation: *mut CapturedContinuation,
     parameter: Uniform,
     runtime_invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
+    frame_pointer: *const u8,
+    stack_pointer: *const u8,
 ) -> *const usize {
     let mut captured_continuation = captured_continuation.read();
     let base_handler = captured_continuation.handler_fragment.first_mut().unwrap();
@@ -498,6 +545,9 @@ pub unsafe fn runtime_dispose_continuation(
                 parameter_replicator: handler.parameter_replicator,
                 simple_handler: handler.simple_handler,
                 complex_handler: handler.complex_handler,
+                frame_pointer,
+                stack_pointer,
+                return_address: handler.return_address,
             }));
         }
     });

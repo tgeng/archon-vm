@@ -1,7 +1,7 @@
 use cranelift::codegen::ir::Inst;
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
-use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, debug_helper, runtime_prepare_operation, runtime_pop_handler, runtime_register_handler, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation, runtime_process_simple_handler_result, runtime_dispose_continuation};
+use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, debug_helper, runtime_prepare_operation, runtime_pop_handler, runtime_register_handler, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation, runtime_process_simple_handler_result, runtime_dispose_continuation, runtime_mark_handler};
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder};
@@ -65,6 +65,7 @@ pub enum BuiltinFunction {
     PrepareResumeContinuation,
     DisposeContinuation,
     ProcessSimpleHandlerResult,
+    MarkHandler,
 
     // generated
     GetTrivialContinuation,
@@ -109,6 +110,8 @@ impl BuiltinFunction {
             BuiltinFunction::PrepareResumeContinuation => "__runtime_prepare_resume_continuation",
             BuiltinFunction::DisposeContinuation => "__runtime_dispose_continuation",
             BuiltinFunction::ProcessSimpleHandlerResult => "__runtime_process_simple_handler_result",
+            BuiltinFunction::MarkHandler => "__runtime_mark_handler",
+
             BuiltinFunction::GetTrivialContinuation => "__runtime_get_trivial_continuation",
             BuiltinFunction::TrivialContinuationImpl => "__runtime_trivial_continuation_impl",
             BuiltinFunction::CapturedContinuationRecordImpl => "__runtime_captured_continuation_record_impl",
@@ -132,6 +135,8 @@ impl BuiltinFunction {
             BuiltinFunction::PrepareResumeContinuation => runtime_prepare_resume_continuation as *const u8,
             BuiltinFunction::DisposeContinuation => runtime_dispose_continuation as *const u8,
             BuiltinFunction::ProcessSimpleHandlerResult => runtime_process_simple_handler_result as *const u8,
+            BuiltinFunction::MarkHandler => runtime_mark_handler as *const u8,
+
             BuiltinFunction::GetTrivialContinuation => return,
             BuiltinFunction::TrivialContinuationImpl => return,
             BuiltinFunction::CapturedContinuationRecordImpl => return,
@@ -170,9 +175,11 @@ impl BuiltinFunction {
             BuiltinFunction::RegisterHandler => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::AddSimpleHandler => declare_func(3, 0, Linkage::Import),
             BuiltinFunction::AddComplexHandler => declare_func(3, 0, Linkage::Import),
-            BuiltinFunction::PrepareResumeContinuation => declare_func(5, 1, Linkage::Import),
-            BuiltinFunction::DisposeContinuation => declare_func(5, 1, Linkage::Import),
+            BuiltinFunction::PrepareResumeContinuation => declare_func(7, 1, Linkage::Import),
+            BuiltinFunction::DisposeContinuation => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::ProcessSimpleHandlerResult => declare_func(2, 1, Linkage::Import),
+            BuiltinFunction::MarkHandler => declare_func(4, 1, Linkage::Import),
+
             BuiltinFunction::GetTrivialContinuation => declare_func(0, 1, Linkage::Local),
             BuiltinFunction::TrivialContinuationImpl => declare_func_with_call_conv(m, 3, 1, Linkage::Local, CallConv::Tail),
             BuiltinFunction::CapturedContinuationRecordImpl => declare_func_with_call_conv(m, 2, 1, Linkage::Local, CallConv::Tail),
@@ -273,6 +280,9 @@ impl BuiltinFunction {
         builder.switch_to_block(entry_block);
         builder.seal_block(entry_block);
 
+        let frame_pointer = builder.ins().get_frame_pointer(I64);
+        let stack_pointer = builder.ins().get_stack_pointer(I64);
+
         let base_address = builder.block_params(entry_block)[0];
         let next_continuation = builder.block_params(entry_block)[1];
         let captured_continuation = builder.ins().load(I64, MemFlags::new(), base_address, 0);
@@ -309,7 +319,7 @@ impl BuiltinFunction {
             m,
             builder,
             BuiltinFunction::PrepareResumeContinuation,
-            &[base_address, next_continuation, captured_continuation, handler_parameter, result],
+            &[base_address, next_continuation, captured_continuation, handler_parameter, result, frame_pointer, stack_pointer],
         );
         Self::tail_call_continuation(m, builder, inst);
 
@@ -320,7 +330,7 @@ impl BuiltinFunction {
             m,
             builder,
             BuiltinFunction::DisposeContinuation,
-            &[base_address, next_continuation, captured_continuation, handler_parameter, invoke_cps_function_with_trivial_continuation],
+            &[base_address, next_continuation, captured_continuation, handler_parameter, invoke_cps_function_with_trivial_continuation, frame_pointer, stack_pointer],
         );
         Self::tail_call_continuation(m, builder, inst);
 
