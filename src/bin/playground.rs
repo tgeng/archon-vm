@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{BufWriter, Seek, Write};
+use std::io::{BufWriter};
 use cranelift::codegen;
 use cranelift::codegen::isa::CallConv;
 use cranelift::codegen::settings;
@@ -51,7 +51,7 @@ impl Compiler {
         self.module.declare_function(name, cranelift_module::Linkage::Local, sig).unwrap()
     }
 
-    fn define_function(&mut self, name: &str, sig: &Signature, f: fn(&mut FunctionBuilder, Block)) {
+    fn define_function<F>(&mut self, name: &str, sig: &Signature, f: F) -> FuncId where F: FnOnce(&mut ObjectModule, &mut FunctionBuilder, Block) {
         let func_id = self.module.declare_function(name, cranelift_module::Linkage::Local, sig).unwrap();
         self.ctx.func.signature = sig.clone();
         let mut builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.builder_context);
@@ -59,7 +59,7 @@ impl Compiler {
         builder.append_block_params_for_function_params(entry_block);
         builder.seal_block(entry_block);
         builder.switch_to_block(entry_block);
-        f(&mut builder, entry_block);
+        f(&mut self.module, &mut builder, entry_block);
         builder.finalize();
         let clir = self.ctx.func.display().to_string();
         self.module.define_function(func_id, &mut self.ctx).unwrap();
@@ -69,6 +69,7 @@ impl Compiler {
             func_id,
             clir,
         });
+        func_id
     }
 
     fn finish(self) -> ObjectProduct {
@@ -82,9 +83,16 @@ fn main() {
     sig.call_conv = CallConv::Tail;
     sig.params.push(AbiParam::new(I64));
     sig.returns.push(AbiParam::new(I64));
-    compiler.define_function("foo", &sig, |builder, entry_block| {
+    let bar = compiler.define_function("bar", &sig, |module, builder, entry_block| {
         let first_arg = builder.block_params(entry_block)[0];
-        builder.ins().return_(&[first_arg]);
+        let one = builder.ins().iconst(I64, 1);
+        let result = builder.ins().iadd(first_arg, one);
+        builder.ins().return_(&[result]);
+    });
+    compiler.define_function("foo", &sig, |module, builder, entry_block| {
+        let first_arg = builder.block_params(entry_block)[0];
+        let bar_func_ref = module.declare_func_in_func(bar, builder.func);
+        builder.ins().return_call(bar_func_ref, &[first_arg]);
     });
     let object_product = compiler.finish();
     let output_path = home::home_dir().unwrap().join("tmp/playground.o");
