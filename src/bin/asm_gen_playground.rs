@@ -4,7 +4,7 @@ use cranelift::codegen;
 use cranelift::codegen::isa::CallConv;
 use cranelift::codegen::settings;
 use cranelift::frontend::{FunctionBuilder, FunctionBuilderContext};
-use cranelift::prelude::{AbiParam, Block, Configurable, InstBuilder, Signature};
+use cranelift::prelude::{AbiParam, Block, Configurable, InstBuilder, MemFlags, Signature};
 use cranelift::prelude::types::I64;
 use cranelift_module::{FuncId, Module};
 use cranelift_object::{ObjectBuilder, ObjectModule, ObjectProduct};

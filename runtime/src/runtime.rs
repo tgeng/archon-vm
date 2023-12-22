@@ -35,12 +35,12 @@ pub struct Handler<T> {
     pub parameter: Uniform,
     pub parameter_disposer: ThunkPtr,
     pub parameter_replicator: ThunkPtr,
-    pub simple_handler: Vec<(Eff, ThunkPtr)>,
-    pub complex_handler: Vec<(Eff, ThunkPtr)>,
     // The following three fields are set by runtime_mark_handler and used by runtime_jump
     pub frame_pointer: *const u8,
     pub stack_pointer: *const u8,
     pub return_address: *const u8,
+    pub simple_handler: Vec<(Eff, ThunkPtr)>,
+    pub complex_handler: Vec<(Eff, ThunkPtr)>,
 }
 
 pub enum HandlerEntry {

@@ -10,36 +10,42 @@ thread_local!(
     static HANDLERS: RefCell<Vec<HandlerEntry>> = RefCell::new(Vec::new());
 );
 
+// For some reason the actual symbols has a leading underscore.
+// Cranelift's tail call convention places the first argument in x2 rather than x0.
 #[cfg(target_arch = "aarch64")]
 global_asm!(r#"
-    .global runtime_mark_handler
-    .global long_jump
+    .global _runtime_mark_handler
+    .global _long_jump
 
-    runtime_mark_handler:
-        ret
+    _runtime_mark_handler:
+        str x29, [x4]
+        mov x16, sp
+        str x16, [x5]
+        str x30, [x6]
+        br  x7
 
-    long_jump:
+    _long_jump:
         ret
 "#);
 
 extern "C" {
     /// Store FP, SP, and return address to the handler entry, then invoke the input function.
     pub fn runtime_mark_handler(
+        input_base_address: *mut Uniform,
+        next_continuation: *mut Continuation,
         fp_storage_ptr: *mut *const u8,
         sp_storage_ptr: *mut *const u8,
         return_address_storage_ptr: *mut *const u8,
         input_func_ptr: RawFuncPtr,
-        input_base_address: *mut Uniform,
-        next_continuation: *mut Continuation,
-    );
+    ) -> *const Uniform;
 
     /// Restore FP and SP, then jump to the return address.
     fn long_jump(
+        return_value: Uniform,
         fp: *const u8,
         sp: *const u8,
         return_address: *const u8,
-        return_value: Uniform,
-    );
+    ) -> !;
 }
 
 
@@ -107,7 +113,7 @@ pub unsafe fn runtime_alloc_stack() -> *mut usize {
 }
 
 /// Returns the result of the operation in uniform representation
-pub unsafe fn debug_helper(base_address: *const usize, next_continuation: *const usize, tip_address: *const usize) -> usize {
+pub unsafe fn debug_helper(fp: *const usize, sp: *const usize, lr: *const usize) -> usize {
     return 1 + 1;
 }
 

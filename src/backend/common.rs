@@ -178,7 +178,7 @@ impl BuiltinFunction {
             BuiltinFunction::PrepareResumeContinuation => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::DisposeContinuation => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::ProcessSimpleHandlerResult => declare_func(2, 1, Linkage::Import),
-            BuiltinFunction::MarkHandler => declare_func(4, 1, Linkage::Import),
+            BuiltinFunction::MarkHandler => declare_func_with_call_conv(m, 6, 1, Linkage::Import, CallConv::Tail),
 
             BuiltinFunction::GetTrivialContinuation => declare_func(0, 1, Linkage::Local),
             BuiltinFunction::TrivialContinuationImpl => declare_func_with_call_conv(m, 3, 1, Linkage::Local, CallConv::Tail),

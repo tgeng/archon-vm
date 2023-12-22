@@ -235,20 +235,21 @@ function u0:0(i64) -> i64 tail {
     sig6 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
     sig7 = (i64, i64, i64) apple_aarch64
     sig8 = (i64, i64, i64) apple_aarch64
-    sig9 = (i64, i64) -> i64 tail
-    sig10 = (i64, i64) -> i64 apple_aarch64
-    sig11 = (i64, i64) -> i64 tail
-    fn0 = colocated u0:12 sig0
+    sig9 = (i64, i64, i64, i64, i64, i64) -> i64 tail
+    sig10 = (i64, i64) -> i64 tail
+    sig11 = (i64, i64) -> i64 apple_aarch64
+    fn0 = colocated u0:13 sig0
     fn1 = u0:0 sig1
-    fn2 = colocated u0:19 sig2
-    fn3 = colocated u0:21 sig3
-    fn4 = colocated u0:23 sig4
-    fn5 = colocated u0:17 sig5
+    fn2 = colocated u0:20 sig2
+    fn3 = colocated u0:22 sig3
+    fn4 = colocated u0:24 sig4
+    fn5 = colocated u0:18 sig5
     fn6 = u0:6 sig6
     fn7 = u0:7 sig7
     fn8 = u0:8 sig8
-    fn9 = colocated u0:25 sig9
-    fn10 = u0:1 sig10
+    fn9 = u0:12 sig9
+    fn10 = colocated u0:26 sig10
+    fn11 = u0:1 sig11
 
 block0(v0: i64):
     v1 = call fn0()
@@ -267,17 +268,20 @@ block0(v0: i64):
     v13 = call fn6(v12, v1, v4, v6, v8, v10, v11)
     v14 = stack_load.i64 ss0
     v15 = load.i64 v13
-    v16 = func_addr.i64 fn9
-    v17 = iadd_imm v16, 3
+    v16 = iadd_imm v13, 40
+    v17 = iadd_imm v13, 48
+    v18 = iadd_imm v13, 56
+    v19 = func_addr.i64 fn10
+    v20 = iadd_imm v19, 3
     stack_store v14, ss0
-    v18 = stack_addr.i64 ss0
-    v19 = call fn10(v17, v18)
-    v20 = stack_load.i64 ss0
-    v21 = call_indirect sig11, v19(v20, v15)
-    v22 = load.i64 v21
-    v23 = iadd_imm v21, 8
-    v24 = sshr_imm v22, 1
-    return v24
+    v21 = stack_addr.i64 ss0
+    v22 = call fn11(v20, v21)
+    v23 = stack_load.i64 ss0
+    v24 = call fn9(v23, v15, v16, v17, v18, v22)
+    v25 = load.i64 v24
+    v26 = iadd_imm v24, 8
+    v27 = sshr_imm v25, 1
+    return v27
 }
 
 
@@ -368,7 +372,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:18 sig1
+    fn1 = colocated u0:19 sig1
 
 block0:
     v0 = call fn0()
