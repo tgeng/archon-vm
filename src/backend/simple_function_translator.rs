@@ -450,17 +450,12 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         // The transform loader continuation is the first value inside the handler struct.
         let transform_loader_continuation = self.function_builder.ins().load(I64, MemFlags::new(), handler, 0);
         let mark_handler_ref = self.module.declare_func_in_func(self.builtin_functions[BuiltinFunction::MarkHandler], self.function_builder.func);
-        let fp_storage_ptr = self.function_builder.ins().iadd_imm(handler, 5 << 3);
-        let sp_storage_ptr = self.function_builder.ins().iadd_imm(handler, 6 << 3);
-        let return_address_storage_ptr = self.function_builder.ins().iadd_imm(handler, 7 << 3);
         let input_thunk_func_ptr = self.process_thunk(input);
         let args = &[
             self.tip_address,
             transform_loader_continuation,
-            fp_storage_ptr,
-            sp_storage_ptr,
-            return_address_storage_ptr,
             input_thunk_func_ptr,
+            handler,
         ];
         if is_tail && !self.is_specialized {
             self.function_builder.ins().return_call(mark_handler_ref, args);

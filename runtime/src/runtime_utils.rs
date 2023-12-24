@@ -18,11 +18,17 @@ global_asm!(r#"
     .global _long_jump
 
     _runtime_mark_handler:
-        str x29, [x4]
-        mov x16, sp
-        str x16, [x5]
-        str x30, [x6]
-        br  x7
+        add x16, x5, #40 ; get fp address in the handler
+        str x29, [x16] ; store fp to the handler
+
+        add x16, x5, #48 ; get sp address in the handler
+        mov x17, sp
+        str x17, [x16] ; store sp to the handler
+
+        add x16, x5, #56 ; get lr address in the handler
+        str x30, [x16] ; store lr to the handler
+
+        br  x4
 
     _long_jump:
         ret
@@ -31,20 +37,18 @@ global_asm!(r#"
 extern "C" {
     /// Store FP, SP, and return address to the handler entry, then invoke the input function.
     pub fn runtime_mark_handler(
-        input_base_address: *mut Uniform,
-        next_continuation: *mut Continuation,
-        fp_storage_ptr: *mut *const u8,
-        sp_storage_ptr: *mut *const u8,
-        return_address_storage_ptr: *mut *const u8,
-        input_func_ptr: RawFuncPtr,
+        input_base_address: *mut Uniform, // x2
+        next_continuation: *mut Continuation, // x3
+        input_func_ptr: RawFuncPtr, // x4
+        handler: *const Handler<*mut Uniform>, // x5
     ) -> *const Uniform;
 
     /// Restore FP and SP, then jump to the return address.
     fn long_jump(
-        return_value: Uniform,
-        fp: *const u8,
-        sp: *const u8,
-        return_address: *const u8,
+        next_base_address: *mut Uniform, // x2
+        next_continuation: *const Continuation, // x3
+        result_ptr: *const Uniform, // x4
+        handler: *const Handler<*mut Uniform>, // x5
     ) -> !;
 }
 

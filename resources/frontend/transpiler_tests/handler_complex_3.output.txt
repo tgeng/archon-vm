@@ -728,7 +728,7 @@ function u0:0(i64) -> i64 tail {
     sig8 = (i64, i64) -> i64 tail
     sig9 = (i64, i64) -> i64 tail
     sig10 = (i64, i64) -> i64 tail
-    sig11 = (i64, i64, i64, i64, i64, i64) -> i64 tail
+    sig11 = (i64, i64, i64, i64) -> i64 tail
     sig12 = (i64, i64) -> i64 tail
     sig13 = (i64, i64) -> i64 apple_aarch64
     fn0 = colocated u0:13 sig0
@@ -780,20 +780,17 @@ block0(v0: i64):
     v28 = iadd_imm v27, 3
     call fn7(v12, v26, v28)
     v29 = load.i64 v12
-    v30 = iadd_imm v12, 40
-    v31 = iadd_imm v12, 48
-    v32 = iadd_imm v12, 56
-    v33 = func_addr.i64 fn12
-    v34 = iadd_imm v33, 3
+    v30 = func_addr.i64 fn12
+    v31 = iadd_imm v30, 3
     stack_store v13, ss0
-    v35 = stack_addr.i64 ss0
-    v36 = call fn13(v34, v35)
-    v37 = stack_load.i64 ss0
-    v38 = call fn11(v37, v29, v30, v31, v32, v36)
-    v39 = load.i64 v38
-    v40 = iadd_imm v38, 8
-    v41 = sshr_imm v39, 1
-    return v41
+    v32 = stack_addr.i64 ss0
+    v33 = call fn13(v31, v32)
+    v34 = stack_load.i64 ss0
+    v35 = call fn11(v34, v29, v33, v12)
+    v36 = load.i64 v35
+    v37 = iadd_imm v35, 8
+    v38 = sshr_imm v36, 1
+    return v38
 }
 
 
