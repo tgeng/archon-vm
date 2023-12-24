@@ -320,7 +320,7 @@ pub unsafe fn runtime_pop_handler() -> Uniform {
     })
 }
 
-unsafe fn dispose_handlers(base_address: *mut Uniform, matching_handler_index: usize, invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform) {
+unsafe fn dispose_handlers(matching_handler_index: usize, invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform) {
     // Extract the value here so that the borrowed value is returned right after the closure closes.
     // This is critical because disposer may be exceptional and hence this function may not return
     // locally, skipping any rust drop calls.
@@ -330,8 +330,8 @@ unsafe fn dispose_handlers(base_address: *mut Uniform, matching_handler_index: u
     while (*handlers).len() > matching_handler_index {
         let handler = (*handlers).pop().unwrap();
         match handler {
-            HandlerEntry::Handler(Handler { parameter, parameter_disposer, .. }) => {
-                let mut tip_address = base_address;
+            HandlerEntry::Handler(Handler { parameter, parameter_disposer, transform_loader_base_address, .. }) => {
+                let mut tip_address = transform_loader_base_address;
                 tip_address = tip_address.sub(1);
                 tip_address.write(parameter);
                 let func_ptr = runtime_force_thunk(parameter_disposer, &mut tip_address);
@@ -557,7 +557,7 @@ pub unsafe fn runtime_dispose_continuation(
             }));
         }
     });
-    dispose_handlers(tip_address, matching_handler_index, runtime_invoke_cps_function_with_trivial_continuation);
+    dispose_handlers(matching_handler_index, runtime_invoke_cps_function_with_trivial_continuation);
 
     // Write the last result
     let last_result_address = tip_address.sub(1);
