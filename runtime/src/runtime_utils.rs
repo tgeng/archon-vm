@@ -292,7 +292,7 @@ unsafe fn prepare_simple_operation(
 /// Special function that may do long jump instead of normal return if the result is exceptional. If
 /// the result is exceptional. This function also takes care of disposing the handler parameters of
 /// all the evicted handlers.
-pub fn runtime_process_simple_handler_result(handler_index: usize, simple_result: &SimpleResult) -> Uniform {
+pub fn runtime_process_simple_handler_result(handler_index: usize, simple_result: &SimpleResult, invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform) -> Uniform {
     HANDLERS.with(|handlers| {
         let mut handlers = handlers.borrow_mut();
         match handlers.get_mut(handler_index).unwrap() {

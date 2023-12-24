@@ -9,6 +9,7 @@ use cranelift_module::{FuncId, Linkage, Module};
 use crate::ast::term::{VType, SpecializedType, PType};
 use strum_macros::EnumIter;
 use enum_map::{Enum};
+use cbpv_runtime::runtime::RawFuncPtr;
 use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
 
@@ -177,7 +178,7 @@ impl BuiltinFunction {
             BuiltinFunction::AddComplexHandler => declare_func(3, 0, Linkage::Import),
             BuiltinFunction::PrepareResumeContinuation => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::DisposeContinuation => declare_func(7, 1, Linkage::Import),
-            BuiltinFunction::ProcessSimpleHandlerResult => declare_func(2, 1, Linkage::Import),
+            BuiltinFunction::ProcessSimpleHandlerResult => declare_func(3, 1, Linkage::Import),
             BuiltinFunction::MarkHandler => declare_func_with_call_conv(m, 6, 1, Linkage::Import, CallConv::Tail),
 
             BuiltinFunction::GetTrivialContinuation => declare_func(0, 1, Linkage::Local),
@@ -380,9 +381,10 @@ impl BuiltinFunction {
         let simple_handler_result = builder.ins().load(I64, MemFlags::new(), result_ptr, 0);
         let simple_handler_result_ptr = builder.ins().band_imm(simple_handler_result, !0b11);
 
+        let invoke_cps_function_with_trivial_continuation = Self::get_built_in_func_ptr(m, builder, BuiltinFunction::InvokeCpsFunctionWithTrivialContinuation);
         let inst = Self::call_built_in(
             m, builder, BuiltinFunction::ProcessSimpleHandlerResult,
-            &[handler_index, simple_handler_result_ptr]);
+            &[handler_index, simple_handler_result_ptr, invoke_cps_function_with_trivial_continuation]);
         let result = builder.inst_results(inst)[0];
 
         let new_base_address = builder.ins().iadd_imm(result_ptr, 8);
