@@ -44,7 +44,7 @@ pub struct Handler<T> {
 }
 
 pub enum HandlerEntry {
-    Handler(Handler<*const usize>),
+    Handler(Handler<*mut Uniform>),
     SimpleOperationMarker { handler_index: usize },
 }
 

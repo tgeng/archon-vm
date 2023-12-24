@@ -269,7 +269,7 @@ unsafe fn prepare_simple_operation(
     handler_impl: ThunkPtr,
 ) -> (*const usize, *mut usize, *mut Continuation) {
     let matching_handler = HANDLERS.with(|handler| match handler.borrow_mut().get_mut(handler_index).unwrap() {
-        HandlerEntry::Handler(handler) => handler as *mut Handler<*const usize>,
+        HandlerEntry::Handler(handler) => handler as *mut Handler<*mut Uniform>,
         _ => panic!("Expect a handler entry")
     });
 
@@ -383,7 +383,7 @@ pub unsafe fn runtime_register_handler(
     parameter_replicator: ThunkPtr,
     transform: ThunkPtr,
     transform_loader_cps_impl: RawFuncPtr,
-) -> *const Handler<*const usize> {
+) -> *const Handler<*mut Uniform> {
     let transform_loader_continuation = &mut *(runtime_alloc(4) as *mut Continuation);
     transform_loader_continuation.func = transform_loader_cps_impl;
     transform_loader_continuation.next = next_continuation;
@@ -426,17 +426,17 @@ pub unsafe fn runtime_register_handler(
         }));
         match handlers.borrow().last().unwrap()
         {
-            HandlerEntry::Handler(handler) => handler as *const Handler<*const usize>,
+            HandlerEntry::Handler(handler) => handler as *const Handler<*mut Uniform>,
             _ => panic!("Expect a handler entry")
         }
     })
 }
 
-pub fn runtime_add_simple_handler(handler: &mut Handler<*const usize>, eff: Eff, handler_impl: ThunkPtr) {
+pub fn runtime_add_simple_handler(handler: &mut Handler<*mut Uniform>, eff: Eff, handler_impl: ThunkPtr) {
     handler.simple_handler.push((eff, handler_impl))
 }
 
-pub fn runtime_add_complex_handler(handler: &mut Handler<*const usize>, eff: Eff, handler_impl: ThunkPtr) {
+pub fn runtime_add_complex_handler(handler: &mut Handler<*mut Uniform>, eff: Eff, handler_impl: ThunkPtr) {
     handler.complex_handler.push((eff, handler_impl))
 }
 
