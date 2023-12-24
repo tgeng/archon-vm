@@ -1,6 +1,6 @@
 handler 0
-  "get" #! \p => {p, {0, p}}
-  "set" #! \p x => {x, {0, {}}}
+  "get" #! \p => {p, {1, p}}
+  "set" #! \p x => {x, {1, {}}}
 handler!! 5
   disposer \p => "set" #! {p}
   "exp" #!!

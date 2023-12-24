@@ -75,7 +75,7 @@ Handler {
                         Struct {
                             values: [
                                 Int {
-                                    value: 0,
+                                    value: 1,
                                 },
                                 Identifier {
                                     name: "p",
@@ -112,7 +112,7 @@ Handler {
                         Struct {
                             values: [
                                 Int {
-                                    value: 0,
+                                    value: 1,
                                 },
                                 Struct {
                                     values: [],
@@ -202,7 +202,7 @@ Handler {
                                 Struct {
                                     values: [
                                         Int {
-                                            value: 0,
+                                            value: 1,
                                         },
                                         OperationCall {
                                             eff: Str {
@@ -257,7 +257,7 @@ Handler {
                                 Struct {
                                     values: [
                                         Int {
-                                            value: 0,
+                                            value: 1,
                                         },
                                         OperationCall {
                                             eff: Str {
@@ -692,7 +692,7 @@ Defs
                         Struct {
                             values: [
                                 Int {
-                                    value: 0,
+                                    value: 1,
                                 },
                                 Var {
                                     index: 0,
@@ -731,7 +731,7 @@ Defs
                         Struct {
                             values: [
                                 Int {
-                                    value: 0,
+                                    value: 1,
                                 },
                                 Struct {
                                     values: [],
@@ -873,7 +873,7 @@ Defs
                         value: Struct {
                             values: [
                                 Int {
-                                    value: 0,
+                                    value: 1,
                                 },
                                 Var {
                                     index: 3,
@@ -954,7 +954,7 @@ Defs
                         value: Struct {
                             values: [
                                 Int {
-                                    value: 0,
+                                    value: 1,
                                 },
                                 Var {
                                     index: 3,
@@ -1348,8 +1348,8 @@ function u0:0(i64, i64) -> i64 tail {
 
 block0(v0: i64, v1: i64):
     v2 = load.i64 v0
-    v3 = iconst.i64 0
-    v4 = ishl_imm v3, 1  ; v3 = 0
+    v3 = iconst.i64 1
+    v4 = ishl_imm v3, 1  ; v3 = 1
     v5 = iconst.i64 2
     v6 = call fn0(v5)  ; v5 = 2
     store aligned v4, v6
@@ -1384,8 +1384,8 @@ function u0:0(i64, i64) -> i64 tail {
 block0(v0: i64, v1: i64):
     v2 = load.i64 v0
     v3 = load.i64 v0+8
-    v4 = iconst.i64 0
-    v5 = ishl_imm v4, 1  ; v4 = 0
+    v4 = iconst.i64 1
+    v5 = ishl_imm v4, 1  ; v4 = 1
     v6 = iconst.i64 0
     v7 = call fn0(v6)  ; v6 = 0
     v8 = iadd_imm v7, 1
@@ -1540,8 +1540,8 @@ block0(v0: i64, v1: i64):
     v35 = call_indirect sig9, v32(v33, v34)
     v36 = load.i64 v35
     v37 = iadd_imm v35, 8
-    v38 = iconst.i64 0
-    v39 = ishl_imm v38, 1  ; v38 = 0
+    v38 = iconst.i64 1
+    v39 = ishl_imm v38, 1  ; v38 = 1
     v40 = iconst.i64 2
     v41 = call fn8(v40)  ; v40 = 2
     store aligned v39, v41
@@ -1629,8 +1629,8 @@ block0(v0: i64, v1: i64):
     v35 = call_indirect sig9, v32(v33, v34)
     v36 = load.i64 v35
     v37 = iadd_imm v35, 8
-    v38 = iconst.i64 0
-    v39 = ishl_imm v38, 1  ; v38 = 0
+    v38 = iconst.i64 1
+    v39 = ishl_imm v38, 1  ; v38 = 1
     v40 = iconst.i64 2
     v41 = call fn8(v40)  ; v40 = 2
     store aligned v39, v41
