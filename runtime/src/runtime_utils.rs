@@ -10,8 +10,6 @@ thread_local!(
     static HANDLERS: RefCell<Vec<HandlerEntry>> = RefCell::new(Vec::new());
 );
 
-// For some reason the actual symbols has a leading underscore.
-// Cranelift's tail call convention places the first argument in x2 rather than x0.
 #[cfg(target_arch = "aarch64")]
 global_asm!(r#"
     .global _runtime_mark_handler
@@ -31,11 +29,29 @@ global_asm!(r#"
         br  x4
 
     _long_jump:
-        ret
+        add x16, x3, #40 ; get fp address in the handler
+        ldr x29, [x16] ; restore fp from the handler
+
+        add x16, x3, #48 ; get sp address in the handler
+        ldr x17, [x16] ; restore sp from the handler
+        mov sp, x17
+
+        add x16, x3, #56 ; get lr address in the handler
+        ldr x30, [x16] ; store lr to the handler
+
+        ldr x16, [x1] ; get the function pointer to the next continuation
+
+        mov x4, x2 ; shift arguments to match Cranelift's tail call convention
+        mov x3, x1
+        mov x2, x0
+        br x16
 "#);
 
 extern "C" {
     /// Store FP, SP, and return address to the handler entry, then invoke the input function.
+    /// This function follows Cranelift's tail call convention. It also invokes the given input_func_ptr, which is also
+    /// in Cranelifts' tail call convention.
+    /// On ARM64, the first argument starts at x2.
     pub fn runtime_mark_handler(
         input_base_address: *mut Uniform, // x2
         next_continuation: *mut Continuation, // x3
@@ -44,11 +60,13 @@ extern "C" {
     ) -> *const Uniform;
 
     /// Restore FP and SP, then jump to the return address.
+    /// This function follows the normal call convention. But it ends up calling the next continuation, which is in
+    /// Cranelift's tail call convention. So on ARM64, it needs to shift the arguments.
     fn long_jump(
-        next_base_address: *mut Uniform, // x2
-        next_continuation: *const Continuation, // x3
-        result_ptr: *const Uniform, // x4
-        handler: *const Handler<*mut Uniform>, // x5
+        next_base_address: *mut Uniform, // x0
+        next_continuation: *const Continuation, // x1
+        result_ptr: *const Uniform, // x2
+        handler: *const Handler<*mut Uniform>, // x3
     ) -> !;
 }
 
@@ -296,7 +314,11 @@ unsafe fn prepare_simple_operation(
 /// Special function that may do long jump instead of normal return if the result is exceptional. If
 /// the result is exceptional. This function also takes care of disposing the handler parameters of
 /// all the evicted handlers.
-pub fn runtime_process_simple_handler_result(handler_index: usize, simple_result: &SimpleResult, invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform) -> Uniform {
+pub fn runtime_process_simple_handler_result(
+    handler_index: usize,
+    simple_result: &SimpleResult,
+    invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
+) -> Uniform {
     HANDLERS.with(|handlers| {
         let mut handlers = handlers.borrow_mut();
         match handlers.get_mut(handler_index).unwrap() {
@@ -310,8 +332,18 @@ pub fn runtime_process_simple_handler_result(handler_index: usize, simple_result
         assert!(matches!(last_entry, SimpleOperationMarker { .. }));
     });
 
-    // TODO: implement exceptional result handling
-    simple_result.result_value.value
+    match simple_result.result_value.tag {
+        0 => unsafe {
+            let handler = dispose_handlers(handler_index, invoke_cps_function_with_trivial_continuation);
+            let next_continuation = (*handler.transform_loader_continuation).next;
+            let next_base_address = handler.transform_loader_base_address.add((*next_continuation).arg_stack_frame_height);
+            let result_ptr = handler.transform_loader_base_address.add(TRANSFORM_LOADER_NUM_ARGS).sub(1);
+            result_ptr.write(simple_result.result_value.value);
+            long_jump(next_base_address, next_continuation, result_ptr, &handler);
+        }
+        0b10 => simple_result.result_value.value,
+        _ => unreachable!("bad simple result tag")
+    }
 }
 
 pub unsafe fn runtime_pop_handler() -> Uniform {
@@ -324,27 +356,35 @@ pub unsafe fn runtime_pop_handler() -> Uniform {
     })
 }
 
-unsafe fn dispose_handlers(matching_handler_index: usize, invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform) {
+unsafe fn dispose_handlers(
+    matching_handler_index: usize,
+    invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
+) -> Handler<*mut Uniform> {
     // Extract the value here so that the borrowed value is returned right after the closure closes.
     // This is critical because disposer may be exceptional and hence this function may not return
     // locally, skipping any rust drop calls.
     let handlers = HANDLERS.with(|handlers| {
         handlers.borrow_mut().deref_mut() as *mut Vec<HandlerEntry>
     });
+
+    let mut handler = None;
     while (*handlers).len() > matching_handler_index {
-        let handler = (*handlers).pop().unwrap();
-        match handler {
-            HandlerEntry::Handler(Handler { parameter, parameter_disposer, transform_loader_base_address, .. }) => {
+        let handler_entry = (*handlers).pop().unwrap();
+        match handler_entry {
+            HandlerEntry::Handler(h) => {
+                let Handler { parameter, parameter_disposer, transform_loader_base_address, .. } = h;
                 let mut tip_address = transform_loader_base_address;
                 tip_address = tip_address.sub(1);
                 tip_address.write(parameter);
                 let func_ptr = runtime_force_thunk(parameter_disposer, &mut tip_address);
                 // return value is simply ignored since disposers just return empty structs.
                 invoke_cps_function_with_trivial_continuation(func_ptr, tip_address);
+                handler = Some(h);
             }
             HandlerEntry::SimpleOperationMarker { .. } => {} // simply skip markers
         }
     }
+    handler.unwrap()
 }
 
 fn find_matching_handler(eff: Eff, may_be_complex: usize) -> (usize, ThunkPtr, bool) {

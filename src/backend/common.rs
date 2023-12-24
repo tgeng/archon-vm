@@ -9,7 +9,6 @@ use cranelift_module::{FuncId, Linkage, Module};
 use crate::ast::term::{VType, SpecializedType, PType};
 use strum_macros::EnumIter;
 use enum_map::{Enum};
-use cbpv_runtime::runtime::RawFuncPtr;
 use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
 
