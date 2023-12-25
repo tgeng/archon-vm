@@ -557,19 +557,15 @@ pub unsafe fn runtime_prepare_resume_continuation(
     base_address
 }
 
-/// Returns a pointer pointing to the following:
-/// - ptr + 0: the function pointer to the resumed continuation
-/// - ptr + 8: the base address for the resumed continuation to find its arguments
-/// - ptr + 16: the pointer to the "last result" that should be passed to the resumed continuation
+/// Returns the pointer to the result of disposer.
 pub unsafe fn runtime_dispose_continuation(
     base_address: *mut usize,
-    next_continuation: &mut Continuation,
     captured_continuation: *mut CapturedContinuation,
     parameter: Uniform,
     runtime_invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
     frame_pointer: *const u8,
     stack_pointer: *const u8,
-) -> *const usize {
+) -> *const Uniform {
     let mut captured_continuation = captured_continuation.read();
     let base_handler = captured_continuation.handler_fragment.first_mut().unwrap();
     base_handler.parameter = parameter;
@@ -608,13 +604,7 @@ pub unsafe fn runtime_dispose_continuation(
     // Add 1 so it's tagged as an SPtr
     last_result_address.write(empty_struct_ptr() as usize + 1);
 
-    // Write the return values of this helper function.
-    let return_values_address = last_result_address.sub(3);
-    return_values_address.write(next_continuation as *const Continuation as usize);
-    return_values_address.add(1).write((base_address.add(next_continuation.arg_stack_frame_height)) as usize);
-    return_values_address.add(2).write(last_result_address as usize);
-
-    return_values_address
+    last_result_address
 }
 
 unsafe fn compare_uniform(a: Uniform, b: Uniform) -> bool {
