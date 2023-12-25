@@ -157,9 +157,9 @@ function u0:0(i64) -> i64 tail {
     sig2 = () -> i64 apple_aarch64
     sig3 = (i64, i64) -> i64 apple_aarch64
     sig4 = (i64, i64) -> i64 tail
-    fn0 = colocated u0:20 sig0
+    fn0 = colocated u0:21 sig0
     fn1 = u0:0 sig1
-    fn2 = colocated u0:13 sig2
+    fn2 = colocated u0:14 sig2
     fn3 = u0:1 sig3
 
 block0(v0: i64):
@@ -218,7 +218,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:19 sig1
+    fn1 = colocated u0:20 sig1
 
 block0:
     v0 = call fn0()

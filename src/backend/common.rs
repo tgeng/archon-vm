@@ -1,7 +1,7 @@
 use cranelift::codegen::ir::Inst;
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
-use cbpv_runtime::runtime_utils::{runtime_alloc, runtime_force_thunk, runtime_alloc_stack, debug_helper, runtime_prepare_operation, runtime_pop_handler, runtime_register_handler, runtime_add_simple_handler, runtime_add_complex_handler, runtime_prepare_resume_continuation, runtime_process_simple_handler_result, runtime_dispose_continuation, runtime_mark_handler};
+use cbpv_runtime::runtime_utils::*;
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder};
@@ -64,6 +64,7 @@ pub enum BuiltinFunction {
     AddComplexHandler,
     PrepareResumeContinuation,
     DisposeContinuation,
+    ReplicateContinuation,
     ProcessSimpleHandlerResult,
     MarkHandler,
 
@@ -109,6 +110,7 @@ impl BuiltinFunction {
             BuiltinFunction::AddComplexHandler => "__runtime_add_complex_handler",
             BuiltinFunction::PrepareResumeContinuation => "__runtime_prepare_resume_continuation",
             BuiltinFunction::DisposeContinuation => "__runtime_dispose_continuation",
+            BuiltinFunction::ReplicateContinuation => "__runtime_replicate_continuation",
             BuiltinFunction::ProcessSimpleHandlerResult => "__runtime_process_simple_handler_result",
             BuiltinFunction::MarkHandler => "__runtime_mark_handler",
 
@@ -134,6 +136,7 @@ impl BuiltinFunction {
             BuiltinFunction::AddComplexHandler => runtime_add_complex_handler as *const u8,
             BuiltinFunction::PrepareResumeContinuation => runtime_prepare_resume_continuation as *const u8,
             BuiltinFunction::DisposeContinuation => runtime_dispose_continuation as *const u8,
+            BuiltinFunction::ReplicateContinuation => runtime_replicate_continuation as *const u8,
             BuiltinFunction::ProcessSimpleHandlerResult => runtime_process_simple_handler_result as *const u8,
             BuiltinFunction::MarkHandler => runtime_mark_handler as *const u8,
 
@@ -176,7 +179,7 @@ impl BuiltinFunction {
             BuiltinFunction::AddSimpleHandler => declare_func(3, 0, Linkage::Import),
             BuiltinFunction::AddComplexHandler => declare_func(3, 0, Linkage::Import),
             BuiltinFunction::PrepareResumeContinuation => declare_func(7, 1, Linkage::Import),
-            BuiltinFunction::DisposeContinuation => declare_func(6, 1, Linkage::Import),
+            BuiltinFunction::DisposeContinuation | BuiltinFunction::ReplicateContinuation => declare_func(6, 1, Linkage::Import),
             BuiltinFunction::ProcessSimpleHandlerResult => declare_func(3, 1, Linkage::Import),
             BuiltinFunction::MarkHandler => declare_func_with_call_conv(m, 4, 1, Linkage::Import, CallConv::Tail),
 
@@ -341,9 +344,8 @@ impl BuiltinFunction {
 
         // replicate
         builder.switch_to_block(replicate_block);
-        // TODO: implement replicate
-        let zero = builder.ins().iconst(I64, 0);
-        builder.ins().return_(&[zero]);
+        let func_ptr = Self::get_built_in_func_ptr(m, builder, BuiltinFunction::ReplicateContinuation);
+        builder.ins().jump(final_block, &[func_ptr]);
 
         // default
         builder.switch_to_block(default_block);

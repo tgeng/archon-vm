@@ -607,6 +607,18 @@ pub unsafe fn runtime_dispose_continuation(
     last_result_address
 }
 
+/// Returns the pointer to the result of disposer.
+pub unsafe fn runtime_replicate_continuation(
+    base_address: *mut usize,
+    captured_continuation: *mut CapturedContinuation,
+    parameter: Uniform,
+    runtime_invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
+    frame_pointer: *const u8,
+    stack_pointer: *const u8,
+) -> *const Uniform {
+    todo!()
+}
+
 unsafe fn compare_uniform(a: Uniform, b: Uniform) -> bool {
     if a == b {
         return true;
