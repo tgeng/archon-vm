@@ -497,64 +497,27 @@ pub unsafe fn runtime_prepare_resume_continuation(
     frame_pointer: *const u8,
     stack_pointer: *const u8,
 ) -> *const usize {
-    let mut captured_continuation = captured_continuation.read();
-    let base_handler = captured_continuation.handler_fragment.first_mut().unwrap();
-    base_handler.parameter = parameter;
-    (*base_handler.transform_loader_continuation).next = next_continuation;
-    // Chain the base of the captured continuation to the next continuation, where we need to add
-    // all the arguments for the handler transform function to the argument stack. Hence we need to
-    // update the stack frame height of the next continuation.
-    next_continuation.arg_stack_frame_height += TRANSFORM_LOADER_NUM_ARGS;
-    let resume_continuation_num_args = 4;
-    next_continuation.arg_stack_frame_height -= resume_continuation_num_args;
-
-    // swallow the 4 arguments passed to the captured continuation record:
-    // captured continuation object, field, handler parameter, and last result.
-    base_address = base_address.add(resume_continuation_num_args);
-
-    // The argument to transform loader is the transform thunk, which is set in
-    // `runtime_register_handler` and got captured in `runtime_prepare_complex_operation` inside the
-    // stack fragment. So this value is restored in the loop right below this statement.
-    let transform_loader_base_address = base_address.sub(TRANSFORM_LOADER_NUM_ARGS);
-    for arg in captured_continuation.stack_fragment.iter().rev() {
-        base_address = base_address.sub(1);
-        base_address.write(*arg);
-    }
-    let tip_continuation = captured_continuation.tip_continuation;
-    let tip_continuation_height = (*tip_continuation).arg_stack_frame_height;
-    let new_base_address = base_address.add(tip_continuation_height);
-
-    HANDLERS.with(|handlers| {
-        let mut handlers = handlers.borrow_mut();
-        for handler in captured_continuation.handler_fragment.into_iter() {
-            handlers.push(HandlerEntry::Handler(Handler {
-                transform_loader_base_address: transform_loader_base_address.sub(handler.transform_loader_base_address),
-                transform_loader_continuation: handler.transform_loader_continuation,
-                parameter: handler.parameter,
-                parameter_disposer: handler.parameter_disposer,
-                parameter_replicator: handler.parameter_replicator,
-                simple_handler: handler.simple_handler,
-                complex_handler: handler.complex_handler,
-                // Captured continuation must be CPS transformed, which means all calls must be tail-optimized, and
-                // hence the frame pointer and stack pointer are all the same across all handler entries.
-                frame_pointer,
-                stack_pointer,
-                return_address: handler.return_address,
-            }));
-        }
-    });
+    let (tip_continuation, new_base_address) = unpack_captured_continuation(
+        &mut base_address,
+        next_continuation,
+        captured_continuation,
+        parameter,
+        frame_pointer,
+        stack_pointer,
+        4, // 4 arguments passed to captured continuation: captured continuation object, field, handler parameter, and result.
+    );
 
     // Write the last result
-    let last_result_address = base_address.sub(1);
+    let last_result_address = new_base_address.sub(1);
     last_result_address.write(result);
 
     // Write the return values of this helper function.
-    base_address = last_result_address.sub(3);
-    base_address.write(tip_continuation as usize);
-    base_address.add(1).write(new_base_address as usize);
-    base_address.add(2).write(last_result_address as usize);
+    let tip_address = last_result_address.sub(3);
+    tip_address.write(tip_continuation as usize);
+    tip_address.add(1).write(new_base_address as usize);
+    tip_address.add(2).write(last_result_address as usize);
 
-    base_address
+    tip_address
 }
 
 /// Returns the pointer to the result of disposer.
@@ -605,6 +568,55 @@ pub unsafe fn runtime_dispose_continuation(
     last_result_address.write(empty_struct_ptr() as usize + 1);
 
     last_result_address
+}
+
+unsafe fn unpack_captured_continuation(base_address: &mut *mut usize, next_continuation: &mut Continuation, captured_continuation: *mut CapturedContinuation, parameter: Uniform, frame_pointer: *const u8, stack_pointer: *const u8, resume_continuation_num_args: usize) -> (*mut Continuation, *mut usize) {
+    let mut captured_continuation = captured_continuation.read();
+    let base_handler = captured_continuation.handler_fragment.first_mut().unwrap();
+    base_handler.parameter = parameter;
+    (*base_handler.transform_loader_continuation).next = next_continuation;
+    // Chain the base of the captured continuation to the next continuation, where we need to add
+    // all the arguments for the handler transform function to the argument stack. Hence we need to
+    // update the stack frame height of the next continuation.
+    next_continuation.arg_stack_frame_height += TRANSFORM_LOADER_NUM_ARGS;
+    next_continuation.arg_stack_frame_height -= resume_continuation_num_args;
+
+    // swallow the 4 arguments passed to the captured continuation record:
+    // captured continuation object, field, handler parameter, and last result.
+    let mut base_address = base_address.add(resume_continuation_num_args);
+
+    // The argument to transform loader is the transform thunk, which is set in
+    // `runtime_register_handler` and got captured in `runtime_prepare_complex_operation` inside the
+    // stack fragment. So this value is restored in the loop right below this statement.
+    let transform_loader_base_address = base_address.sub(TRANSFORM_LOADER_NUM_ARGS);
+    for arg in captured_continuation.stack_fragment.iter().rev() {
+        base_address = base_address.sub(1);
+        base_address.write(*arg);
+    }
+    let tip_continuation = captured_continuation.tip_continuation;
+    let tip_continuation_height = (*tip_continuation).arg_stack_frame_height;
+    let new_base_address = base_address.add(tip_continuation_height);
+
+    HANDLERS.with(|handlers| {
+        let mut handlers = handlers.borrow_mut();
+        for handler in captured_continuation.handler_fragment.into_iter() {
+            handlers.push(HandlerEntry::Handler(Handler {
+                transform_loader_base_address: transform_loader_base_address.sub(handler.transform_loader_base_address),
+                transform_loader_continuation: handler.transform_loader_continuation,
+                parameter: handler.parameter,
+                parameter_disposer: handler.parameter_disposer,
+                parameter_replicator: handler.parameter_replicator,
+                simple_handler: handler.simple_handler,
+                complex_handler: handler.complex_handler,
+                // Captured continuation must be CPS transformed, which means all calls must be tail-optimized, and
+                // hence the frame pointer and stack pointer are all the same across all handler entries.
+                frame_pointer,
+                stack_pointer,
+                return_address: handler.return_address,
+            }));
+        }
+    });
+    (tip_continuation, new_base_address)
 }
 
 /// Returns the pointer to the result of disposer.
