@@ -497,7 +497,7 @@ pub unsafe fn runtime_prepare_resume_continuation(
     frame_pointer: *const u8,
     stack_pointer: *const u8,
 ) -> *const usize {
-    let (tip_continuation, new_base_address) = unpack_captured_continuation(
+    let (new_base_address, tip_continuation, ) = unpack_captured_continuation(
         base_address,
         next_continuation,
         captured_continuation,
@@ -557,7 +557,15 @@ pub unsafe fn runtime_prepare_dispose_continuation(
     last_result_address
 }
 
-unsafe fn unpack_captured_continuation(base_address: *mut usize, next_continuation: &mut Continuation, captured_continuation: *mut CapturedContinuation, parameter: Uniform, frame_pointer: *const u8, stack_pointer: *const u8, resume_continuation_num_args: usize) -> (*mut Continuation, *mut usize) {
+unsafe fn unpack_captured_continuation(
+    base_address: *mut usize,
+    next_continuation: &mut Continuation,
+    captured_continuation: *mut CapturedContinuation,
+    parameter: Uniform,
+    frame_pointer: *const u8,
+    stack_pointer: *const u8,
+    captured_continuation_record_num_args: usize,
+) -> (*mut Uniform, *mut Continuation) {
     let mut captured_continuation = captured_continuation.read();
     let base_handler = captured_continuation.handler_fragment.first_mut().unwrap();
     base_handler.parameter = parameter;
@@ -566,11 +574,11 @@ unsafe fn unpack_captured_continuation(base_address: *mut usize, next_continuati
     // all the arguments for the handler transform function to the argument stack. Hence we need to
     // update the stack frame height of the next continuation.
     next_continuation.arg_stack_frame_height += TRANSFORM_LOADER_NUM_ARGS;
-    next_continuation.arg_stack_frame_height -= resume_continuation_num_args;
+    next_continuation.arg_stack_frame_height -= captured_continuation_record_num_args;
 
     // swallow the 4 arguments passed to the captured continuation record:
     // captured continuation object, field, handler parameter, and last result.
-    let mut base_address = base_address.add(resume_continuation_num_args);
+    let mut base_address = base_address.add(captured_continuation_record_num_args);
 
     // The argument to transform loader is the transform thunk, which is set in
     // `runtime_register_handler` and got captured in `runtime_prepare_complex_operation` inside the
@@ -582,7 +590,7 @@ unsafe fn unpack_captured_continuation(base_address: *mut usize, next_continuati
     }
     let tip_continuation = captured_continuation.tip_continuation;
     let tip_continuation_height = (*tip_continuation).arg_stack_frame_height;
-    let new_base_address = base_address.add(tip_continuation_height);
+    let tip_base_address = base_address.add(tip_continuation_height);
 
     HANDLERS.with(|handlers| {
         let mut handlers = handlers.borrow_mut();
@@ -603,7 +611,7 @@ unsafe fn unpack_captured_continuation(base_address: *mut usize, next_continuati
             }));
         }
     });
-    (tip_continuation, new_base_address)
+    (tip_base_address, tip_continuation)
 }
 
 /// Returns the pointer to the result of disposer.
