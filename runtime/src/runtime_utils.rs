@@ -498,7 +498,7 @@ pub unsafe fn runtime_prepare_resume_continuation(
     stack_pointer: *const u8,
 ) -> *const usize {
     let (tip_continuation, new_base_address) = unpack_captured_continuation(
-        &mut base_address,
+        base_address,
         next_continuation,
         captured_continuation,
         parameter,
@@ -523,43 +523,30 @@ pub unsafe fn runtime_prepare_resume_continuation(
 /// Returns the pointer to the result of disposer.
 pub unsafe fn runtime_dispose_continuation(
     base_address: *mut usize,
+    next_continuation: &mut Continuation,
     captured_continuation: *mut CapturedContinuation,
     parameter: Uniform,
     runtime_invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
     frame_pointer: *const u8,
     stack_pointer: *const u8,
 ) -> *const Uniform {
-    let mut captured_continuation = captured_continuation.read();
-    let base_handler = captured_continuation.handler_fragment.first_mut().unwrap();
-    base_handler.parameter = parameter;
-
     let matching_handler_index = HANDLERS.with(|handlers| handlers.borrow().len());
+
+    // 3 arguments passed to captured continuation: captured continuation object, field, and handler parameter.
+    let dispose_num_args = 3;
+    unpack_captured_continuation(
+        base_address,
+        next_continuation,
+        captured_continuation,
+        parameter,
+        frame_pointer,
+        stack_pointer,
+        dispose_num_args,
+    );
 
     // swallow the 3 arguments passed to the captured continuation record:
     // captured continuation object, field, handler parameter, and last result.
-    let tip_address = base_address.add(3);
-
-    // unpack the captured continuation because some disposers may need to perform simple effects
-    // encoded in them.
-    HANDLERS.with(|handlers| {
-        let mut handlers = handlers.borrow_mut();
-        for handler in captured_continuation.handler_fragment.into_iter() {
-            handlers.push(HandlerEntry::Handler(Handler {
-                // this value is not important because transform thunks won't be invoked during
-                // disposal.
-                transform_loader_base_address: tip_address,
-                transform_loader_continuation: handler.transform_loader_continuation,
-                parameter: handler.parameter,
-                parameter_disposer: handler.parameter_disposer,
-                parameter_replicator: handler.parameter_replicator,
-                simple_handler: handler.simple_handler,
-                complex_handler: handler.complex_handler,
-                frame_pointer,
-                stack_pointer,
-                return_address: handler.return_address,
-            }));
-        }
-    });
+    let tip_address = base_address.add(dispose_num_args);
     dispose_handlers(matching_handler_index, runtime_invoke_cps_function_with_trivial_continuation);
 
     // Write the last result
@@ -570,7 +557,7 @@ pub unsafe fn runtime_dispose_continuation(
     last_result_address
 }
 
-unsafe fn unpack_captured_continuation(base_address: &mut *mut usize, next_continuation: &mut Continuation, captured_continuation: *mut CapturedContinuation, parameter: Uniform, frame_pointer: *const u8, stack_pointer: *const u8, resume_continuation_num_args: usize) -> (*mut Continuation, *mut usize) {
+unsafe fn unpack_captured_continuation(base_address: *mut usize, next_continuation: &mut Continuation, captured_continuation: *mut CapturedContinuation, parameter: Uniform, frame_pointer: *const u8, stack_pointer: *const u8, resume_continuation_num_args: usize) -> (*mut Continuation, *mut usize) {
     let mut captured_continuation = captured_continuation.read();
     let base_handler = captured_continuation.handler_fragment.first_mut().unwrap();
     base_handler.parameter = parameter;

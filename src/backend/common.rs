@@ -179,7 +179,8 @@ impl BuiltinFunction {
             BuiltinFunction::AddSimpleHandler => declare_func(3, 0, Linkage::Import),
             BuiltinFunction::AddComplexHandler => declare_func(3, 0, Linkage::Import),
             BuiltinFunction::PrepareResumeContinuation => declare_func(7, 1, Linkage::Import),
-            BuiltinFunction::DisposeContinuation | BuiltinFunction::ReplicateContinuation => declare_func(6, 1, Linkage::Import),
+            BuiltinFunction::DisposeContinuation => declare_func(7, 1, Linkage::Import),
+            BuiltinFunction::ReplicateContinuation => declare_func(6, 1, Linkage::Import),
             BuiltinFunction::ProcessSimpleHandlerResult => declare_func(3, 1, Linkage::Import),
             BuiltinFunction::MarkHandler => declare_func_with_call_conv(m, 4, 1, Linkage::Import, CallConv::Tail),
 
@@ -344,8 +345,8 @@ impl BuiltinFunction {
 
         // replicate
         builder.switch_to_block(replicate_block);
-        let func_ptr = Self::get_built_in_func_ptr(m, builder, BuiltinFunction::ReplicateContinuation);
-        builder.ins().jump(final_block, &[func_ptr]);
+        let zero = builder.ins().iconst(I64, 0);
+        builder.ins().return_(&[zero]);
 
         // default
         builder.switch_to_block(default_block);
@@ -361,7 +362,7 @@ impl BuiltinFunction {
         let inst = builder.ins().call_indirect(
             sig_ref,
             func_ptr,
-            &[base_address, captured_continuation, handler_parameter, invoke_cps_function_with_trivial_continuation, frame_pointer, stack_pointer],
+            &[base_address, next_continuation, captured_continuation, handler_parameter, invoke_cps_function_with_trivial_continuation, frame_pointer, stack_pointer],
         );
         let last_result_ptr = builder.inst_results(inst)[0];
         let next_continuation_impl = builder.ins().load(I64, MemFlags::new(), next_continuation, 0);
