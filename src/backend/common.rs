@@ -63,7 +63,7 @@ pub enum BuiltinFunction {
     AddSimpleHandler,
     AddComplexHandler,
     PrepareResumeContinuation,
-    DisposeContinuation,
+    PrepareDisposeContinuation,
     ReplicateContinuation,
     ProcessSimpleHandlerResult,
     MarkHandler,
@@ -109,7 +109,7 @@ impl BuiltinFunction {
             BuiltinFunction::AddSimpleHandler => "__runtime_add_simple_handler",
             BuiltinFunction::AddComplexHandler => "__runtime_add_complex_handler",
             BuiltinFunction::PrepareResumeContinuation => "__runtime_prepare_resume_continuation",
-            BuiltinFunction::DisposeContinuation => "__runtime_dispose_continuation",
+            BuiltinFunction::PrepareDisposeContinuation => "__runtime_prepare_dispose_continuation",
             BuiltinFunction::ReplicateContinuation => "__runtime_replicate_continuation",
             BuiltinFunction::ProcessSimpleHandlerResult => "__runtime_process_simple_handler_result",
             BuiltinFunction::MarkHandler => "__runtime_mark_handler",
@@ -135,7 +135,7 @@ impl BuiltinFunction {
             BuiltinFunction::AddSimpleHandler => runtime_add_simple_handler as *const u8,
             BuiltinFunction::AddComplexHandler => runtime_add_complex_handler as *const u8,
             BuiltinFunction::PrepareResumeContinuation => runtime_prepare_resume_continuation as *const u8,
-            BuiltinFunction::DisposeContinuation => runtime_dispose_continuation as *const u8,
+            BuiltinFunction::PrepareDisposeContinuation => runtime_prepare_dispose_continuation as *const u8,
             BuiltinFunction::ReplicateContinuation => runtime_replicate_continuation as *const u8,
             BuiltinFunction::ProcessSimpleHandlerResult => runtime_process_simple_handler_result as *const u8,
             BuiltinFunction::MarkHandler => runtime_mark_handler as *const u8,
@@ -179,7 +179,7 @@ impl BuiltinFunction {
             BuiltinFunction::AddSimpleHandler => declare_func(3, 0, Linkage::Import),
             BuiltinFunction::AddComplexHandler => declare_func(3, 0, Linkage::Import),
             BuiltinFunction::PrepareResumeContinuation => declare_func(7, 1, Linkage::Import),
-            BuiltinFunction::DisposeContinuation => declare_func(7, 1, Linkage::Import),
+            BuiltinFunction::PrepareDisposeContinuation => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::ReplicateContinuation => declare_func(6, 1, Linkage::Import),
             BuiltinFunction::ProcessSimpleHandlerResult => declare_func(3, 1, Linkage::Import),
             BuiltinFunction::MarkHandler => declare_func_with_call_conv(m, 4, 1, Linkage::Import, CallConv::Tail),
@@ -340,7 +340,7 @@ impl BuiltinFunction {
 
         // dispose
         builder.switch_to_block(dispose_block);
-        let func_ptr = Self::get_built_in_func_ptr(m, builder, BuiltinFunction::DisposeContinuation);
+        let func_ptr = Self::get_built_in_func_ptr(m, builder, BuiltinFunction::PrepareDisposeContinuation);
         builder.ins().jump(final_block, &[func_ptr]);
 
         // replicate
@@ -355,7 +355,7 @@ impl BuiltinFunction {
         // final
         builder.seal_block(final_block);
         builder.switch_to_block(final_block);
-        let (_, sig, _) = BuiltinFunction::DisposeContinuation.declare(m);
+        let (_, sig, _) = BuiltinFunction::PrepareDisposeContinuation.declare(m);
         let sig_ref = builder.import_signature(sig);
         let func_ptr = builder.block_params(final_block)[0];
         let invoke_cps_function_with_trivial_continuation = Self::get_built_in_func_ptr(m, builder, BuiltinFunction::InvokeCpsFunctionWithTrivialContinuation);

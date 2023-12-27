@@ -521,7 +521,7 @@ pub unsafe fn runtime_prepare_resume_continuation(
 }
 
 /// Returns the pointer to the result of disposer.
-pub unsafe fn runtime_dispose_continuation(
+pub unsafe fn runtime_prepare_dispose_continuation(
     base_address: *mut usize,
     next_continuation: &mut Continuation,
     captured_continuation: *mut CapturedContinuation,
