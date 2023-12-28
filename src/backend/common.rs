@@ -265,7 +265,7 @@ impl BuiltinFunction {
         // We only need the first two words for the trivial continuation. The height is only
         // allocated so that it can be written to. Its value does not matter because trivial
         // continuation does not care about base address as it doesn't have any arguments.
-        let continuation_size = builder.ins().iconst(I64, 3);
+        let continuation_size = builder.ins().iconst(I64, 4);
         let inst = Self::call_built_in(m, builder, BuiltinFunction::Alloc, &[continuation_size]);
         let continuation_ptr = builder.inst_results(inst)[0];
 
@@ -282,7 +282,7 @@ impl BuiltinFunction {
         builder.ins().store(MemFlags::new(), frame_height, continuation_ptr, 8);
 
         let state = builder.ins().iconst(I64, -1);
-        builder.ins().store(MemFlags::new(), state, continuation_ptr, 16);
+        builder.ins().store(MemFlags::new(), state, continuation_ptr, 24);
 
         // return the pointer to the continuation object
         builder.ins().return_(&[continuation_ptr]);
