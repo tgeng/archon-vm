@@ -225,33 +225,18 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
 
     pub fn translate_c_term(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
         match c_term {
-            CTerm::Redex { box function, args } => {
-                if let CTerm::Def { name, effect } = function {
-                    // Handle specialized function call
-                    let (arg_types, return_type) = self.local_function_arg_types.get(name).unwrap();
-                    if let CType::SpecializedF(return_type) = return_type && arg_types.len() == args.len() {
-                        let tip_address = self.tip_address;
-                        let all_args = iter::once(tip_address)
-                            .chain(args.iter()
-                                .zip(arg_types)
-                                .map(|(arg, v_type)| {
-                                    let arg = self.translate_v_term(arg);
-                                    self.adapt_type(arg, v_type)
-                                }
-                                ))
-                            .collect::<Vec<_>>();
-                        let func_ref = self.get_local_function(name, FunctionFlavor::Specialized);
-                        if is_tail && self.is_specialized {
-                            self.function_builder.ins().return_call(func_ref, &all_args);
-                            return None;
-                        } else {
-                            let inst = self.function_builder.ins().call(func_ref, &all_args);
-                            return Some((self.function_builder.inst_results(inst)[0], *return_type));
+            CTerm::Redex { .. } => {
+                let s = self as *mut SimpleFunctionTranslator<M>;
+                self.translate_redex(
+                    c_term,
+                    is_tail,
+                    Effect::Simple,
+                    |c_term, is_tail| {
+                        unsafe {
+                            (*s).translate_c_term(c_term, is_tail)
                         }
-                    }
-                }
-                self.push_arg_v_terms(args);
-                self.translate_c_term(function, is_tail)
+                    },
+                )
             }
             CTerm::Return { value } => self.translate_v_term(value),
             CTerm::Force { thunk, .. } => {
@@ -338,7 +323,37 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         }
     }
 
-    pub fn translate_case_int<F>(&mut self, c_term: &CTerm, is_tail: bool, mut translate_c_term: F) -> Option<TypedValue> where F: FnMut(&CTerm, bool) -> TypedReturnValue {
+    pub fn translate_redex<F>(&mut self, c_term: &CTerm, is_tail: bool, context_effect: Effect, mut translate_c_term: F) -> TypedReturnValue where F: FnMut(&CTerm, bool) -> TypedReturnValue {
+        let CTerm::Redex { box function, args } = c_term else { unreachable!() };
+        if let CTerm::Def { name, effect } = function {
+            // Handle specialized function call
+            let (arg_types, return_type) = self.local_function_arg_types.get(name).unwrap();
+            if let CType::SpecializedF(return_type) = return_type && arg_types.len() == args.len() && (effect.intersect(context_effect) != Effect::Complex) {
+                let tip_address = self.tip_address;
+                let all_args = iter::once(tip_address)
+                    .chain(args.iter()
+                        .zip(arg_types)
+                        .map(|(arg, v_type)| {
+                            let arg = self.translate_v_term(arg);
+                            self.adapt_type(arg, v_type)
+                        }
+                        ))
+                    .collect::<Vec<_>>();
+                let func_ref = self.get_local_function(name, FunctionFlavor::Specialized);
+                if is_tail && self.is_specialized {
+                    self.function_builder.ins().return_call(func_ref, &all_args);
+                    return None;
+                } else {
+                    let inst = self.function_builder.ins().call(func_ref, &all_args);
+                    return Some((self.function_builder.inst_results(inst)[0], *return_type));
+                }
+            }
+        }
+        self.push_arg_v_terms(args);
+        translate_c_term(function, is_tail)
+    }
+
+    pub fn translate_case_int<F>(&mut self, c_term: &CTerm, is_tail: bool, mut translate_c_term: F) -> TypedReturnValue where F: FnMut(&CTerm, bool) -> TypedReturnValue {
         let CTerm::CaseInt { t, branches, default_branch, result_type } = c_term else { unreachable!() };
         let branch_map: HashMap<_, _> = branches.iter().map(|(i, v)| (i, v)).collect();
         let t_value = self.translate_v_term(t);

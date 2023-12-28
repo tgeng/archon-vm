@@ -168,9 +168,13 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                 self.handle_operation_call(eff_value, next_continuation, args.len(), true, true);
                 None
             }
-            CTerm::Redex { box function, args } => {
-                self.function_translator.push_arg_v_terms(args);
-                self.translate_c_term_cps(function, is_tail)
+            CTerm::Redex { .. } => {
+                let s = self as *mut SimpleCpsFunctionTranslator<M>;
+                self.translate_redex(c_term, is_tail, Effect::Complex, |c_term, is_tail| {
+                    unsafe {
+                        (*s).translate_c_term_cps(c_term, is_tail)
+                    }
+                })
             }
             CTerm::Let { box t, bound_index, box body } => {
                 let t_value = self.translate_c_term_cps(t, false);
@@ -406,9 +410,13 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
 
     fn translate_c_term_cps_impl(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
         match c_term {
-            CTerm::Redex { box function, args } => {
-                self.function_translator.push_arg_v_terms(args);
-                self.translate_c_term_cps_impl(function, is_tail)
+            CTerm::Redex { .. } => {
+                let s = self as *mut ComplexCpsFunctionTranslator<M>;
+                self.translate_redex(c_term, is_tail, Effect::Complex, |c_term, is_tail| {
+                    unsafe {
+                        (*s).translate_c_term_cps_impl(c_term, is_tail)
+                    }
+                })
             }
             CTerm::Force { thunk, effect: Effect::Complex } => {
                 let continuation = self.continuation;
