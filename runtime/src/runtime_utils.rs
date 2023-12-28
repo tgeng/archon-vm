@@ -398,8 +398,13 @@ unsafe fn convert_handler_transformers_to_disposers(
             let HandlerEntry::Handler(handler) = entry else { unreachable!() };
             (*handler.transform_loader_continuation).next = next_continuation;
             (*handler.transform_loader_continuation).func = runtime_disposer_loader_cps_impl;
-            // TODO: don't update the stack frame height if it's trivial continuation
-            (*next_continuation).arg_stack_frame_height = next_base_address.offset_from(handler.transform_loader_base_address) as usize;
+            if (*next_continuation).state != usize::MAX - 1 {
+                // trivial continuation has state equal to -1 and we don't want to update the frame height of trivial
+                // continuations because this field is not supposed to be consumed. And for debug build, it's set to
+                // a very large value so that it can allow arbitrary increment and decrement without overflow or
+                // underflow.
+                (*next_continuation).arg_stack_frame_height = next_base_address.offset_from(handler.transform_loader_base_address) as usize;
+            }
 
             next_continuation = handler.transform_loader_continuation;
             next_base_address = handler.transform_loader_base_address;
