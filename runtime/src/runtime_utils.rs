@@ -354,10 +354,15 @@ pub unsafe fn runtime_process_simple_handler_result(
             );
             let next_base_address = (*last_handler).transform_loader_base_address;
             let next_continuation = (*last_handler).transform_loader_continuation;
+            // Actually the result is not needed since the continuation is a disposer loader continuation, which always
+            // ignores the last result.
             let result_ptr = next_base_address.sub(1);
             // plus 1 to tag the pointer a an SPtr.
             result_ptr.write(empty_struct_ptr() as usize + 1);
-            long_jump(next_base_address, next_continuation, result_ptr, last_handler);
+            // Here we use the matching handler because the jump needs to restore execution to the state at the matching
+            // handler. This mismatch between fp, sp, and lr with the continuation and argument stack is fine because
+            // the continuation is a disposer loader continuation, which does not care about fp, sp, or lr.
+            long_jump(next_base_address, next_continuation, result_ptr, matching_handler);
         }
         0b10 => simple_result.result_value.value,
         _ => unreachable!("bad simple result tag")
