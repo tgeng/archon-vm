@@ -1,7 +1,7 @@
 use std::arch::global_asm;
 use std::cell::RefCell;
 use std::ops::{DerefMut};
-use crate::runtime::{Continuation, HandlerEntry, Handler, Uniform, ThunkPtr, Eff, Generic, CapturedContinuation, RawFuncPtr};
+use crate::runtime::{Continuation, HandlerEntry, Handler, Uniform, ThunkPtr, Eff, Generic, CapturedContinuation, RawFuncPtr, ContImplPtr};
 use crate::runtime::HandlerEntry::SimpleOperationMarker;
 use crate::types::{UPtr, UniformPtr, UniformType};
 
@@ -135,7 +135,7 @@ pub unsafe fn runtime_alloc_stack() -> *mut usize {
 }
 
 /// Returns the result of the operation in uniform representation
-pub unsafe fn debug_helper(fp: *const usize, sp: *const usize, lr: *const usize) -> usize {
+pub unsafe fn debug_helper(base: *const usize, tip: *const usize, nc: *const usize) -> usize {
     return 1 + 1;
 }
 
@@ -314,32 +314,50 @@ unsafe fn prepare_simple_operation(
 /// Special function that may do long jump instead of normal return if the result is exceptional. If
 /// the result is exceptional. This function also takes care of disposing the handler parameters of
 /// all the evicted handlers.
-pub fn runtime_process_simple_handler_result(
+pub unsafe fn runtime_process_simple_handler_result(
     handler_index: usize,
     simple_result: &SimpleResult,
-    invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
+    simple_exception_continuation_impl: RawFuncPtr,
+    runtime_disposer_loader_cps_impl: ContImplPtr,
 ) -> Uniform {
-    HANDLERS.with(|handlers| {
+    let matching_handler = HANDLERS.with(|handlers| {
         let mut handlers = handlers.borrow_mut();
-        match handlers.get_mut(handler_index).unwrap() {
+        let handler = match handlers.get_mut(handler_index).unwrap() {
             HandlerEntry::Handler(handler) => {
                 handler.parameter = simple_result.handler_parameter;
+                handler as *mut Handler<*mut Uniform>
             }
             _ => panic!("Expect a handler entry")
-        }
+        };
         // pop the simple handler entry marker
         let last_entry = handlers.pop().unwrap();
         assert!(matches!(last_entry, SimpleOperationMarker { .. }));
+        handler
     });
 
     match simple_result.result_value.tag {
         0 => unsafe {
-            let handler = dispose_handlers(handler_index, invoke_cps_function_with_trivial_continuation);
-            let next_continuation = (*handler.transform_loader_continuation).next;
-            let next_base_address = handler.transform_loader_base_address.add((*next_continuation).arg_stack_frame_height);
-            let result_ptr = handler.transform_loader_base_address.add(TRANSFORM_LOADER_NUM_ARGS).sub(1);
-            result_ptr.write(simple_result.result_value.value);
-            long_jump(next_base_address, next_continuation, result_ptr, &handler);
+            let handler_output_result = simple_result.result_value.value;
+            let next_continuation = (*(*matching_handler).transform_loader_continuation).next;
+            let simple_exception_continuation = runtime_alloc(4) as *mut Continuation;
+            *simple_exception_continuation = Continuation {
+                func: simple_exception_continuation_impl,
+                arg_stack_frame_height: 0,
+                next: next_continuation,
+                state: handler_output_result,
+            };
+            let last_handler = convert_handler_transformers_to_disposers(
+                handler_index,
+                (*matching_handler).transform_loader_base_address,
+                simple_exception_continuation,
+                runtime_disposer_loader_cps_impl,
+            );
+            let next_base_address = (*last_handler).transform_loader_base_address;
+            let next_continuation = (*last_handler).transform_loader_continuation;
+            let result_ptr = next_base_address.sub(1);
+            // plus 1 to tag the pointer a an SPtr.
+            result_ptr.write(empty_struct_ptr() as usize + 1);
+            long_jump(next_base_address, next_continuation, result_ptr, last_handler);
         }
         0b10 => simple_result.result_value.value,
         _ => unreachable!("bad simple result tag")
@@ -356,35 +374,40 @@ pub unsafe fn runtime_pop_handler() -> Uniform {
     })
 }
 
-unsafe fn dispose_handlers(
+unsafe fn convert_handler_transformers_to_disposers(
     matching_handler_index: usize,
-    invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
-) -> Handler<*mut Uniform> {
-    // Extract the value here so that the borrowed value is returned right after the closure closes.
-    // This is critical because disposer may be exceptional and hence this function may not return
-    // locally, skipping any rust drop calls.
-    let handlers = HANDLERS.with(|handlers| {
-        handlers.borrow_mut().deref_mut() as *mut Vec<HandlerEntry>
-    });
-
-    let mut handler = None;
-    while (*handlers).len() > matching_handler_index {
-        let handler_entry = (*handlers).pop().unwrap();
-        match handler_entry {
-            HandlerEntry::Handler(h) => {
-                let Handler { parameter, parameter_disposer, transform_loader_base_address, .. } = h;
-                let mut tip_address = transform_loader_base_address;
-                tip_address = tip_address.sub(1);
-                tip_address.write(parameter);
-                let func_ptr = runtime_force_thunk(parameter_disposer, &mut tip_address);
-                // return value is simply ignored since disposers just return empty structs.
-                invoke_cps_function_with_trivial_continuation(func_ptr, tip_address);
-                handler = Some(h);
+    mut next_base_address: *mut Uniform,
+    mut next_continuation: *mut Continuation,
+    runtime_disposer_loader_cps_impl: ContImplPtr,
+) -> *const Handler<*mut Uniform> {
+    HANDLERS.with(|handlers| {
+        let mut ref_mut = handlers.borrow_mut();
+        let handlers = ref_mut.deref_mut();
+        let mut index = 0;
+        handlers.retain(|entry| {
+            if index < matching_handler_index {
+                index += 1;
+                true
+            } else {
+                index += 1;
+                matches!(entry, HandlerEntry::Handler { .. })
             }
-            HandlerEntry::SimpleOperationMarker { .. } => {} // simply skip markers
+        });
+        let mut last_handler = std::ptr::null();
+        for entry in handlers[matching_handler_index..].iter_mut() {
+            let HandlerEntry::Handler(handler) = entry else { unreachable!() };
+            (*handler.transform_loader_continuation).next = next_continuation;
+            (*handler.transform_loader_continuation).func = runtime_disposer_loader_cps_impl;
+            // TODO: don't update the stack frame height if it's trivial continuation
+            (*next_continuation).arg_stack_frame_height = next_base_address.offset_from(handler.transform_loader_base_address) as usize;
+
+            next_continuation = handler.transform_loader_continuation;
+            next_base_address = handler.transform_loader_base_address;
+            handler.transform_loader_base_address.write(handler.parameter_disposer as usize);
+            last_handler = handler;
         }
-    }
-    handler.unwrap()
+        last_handler
+    })
 }
 
 fn find_matching_handler(eff: Eff, may_be_complex: usize) -> (usize, ThunkPtr, bool) {
@@ -489,7 +512,7 @@ pub fn runtime_add_complex_handler(handler: &mut Handler<*mut Uniform>, eff: Eff
 /// - ptr + 8: the base address for the resumed continuation to find its arguments
 /// - ptr + 16: the pointer to the "last result" that should be passed to the resumed continuation
 pub unsafe fn runtime_prepare_resume_continuation(
-    mut base_address: *mut usize,
+    base_address: *mut usize,
     next_continuation: &mut Continuation,
     captured_continuation: *mut CapturedContinuation,
     parameter: Uniform,
@@ -497,7 +520,7 @@ pub unsafe fn runtime_prepare_resume_continuation(
     frame_pointer: *const u8,
     stack_pointer: *const u8,
 ) -> *const usize {
-    let (new_base_address, tip_continuation, ) = unpack_captured_continuation(
+    let (new_base_address, next_continuation) = unpack_captured_continuation(
         base_address,
         next_continuation,
         captured_continuation,
@@ -513,22 +536,26 @@ pub unsafe fn runtime_prepare_resume_continuation(
 
     // Write the return values of this helper function.
     let tip_address = last_result_address.sub(3);
-    tip_address.write(tip_continuation as usize);
+    tip_address.write(next_continuation as usize);
     tip_address.add(1).write(new_base_address as usize);
     tip_address.add(2).write(last_result_address as usize);
 
     tip_address
 }
 
-/// Returns the pointer to the result of disposer.
+
+/// Returns a pointer pointing to the following:
+/// - ptr + 0: the function pointer to the resumed continuation
+/// - ptr + 8: the base address for the resumed continuation to find its arguments
+/// - ptr + 16: the pointer to the "last result" that should be passed to the resumed continuation
 pub unsafe fn runtime_prepare_dispose_continuation(
     base_address: *mut usize,
     next_continuation: &mut Continuation,
     captured_continuation: *mut CapturedContinuation,
     parameter: Uniform,
-    runtime_invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
     frame_pointer: *const u8,
     stack_pointer: *const u8,
+    runtime_disposer_loader_cps_impl: ContImplPtr,
 ) -> *const Uniform {
     let matching_handler_index = HANDLERS.with(|handlers| handlers.borrow().len());
 
@@ -544,17 +571,29 @@ pub unsafe fn runtime_prepare_dispose_continuation(
         dispose_num_args,
     );
 
-    // swallow the 3 arguments passed to the captured continuation record:
-    // captured continuation object, field, handler parameter, and last result.
     let tip_address = base_address.add(dispose_num_args);
-    dispose_handlers(matching_handler_index, runtime_invoke_cps_function_with_trivial_continuation);
+    let last_handler = convert_handler_transformers_to_disposers(
+        matching_handler_index,
+        tip_address,
+        next_continuation,
+        runtime_disposer_loader_cps_impl,
+    );
+    let next_continuation = (*last_handler).transform_loader_continuation;
+    let next_base_address = (*last_handler).transform_loader_base_address;
 
     // Write the last result
-    let last_result_address = tip_address.sub(1);
+    let last_result_address = next_base_address.sub(1);
     // Add 1 so it's tagged as an SPtr
     last_result_address.write(empty_struct_ptr() as usize + 1);
 
-    last_result_address
+    // Write the return values of this helper function.
+    let result_ptr = last_result_address.sub(3);
+
+    result_ptr.write(next_continuation as usize);
+    result_ptr.add(1).write(next_base_address as usize);
+    result_ptr.add(2).write(last_result_address as usize);
+
+    result_ptr
 }
 
 unsafe fn unpack_captured_continuation(
