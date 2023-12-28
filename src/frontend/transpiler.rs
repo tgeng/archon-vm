@@ -438,15 +438,25 @@ mod tests {
         signature.enable("main", Effect::Basic);
         let mut defs = signature.into_defs().into_iter().collect::<Vec<_>>();
         defs.sort_by_key(|(name, _)| name.clone());
-        let mut compiler: Compiler<JITModule> = Default::default();
-        let mut clir = vec![];
-        compiler.compile(&defs, &mut Some(&mut clir));
-        let main_func = compiler.finalize_and_get_main();
 
         let expected = match fs::read_to_string(test_output_path) {
             Ok(s) => s,
             Err(_) => "".to_owned(),
         };
+        let partial_actual = format!(
+            "FTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}",
+            f_term,
+            defs);
+        if !expected.starts_with(&partial_actual) {
+            // Write partial actual to expected in case executing the compiled function crashes the
+            // test.
+            fs::write(test_output_path, &partial_actual).unwrap();
+        }
+        let mut compiler: Compiler<JITModule> = Default::default();
+        let mut clir = vec![];
+        compiler.compile(&defs, &mut Some(&mut clir));
+        let main_func = compiler.finalize_and_get_main();
+
         let partial_actual = format!(
             "FTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}\n\nCLIR\n========\n{}",
             f_term,

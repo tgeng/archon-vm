@@ -229,7 +229,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 if let CTerm::Def { name, effect } = function {
                     // Handle specialized function call
                     let (arg_types, return_type) = self.local_function_arg_types.get(name).unwrap();
-                    if let CType::SpecializedF(return_type) = return_type && arg_types.len() == args.len() && (*effect == Effect::Basic || self.is_specialized) {
+                    if let CType::SpecializedF(return_type) = return_type && arg_types.len() == args.len() {
                         let tip_address = self.tip_address;
                         let all_args = iter::once(tip_address)
                             .chain(args.iter()
