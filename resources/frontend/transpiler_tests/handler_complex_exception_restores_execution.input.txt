@@ -1,0 +1,19 @@
+def interruptAndRecover x: int -> int =>
+  handler
+    "exp" #!! \p x cont =>
+                force cont 1 p
+                x
+  "exp" #!! {x}
+  "track" #! {31}
+  31
+
+
+handler 1
+  # \p r => p * 100 + r
+  "track" #! \p v => {p * v, {1, {}}}
+
+"track" #! {2}
+"track" #! {interruptAndRecover 3}
+"track" #! {interruptAndRecover 5}
+"track" #! {interruptAndRecover 7}
+1
