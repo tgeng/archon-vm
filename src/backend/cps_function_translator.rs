@@ -129,8 +129,8 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
 
 
     fn translate_c_term_cps(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
-        match c_term {
-            CTerm::Force { thunk, .. } if is_tail => {
+        match (c_term, is_tail) {
+            (CTerm::Force { thunk, .. }, true) => {
                 let next_continuation = self.next_continuation;
                 let func_pointer = self.process_thunk(thunk);
 
@@ -143,15 +143,25 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                 ]);
                 None
             }
-            CTerm::Def { name, effect: Effect::Complex } if is_tail => {
-                let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
-                let next_continuation = self.next_continuation;
-                compute_cps_tail_call_base_address(self, next_continuation);
-                let tip_address = self.tip_address;
-                self.function_builder.ins().return_call(func_ref, &[tip_address, next_continuation]);
+            (CTerm::Def { name, effect }, true) => {
+                if *effect == Effect::Complex {
+                    let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
+                    let next_continuation = self.next_continuation;
+                    compute_cps_tail_call_base_address(self, next_continuation);
+                    let tip_address = self.tip_address;
+                    self.function_builder.ins().return_call(func_ref, &[tip_address, next_continuation]);
+                } else {
+                    let func_ref = self.get_local_function(name, FunctionFlavor::Simple);
+                    let next_continuation = self.next_continuation;
+                    compute_cps_tail_call_base_address(self, next_continuation);
+                    let tip_address = self.tip_address;
+                    let inst = self.function_builder.ins().call(func_ref, &[tip_address]);
+                    let return_ptr = self.function_builder.inst_results(inst)[0];
+                    invoke_next_continuation_in_the_end(&mut self.function_translator, return_ptr, next_continuation);
+                }
                 None
             }
-            CTerm::CaseInt { .. } => {
+            (CTerm::CaseInt { .. }, _) => {
                 let s = self as *mut SimpleCpsFunctionTranslator<M>;
                 self.translate_case_int(c_term, is_tail, |c_term, is_tail| {
                     unsafe {
@@ -159,7 +169,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                     }
                 })
             }
-            CTerm::OperationCall { eff, args, .. } if is_tail => {
+            (CTerm::OperationCall { eff, args, .. }, true) => {
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);
@@ -168,7 +178,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                 self.handle_operation_call(eff_value, next_continuation, args.len(), true, true);
                 None
             }
-            CTerm::Redex { .. } => {
+            (CTerm::Redex { .. }, _) => {
                 let s = self as *mut SimpleCpsFunctionTranslator<M>;
                 self.translate_redex(c_term, is_tail, Effect::Complex, |c_term, is_tail| {
                     unsafe {
@@ -176,21 +186,24 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                     }
                 })
             }
-            CTerm::Let { box t, bound_index, box body } => {
+            (CTerm::Let { box t, bound_index, box body }, _) => {
                 let t_value = self.translate_c_term_cps(t, false);
                 self.local_vars[*bound_index] = t_value;
                 self.translate_c_term_cps(body, is_tail)
             }
-            CTerm::Handler { .. } if is_tail => {
+            (CTerm::Handler { .. }, true) => {
                 let next_continuation = self.next_continuation;
                 compute_cps_tail_call_base_address(self, next_continuation);
                 self.translate_handler(is_tail, c_term, next_continuation)
             }
-            // Don't use tail call because we need to pass the result to the next continuation.
-            // TODO[P2]: there should be some way to avoid creating a trivial continuation for tail
-            //  calls. Basically refactoring the simple function translator to take a next
-            //  continuation when translating a tail call.
-            _ => self.translate_c_term(c_term, false),
+            // These terms cannot return a computation so we just extract the return value with the simple translator.
+            (CTerm::Return { .. } | CTerm::Lambda { .. } | CTerm::MemGet { .. } | CTerm::MemSet { .. } |
+            CTerm::PrimitiveCall { .. } | CTerm::OperationCall { effect: (Effect::Basic | Effect::Simple), .. }, _) => {
+                self.translate_c_term(c_term, false)
+            }
+            (_, false) => {
+                self.translate_c_term(c_term, false)
+            }
         }
     }
 }
@@ -409,8 +422,8 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
     }
 
     fn translate_c_term_cps_impl(&mut self, c_term: &CTerm, is_tail: bool) -> TypedReturnValue {
-        match c_term {
-            CTerm::Redex { .. } => {
+        match (c_term, is_tail) {
+            (CTerm::Redex { .. }, _) => {
                 let s = self as *mut ComplexCpsFunctionTranslator<M>;
                 self.translate_redex(c_term, is_tail, Effect::Complex, |c_term, is_tail| {
                     unsafe {
@@ -418,7 +431,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                     }
                 })
             }
-            CTerm::Force { thunk, effect: Effect::Complex } => {
+            (CTerm::Force { thunk, effect: Effect::Complex }, _) => {
                 let continuation = self.continuation;
                 let func_pointer = self.process_thunk(thunk);
 
@@ -441,13 +454,18 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                     self.advance_for_complex_effect()
                 }
             }
-            CTerm::Let { box t, bound_index, box body } => {
+            (CTerm::Force { thunk, .. }, true) => {
+                let continuation = self.continuation;
+                let next_continuation = self.adjust_next_continuation_frame_height(continuation);
+                self.invoke_thunk(is_tail, thunk, next_continuation)
+            }
+            (CTerm::Let { box t, bound_index, box body }, _) => {
                 let t_value = self.translate_c_term_cps_impl(t, false);
                 self.local_vars[*bound_index] = t_value;
                 self.touched_vars_in_current_session.insert(*bound_index);
                 self.translate_c_term_cps_impl(body, is_tail)
             }
-            CTerm::Def { name, effect: Effect::Complex } => {
+            (CTerm::Def { name, effect: Effect::Complex }, _) => {
                 let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
                 if is_tail {
                     let next_continuation = self.adjust_next_continuation_frame_height(self.continuation);
@@ -461,7 +479,17 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                     self.advance_for_complex_effect()
                 }
             }
-            CTerm::CaseInt { t, result_type, branches, default_branch } => {
+            (CTerm::Def { name, .. }, true) => {
+                let func_ref = self.get_local_function(name, FunctionFlavor::Simple);
+                let base_address = self.copy_tail_call_args_and_get_new_base();
+                let inst = self.function_builder.ins().call(func_ref, &[base_address]);
+                let return_ptr = self.function_builder.inst_results(inst)[0];
+                let continuation = self.continuation;
+                let next_continuation = self.adjust_next_continuation_frame_height(continuation);
+                invoke_next_continuation_in_the_end(&mut self.function_translator, return_ptr, next_continuation);
+                None
+            }
+            (CTerm::CaseInt { t, result_type, branches, default_branch }, _) => {
                 let (branch_block_ids, default_block_id, joining_block_id) = &self.case_blocks[&self.current_block_id].clone();
                 let t_value = self.translate_v_term(t);
                 let t_value = self.convert_to_special(t_value, Integer);
@@ -509,7 +537,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 self.tip_address = self.function_builder.block_params(joining_block)[1];
                 Some((self.function_builder.block_params(joining_block)[0], *result_v_type))
             }
-            CTerm::OperationCall { eff, args, effect: Effect::Complex } => {
+            (CTerm::OperationCall { eff, args, effect: Effect::Complex }, _) => {
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
                 self.push_arg_v_terms(args);
@@ -527,7 +555,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                     self.advance_for_complex_effect()
                 }
             }
-            CTerm::Handler { .. } => {
+            (CTerm::Handler { .. }, _) => {
                 let continuation = if is_tail {
                     self.adjust_next_continuation_frame_height(self.continuation)
                 } else {
@@ -536,8 +564,14 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                 };
                 self.translate_handler(is_tail, c_term, continuation)
             }
-            // Don't use tail call because we need to pass the result to the next continuation.
-            _ => self.translate_c_term(c_term, false),
+            // These terms cannot return a computation so we just extract the return value with the simple translator.
+            (CTerm::Return { .. } | CTerm::Lambda { .. } | CTerm::MemGet { .. } | CTerm::MemSet { .. } |
+            CTerm::PrimitiveCall { .. } | CTerm::OperationCall { effect: (Effect::Basic | Effect::Simple), .. }, _) => {
+                self.translate_c_term(c_term, false)
+            }
+            (_, false) => {
+                self.translate_c_term(c_term, false)
+            }
         }
     }
 

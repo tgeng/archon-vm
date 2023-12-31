@@ -503,7 +503,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         }
     }
 
-    fn invoke_thunk(&mut self, is_tail: bool, thunk: &VTerm, next_continuation: Value) -> Option<TypedValue> {
+    pub(crate) fn invoke_thunk(&mut self, is_tail: bool, thunk: &VTerm, next_continuation: Value) -> Option<TypedValue> {
         let func_pointer = self.process_thunk(thunk);
 
         let sig_ref = self.function_builder.import_signature(self.uniform_cps_func_signature.clone());
