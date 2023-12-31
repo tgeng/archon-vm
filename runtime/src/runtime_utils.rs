@@ -135,7 +135,7 @@ pub unsafe fn runtime_alloc_stack() -> *mut usize {
 }
 
 /// Returns the result of the operation in uniform representation
-pub unsafe fn debug_helper(base: *const usize, nc: *const usize, last_result_ptr: *const usize) -> usize {
+pub unsafe fn debug_helper(base: *const usize, nc: *const Continuation, last_result_ptr: *const usize) -> usize {
     return 1 + 1;
 }
 
@@ -355,7 +355,7 @@ pub unsafe fn runtime_process_simple_handler_result(
             };
             let last_handler = convert_handler_transformers_to_disposers(
                 handler_index,
-                (*matching_handler).transform_loader_base_address,
+                (*matching_handler).transform_loader_base_address.add((*next_continuation).arg_stack_frame_height),
                 simple_exception_continuation,
                 runtime_disposer_loader_cps_impl,
             );
@@ -588,10 +588,9 @@ pub unsafe fn runtime_prepare_dispose_continuation(
         dispose_num_args,
     );
 
-    let tip_address = base_address.add(dispose_num_args);
     let last_handler = convert_handler_transformers_to_disposers(
         matching_handler_index,
-        tip_address,
+        base_address.add(next_continuation.arg_stack_frame_height),
         next_continuation,
         runtime_disposer_loader_cps_impl,
     );

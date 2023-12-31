@@ -441,8 +441,6 @@ impl BuiltinFunction {
         let last_result_ptr = builder.block_params(entry_block)[2];
         let last_result = builder.ins().load(I64, MemFlags::new(), last_result_ptr, 0);
 
-        Self::call_built_in(m, builder, BuiltinFunction::DebugHelper, &[base_address, current_continuation, last_result_ptr]);
-
         // transform thunk is set on the argument stack by `runtime_register_handler` when it
         // creates the transform loader continuation.
         let transform_thunk = builder.ins().load(I64, MemFlags::new(), base_address, 0);
@@ -495,11 +493,13 @@ impl BuiltinFunction {
         // creates the transform loader continuation.
         let disposer_thunk = builder.ins().load(I64, MemFlags::new(), base_address, 0);
 
+        Self::call_built_in(m, builder, BuiltinFunction::DebugHelper, &[base_address, current_continuation, disposer_thunk]);
+
         let inst = Self::call_built_in(m, builder, BuiltinFunction::PopHandler, &[]);
         let handler_parameter = builder.inst_results(inst)[0];
 
         // replace the disposer thunk with the parameter. This works since the loader takes exactly one argument,
-        // the disposer thunk, and the disposer thunk also takes exactly one parameter, the handler parameter.
+        // the disposer thunk. And the disposer thunk also takes exactly one parameter, the handler parameter.
         builder.ins().store(MemFlags::new(), handler_parameter, base_address, 0);
         let tip_address = base_address;
 
@@ -507,7 +507,7 @@ impl BuiltinFunction {
         builder.ins().stack_store(tip_address, tip_address_slot, 0);
         let tip_address_ptr = builder.ins().stack_addr(I64, tip_address_slot, 0);
         let inst = Self::call_built_in(m, builder, BuiltinFunction::ForceThunk, &[disposer_thunk, tip_address_ptr]);
-        let transform_ptr = builder.inst_results(inst)[0];
+        let disposer_ptr = builder.inst_results(inst)[0];
         let tip_address = builder.ins().stack_load(I64, tip_address_slot, 0);
 
         let next_continuation = builder.ins().load(I64, MemFlags::new(), current_continuation, 16);
@@ -523,7 +523,9 @@ impl BuiltinFunction {
         // call the next continuation
         let sig = create_cps_signature(m);
         let sig_ref = builder.import_signature(sig);
-        builder.ins().return_call_indirect(sig_ref, transform_ptr, &[tip_address, next_continuation]);
+        let two = builder.ins().iconst(I64, 2);
+        Self::call_built_in(m, builder, BuiltinFunction::DebugHelper, &[tip_address, next_continuation, two]);
+        builder.ins().return_call_indirect(sig_ref, disposer_ptr, &[tip_address, next_continuation]);
     }
 
     fn invoke_cps_function_with_trivial_continuation<M: Module>(m: &mut M, builder: &mut FunctionBuilder) {
