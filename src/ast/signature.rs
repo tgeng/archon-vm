@@ -404,6 +404,7 @@ impl<'a> Transformer for LambdaLifter<'a> {
         self.transform_c_term(c_term);
 
         if let CTerm::Redex { function: box CTerm::Def { .. }, .. } | CTerm::Def { .. } = c_term {
+            // TODO: still lift if the call is not effectful
             // There is no need to lift the thunk if it's already a simple function call.
             return;
         }

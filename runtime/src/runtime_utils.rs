@@ -135,7 +135,7 @@ pub unsafe fn runtime_alloc_stack() -> *mut usize {
 }
 
 /// Returns the result of the operation in uniform representation
-pub unsafe fn debug_helper(base: *const usize, tip: *const usize, nc: *const usize) -> usize {
+pub unsafe fn debug_helper(base: *const usize, nc: *const usize, last_result_ptr: *const usize) -> usize {
     return 1 + 1;
 }
 

@@ -1039,11 +1039,17 @@ block0(v0: i64, v1: i64):
     v29 = stack_addr.i64 ss0
     v30 = call fn13(v28, v29)
     v31 = stack_load.i64 ss0
-    v32 = call fn10(v31, v21, v30, v14)
-    v33 = load.i64 v32
-    v34 = iadd_imm v32, 8
-    v35 = sshr_imm v33, 1
-    return v35
+    v32 = isub v15, v31
+    v33 = load.i64 v21+8
+    v34 = ishl_imm v33, 3
+    v35 = iadd v34, v32
+    v36 = ushr_imm v35, 3
+    store v36, v21+8
+    v37 = call fn10(v31, v21, v30, v14)
+    v38 = load.i64 v37
+    v39 = iadd_imm v37, 8
+    v40 = sshr_imm v38, 1
+    return v40
 }
 
 
@@ -1277,11 +1283,17 @@ block0(v0: i64):
     v22 = stack_addr.i64 ss0
     v23 = call fn11(v21, v22)
     v24 = stack_load.i64 ss0
-    v25 = call fn9(v24, v19, v23, v12)
-    v26 = load.i64 v25
-    v27 = iadd_imm v25, 8
-    v28 = sshr_imm v26, 1
-    return v28
+    v25 = isub v13, v24
+    v26 = load.i64 v19+8
+    v27 = ishl_imm v26, 3
+    v28 = iadd v27, v25
+    v29 = ushr_imm v28, 3
+    store v29, v19+8
+    v30 = call fn9(v24, v19, v23, v12)
+    v31 = load.i64 v30
+    v32 = iadd_imm v30, 8
+    v33 = sshr_imm v31, 1
+    return v33
 }
 
 

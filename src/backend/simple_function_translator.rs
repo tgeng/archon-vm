@@ -465,7 +465,11 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         // The transform loader continuation is the first value inside the handler struct.
         let transform_loader_continuation = self.function_builder.ins().load(I64, MemFlags::new(), handler, 0);
         let mark_handler_ref = self.module.declare_func_in_func(self.builtin_functions[BuiltinFunction::MarkHandler], self.function_builder.func);
+        let old_tip_address = self.tip_address;
         let input_thunk_func_ptr = self.process_thunk(input);
+        // stack grows downwards so if we expect positive offset, we subtract old tip address by new tip address.
+        let offset_in_bytes = self.function_builder.ins().isub(old_tip_address, self.tip_address);
+        self.adjust_continuation_height(transform_loader_continuation, offset_in_bytes);
         let args = &[
             self.tip_address,
             transform_loader_continuation,
@@ -479,6 +483,14 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             let inst = self.function_builder.ins().call(mark_handler_ref, args);
             self.extract_return_value(inst)
         }
+    }
+
+    fn adjust_continuation_height(&mut self, continuation: Value, offset_in_bytes: Value) {
+        let continuation_height = self.function_builder.ins().load(I64, MemFlags::new(), continuation, 8);
+        let continuation_height_bytes = self.function_builder.ins().ishl_imm(continuation_height, 3);
+        let new_continuation_height_bytes = self.function_builder.ins().iadd(continuation_height_bytes, offset_in_bytes);
+        let new_continuation_height = self.function_builder.ins().ushr_imm(new_continuation_height_bytes, 3);
+        self.function_builder.ins().store(MemFlags::new(), new_continuation_height, continuation, 8);
     }
 
     fn add_handlers(&mut self, handler: Value, add_handler_func_ref: FuncRef, handler_impls: &Vec<(VTerm, VTerm)>) {
