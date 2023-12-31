@@ -1050,10 +1050,10 @@ block0(v0: i64, v1: i64):
     v56 = symbol_value.i64 gv3
     v57 = iadd_imm v56, 8
     v58 = iadd_imm v57, 3
-    v59 = load.i64 v1+8
-    v60 = ishl_imm v59, 3
-    v61 = iadd v0, v60
-    v62 = isub v61, v55
+    v59 = isub v0, v55
+    v60 = load.i64 v1+8
+    v61 = ishl_imm v60, 3
+    v62 = iadd v61, v59
     v63 = ushr_imm v62, 3
     store v63, v1+8
     v64 = iconst.i64 0

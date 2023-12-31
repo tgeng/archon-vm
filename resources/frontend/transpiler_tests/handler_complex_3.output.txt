@@ -897,10 +897,10 @@ block0(v0: i64, v1: i64):
     v18 = iadd_imm v17, 24
     v19 = isub v0, v17
     v20 = call fn1(v18, v17, v19)
-    v21 = load.i64 v1+8
-    v22 = ishl_imm v21, 3
-    v23 = iadd v0, v22
-    v24 = isub v23, v18
+    v21 = isub v0, v18
+    v22 = load.i64 v1+8
+    v23 = ishl_imm v22, 3
+    v24 = iadd v23, v21
     v25 = ushr_imm v24, 3
     store v25, v1+8
     return_call_indirect sig1, v16(v18, v1)
@@ -940,10 +940,10 @@ block0(v0: i64, v1: i64):
     v18 = iadd_imm v17, 24
     v19 = isub v0, v17
     v20 = call fn1(v18, v17, v19)
-    v21 = load.i64 v1+8
-    v22 = ishl_imm v21, 3
-    v23 = iadd v0, v22
-    v24 = isub v23, v18
+    v21 = isub v0, v18
+    v22 = load.i64 v1+8
+    v23 = ishl_imm v22, 3
+    v24 = iadd v23, v21
     v25 = ushr_imm v24, 3
     store v25, v1+8
     return_call_indirect sig1, v16(v18, v1)
@@ -982,10 +982,10 @@ block0(v0: i64, v1: i64):
     v17 = iadd_imm v16, 16
     v18 = isub v0, v16
     v19 = call fn1(v17, v16, v18)
-    v20 = load.i64 v1+8
-    v21 = ishl_imm v20, 3
-    v22 = iadd v0, v21
-    v23 = isub v22, v17
+    v20 = isub v0, v17
+    v21 = load.i64 v1+8
+    v22 = ishl_imm v21, 3
+    v23 = iadd v22, v20
     v24 = ushr_imm v23, 3
     store v24, v1+8
     return_call_indirect sig1, v15(v17, v1)
@@ -1116,10 +1116,10 @@ block4:
     v61 = iadd_imm v60, 8
     v62 = iadd_imm v61, 3
     v63 = load.i64 v1+16
-    v64 = load.i64 v63+8
-    v65 = ishl_imm v64, 3
-    v66 = iadd.i64 v0, v65
-    v67 = isub v66, v5
+    v64 = isub.i64 v0, v5
+    v65 = load.i64 v63+8
+    v66 = ishl_imm v65, 3
+    v67 = iadd v66, v64
     v68 = ushr_imm v67, 3
     store v68, v63+8
     v69 = iconst.i64 0

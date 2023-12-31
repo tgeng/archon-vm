@@ -1553,10 +1553,10 @@ block0(v0: i64, v1: i64):
     v27 = iadd_imm v26, 8
     v28 = isub v0, v26
     v29 = call fn4(v27, v26, v28)
-    v30 = load.i64 v1+8
-    v31 = ishl_imm v30, 3
-    v32 = iadd v0, v31
-    v33 = isub v32, v27
+    v30 = isub v0, v27
+    v31 = load.i64 v1+8
+    v32 = ishl_imm v31, 3
+    v33 = iadd v32, v30
     v34 = ushr_imm v33, 3
     store v34, v1+8
     v35 = iconst.i64 1
@@ -1687,10 +1687,10 @@ function u0:0(i64, i64) -> i64 tail {
     fn10 = u0:1 sig10
 
 block0(v0: i64, v1: i64):
-    v2 = load.i64 v1+8
-    v3 = ishl_imm v2, 3
-    v4 = iadd v0, v3
-    v5 = isub v4, v0
+    v2 = isub v0, v0
+    v3 = load.i64 v1+8
+    v4 = ishl_imm v3, 3
+    v5 = iadd v4, v2
     v6 = ushr_imm v5, 3
     store v6, v1+8
     v7 = iconst.i64 0
@@ -1754,10 +1754,10 @@ function u0:0(i64, i64) -> i64 tail {
     fn11 = u0:1 sig11
 
 block0(v0: i64, v1: i64):
-    v2 = load.i64 v1+8
-    v3 = ishl_imm v2, 3
-    v4 = iadd v0, v3
-    v5 = isub v4, v0
+    v2 = isub v0, v0
+    v3 = load.i64 v1+8
+    v4 = ishl_imm v3, 3
+    v5 = iadd v4, v2
     v6 = ushr_imm v5, 3
     store v6, v1+8
     v7 = iconst.i64 0
@@ -1827,10 +1827,10 @@ function u0:0(i64, i64) -> i64 tail {
     fn11 = u0:1 sig11
 
 block0(v0: i64, v1: i64):
-    v2 = load.i64 v1+8
-    v3 = ishl_imm v2, 3
-    v4 = iadd v0, v3
-    v5 = isub v4, v0
+    v2 = isub v0, v0
+    v3 = load.i64 v1+8
+    v4 = ishl_imm v3, 3
+    v5 = iadd v4, v2
     v6 = ushr_imm v5, 3
     store v6, v1+8
     v7 = iconst.i64 0
@@ -1963,10 +1963,10 @@ block0(v0: i64, v1: i64):
     v9 = iadd_imm v8, 8
     v10 = isub v0, v8
     v11 = call fn0(v9, v8, v10)
-    v12 = load.i64 v1+8
-    v13 = ishl_imm v12, 3
-    v14 = iadd v0, v13
-    v15 = isub v14, v9
+    v12 = isub v0, v9
+    v13 = load.i64 v1+8
+    v14 = ishl_imm v13, 3
+    v15 = iadd v14, v12
     v16 = ushr_imm v15, 3
     store v16, v1+8
     v17 = iconst.i64 1
@@ -2112,10 +2112,10 @@ block0(v0: i64, v1: i64):
     v9 = iadd_imm v8, 8
     v10 = isub v0, v8
     v11 = call fn0(v9, v8, v10)
-    v12 = load.i64 v1+8
-    v13 = ishl_imm v12, 3
-    v14 = iadd v0, v13
-    v15 = isub v14, v9
+    v12 = isub v0, v9
+    v13 = load.i64 v1+8
+    v14 = ishl_imm v13, 3
+    v15 = iadd v14, v12
     v16 = ushr_imm v15, 3
     store v16, v1+8
     v17 = iconst.i64 1

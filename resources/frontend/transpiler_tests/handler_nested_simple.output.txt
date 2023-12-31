@@ -1234,10 +1234,10 @@ block0(v0: i64, v1: i64):
     v65 = symbol_value.i64 gv4
     v66 = iadd_imm v65, 8
     v67 = iadd_imm v66, 3
-    v68 = load.i64 v1+8
-    v69 = ishl_imm v68, 3
-    v70 = iadd v0, v69
-    v71 = isub v70, v64
+    v68 = isub v0, v64
+    v69 = load.i64 v1+8
+    v70 = ishl_imm v69, 3
+    v71 = iadd v70, v68
     v72 = ushr_imm v71, 3
     store v72, v1+8
     v73 = iconst.i64 0
@@ -1283,10 +1283,10 @@ function u0:0(i64, i64) -> i64 tail {
     fn11 = u0:1 sig11
 
 block0(v0: i64, v1: i64):
-    v2 = load.i64 v1+8
-    v3 = ishl_imm v2, 3
-    v4 = iadd v0, v3
-    v5 = isub v4, v0
+    v2 = isub v0, v0
+    v3 = load.i64 v1+8
+    v4 = ishl_imm v3, 3
+    v5 = iadd v4, v2
     v6 = ushr_imm v5, 3
     store v6, v1+8
     v7 = iconst.i64 1

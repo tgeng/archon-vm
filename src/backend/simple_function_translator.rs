@@ -485,7 +485,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         }
     }
 
-    fn adjust_continuation_height(&mut self, continuation: Value, offset_in_bytes: Value) {
+    pub fn adjust_continuation_height(&mut self, continuation: Value, offset_in_bytes: Value) {
         let continuation_height = self.function_builder.ins().load(I64, MemFlags::new(), continuation, 8);
         let continuation_height_bytes = self.function_builder.ins().ishl_imm(continuation_height, 3);
         let new_continuation_height_bytes = self.function_builder.ins().iadd(continuation_height_bytes, offset_in_bytes);

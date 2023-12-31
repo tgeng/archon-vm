@@ -888,10 +888,10 @@ function u0:0(i64, i64) -> i64 tail {
     fn10 = u0:1 sig10
 
 block0(v0: i64, v1: i64):
-    v2 = load.i64 v1+8
-    v3 = ishl_imm v2, 3
-    v4 = iadd v0, v3
-    v5 = isub v4, v0
+    v2 = isub v0, v0
+    v3 = load.i64 v1+8
+    v4 = ishl_imm v3, 3
+    v5 = iadd v4, v2
     v6 = ushr_imm v5, 3
     store v6, v1+8
     v7 = iconst.i64 5
@@ -1044,10 +1044,10 @@ block0(v0: i64, v1: i64):
     v7 = iadd_imm v6, 8
     v8 = isub v0, v6
     v9 = call fn0(v7, v6, v8)
-    v10 = load.i64 v1+8
-    v11 = ishl_imm v10, 3
-    v12 = iadd v0, v11
-    v13 = isub v12, v7
+    v10 = isub v0, v7
+    v11 = load.i64 v1+8
+    v12 = ishl_imm v11, 3
+    v13 = iadd v12, v10
     v14 = ushr_imm v13, 3
     store v14, v1+8
     v15 = iconst.i64 1
@@ -1146,10 +1146,10 @@ block0(v0: i64, v1: i64):
     v18 = iadd_imm v14, 16
     v19 = isub v0, v14
     v20 = call fn2(v18, v14, v19)
-    v21 = load.i64 v1+8
-    v22 = ishl_imm v21, 3
-    v23 = iadd v0, v22
-    v24 = isub v23, v18
+    v21 = isub v0, v18
+    v22 = load.i64 v1+8
+    v23 = ishl_imm v22, 3
+    v24 = iadd v23, v21
     v25 = ushr_imm v24, 3
     store v25, v1+8
     v26 = iconst.i64 0

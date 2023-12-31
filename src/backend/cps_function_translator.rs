@@ -618,19 +618,15 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
 }
 
 fn compute_cps_tail_call_base_address<M: Module>(translator: &mut SimpleFunctionTranslator<M>, next_continuation: Value) {
+    let base_address = translator.base_address;
     // accommodate the height of the next continuation is updated here because tail
     // call causes the next continuation to be directly passed to the callee, which,
     // when later invokes the next continuation, will need to compute the base
     // address from this new height. The height can be different because the
     // callee args are effectively altered by the current function.
     let new_base_address = translator.copy_tail_call_args_and_get_new_base();
-    let next_continuation_height = translator.function_builder.ins().load(I64, MemFlags::new(), next_continuation, 8);
-    let base_address = translator.base_address;
-    let next_continuation_height_bytes = translator.function_builder.ins().ishl_imm(next_continuation_height, 3);
-    let next_continuation_base = translator.function_builder.ins().iadd(base_address, next_continuation_height_bytes);
-    let new_next_continuation_height_bytes = translator.function_builder.ins().isub(next_continuation_base, new_base_address);
-    let new_next_continuation_height = translator.function_builder.ins().ushr_imm(new_next_continuation_height_bytes, 3);
-    translator.function_builder.ins().store(MemFlags::new(), new_next_continuation_height, next_continuation, 8);
+    let offset_in_bytes = translator.function_builder.ins().isub(base_address, new_base_address);
+    translator.adjust_continuation_height(next_continuation, offset_in_bytes);
     translator.tip_address = new_base_address;
 }
 
