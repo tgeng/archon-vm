@@ -143,7 +143,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                 ]);
                 None
             }
-            CTerm::Def { name, .. } if is_tail => {
+            CTerm::Def { name, effect: Effect::Complex } if is_tail => {
                 let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
                 let next_continuation = self.next_continuation;
                 compute_cps_tail_call_base_address(self, next_continuation);
