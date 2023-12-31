@@ -285,7 +285,7 @@ struct SimpleResultValue {
 
 unsafe fn prepare_simple_operation(
     handler_call_base_address: *mut usize,
-    tip_continuation: &mut Continuation,
+    next_continuation: &mut Continuation,
     simple_handler_runner_impl_ptr: RawFuncPtr,
     handler_index: usize,
     handler_impl: ThunkPtr,
@@ -308,7 +308,14 @@ unsafe fn prepare_simple_operation(
     tip_address = tip_address.sub(1);
     tip_address.write(handler_impl_ptr as usize);
 
-    (simple_handler_runner_impl_ptr, tip_address, tip_continuation)
+    // Note, here we do not need to update the frame height of the next continuation because that will be derived from
+    // the last result pointer inside `simple_handler_runner_impl`. And this is fine because an operation must return
+    // a value (rather than a computation). Hence, when it's done, it must place the result right below the base
+    // address of the next continuation.
+    // We can still update the frame height of the next continuation here, but that would be redundant and hence left
+    // out.
+
+    (simple_handler_runner_impl_ptr, tip_address, next_continuation)
 }
 
 /// Special function that may do long jump instead of normal return if the result is exceptional. If
