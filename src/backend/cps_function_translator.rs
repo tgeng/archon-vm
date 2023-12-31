@@ -590,7 +590,8 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
         for index in touched_vars {
             let local_var = self.local_vars[index];
             let value = self.convert_to_uniform(local_var);
-            self.function_builder.ins().store(MemFlags::new(), value, local_var_ptr, (index * 8) as i32);
+            let num_args = self.num_args;
+            self.function_builder.ins().store(MemFlags::new(), value, local_var_ptr, ((index - num_args) * 8) as i32);
         }
     }
 

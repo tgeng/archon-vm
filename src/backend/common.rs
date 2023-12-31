@@ -441,6 +441,8 @@ impl BuiltinFunction {
         let last_result_ptr = builder.block_params(entry_block)[2];
         let last_result = builder.ins().load(I64, MemFlags::new(), last_result_ptr, 0);
 
+        Self::call_built_in(m, builder, BuiltinFunction::DebugHelper, &[base_address, current_continuation, last_result_ptr]);
+
         // transform thunk is set on the argument stack by `runtime_register_handler` when it
         // creates the transform loader continuation.
         let transform_thunk = builder.ins().load(I64, MemFlags::new(), base_address, 0);

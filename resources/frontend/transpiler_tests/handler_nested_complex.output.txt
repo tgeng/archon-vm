@@ -1635,9 +1635,9 @@ block2:
     store v32, v1+8
     v33 = iconst.i64 2
     store v33, v1+24  ; v33 = 2
-    store.i64 v6, v4+16
+    store.i64 v6, v4
     v34 = ishl_imm v25, 1
-    store v34, v4+24
+    store v34, v4+8
     v35 = iconst.i64 1
     v36 = func_addr.i64 fn3
     v37 = func_addr.i64 fn4
@@ -1767,9 +1767,9 @@ block2:
     store v32, v1+8
     v33 = iconst.i64 2
     store v33, v1+24  ; v33 = 2
-    store.i64 v6, v4+16
+    store.i64 v6, v4
     v34 = ishl_imm v25, 1
-    store v34, v4+24
+    store v34, v4+8
     v35 = iconst.i64 1
     v36 = func_addr.i64 fn3
     v37 = func_addr.i64 fn4

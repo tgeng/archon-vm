@@ -1,5 +1,5 @@
 def call_complex i =>
-  "op" #!! {i}
+  "op" #!! {i} + "op" #!! {i}
 
 def simple_linear =>
   handler
