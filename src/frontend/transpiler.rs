@@ -32,9 +32,9 @@ impl Transpiler {
             body: main,
             c_type: CType::SpecializedF(VType::Specialized(SpecializedType::Integer)),
             var_bound: 0,
-            may_be_simple: false,
-            may_be_complex: false,
-            may_be_specialized: false,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: false,
         });
     }
 
@@ -172,9 +172,9 @@ impl Transpiler {
                             body: def_body,
                             c_type: def.c_type,
                             var_bound: self.local_counter,
-                            may_be_simple: false,
-                            may_be_complex: false,
-                            may_be_specialized: false,
+                            need_simple: false,
+                            need_cps: false,
+                            need_specialized: false,
                         },
                     );
                 });
@@ -420,8 +420,7 @@ mod tests {
     use cranelift_jit::JITModule;
     use crate::backend::compiler::Compiler;
     use crate::frontend::parser::parse_f_term;
-    use crate::ast::signature::{Signature};
-    use crate::ast::term::Effect;
+    use crate::ast::signature::{FunctionEnablement, Signature};
     use crate::frontend::transpiler::Transpiler;
 
     fn check(test_input_path: &str, test_output_path: &str) -> Result<(), String> {
@@ -435,7 +434,7 @@ mod tests {
         transpiler.transpile(f_term.clone());
         let mut signature = transpiler.into_signature();
         signature.optimize();
-        signature.enable("main", Effect::Basic);
+        signature.enable("main", FunctionEnablement::Specialized);
         let mut defs = signature.into_defs().into_iter().collect::<Vec<_>>();
         defs.sort_by_key(|(name, _)| name.clone());
 

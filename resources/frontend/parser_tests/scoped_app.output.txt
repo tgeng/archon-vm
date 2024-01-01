@@ -1,26 +1,26 @@
 Redex {
     function: Identifier {
         name: "f",
-        effect: Basic,
+        effect: Simple,
     },
     args: [
         Identifier {
             name: "a",
-            effect: Basic,
+            effect: Simple,
         },
         Identifier {
             name: "b",
-            effect: Basic,
+            effect: Simple,
         },
         Redex {
             function: Identifier {
                 name: "c",
-                effect: Basic,
+                effect: Simple,
             },
             args: [
                 Identifier {
                     name: "d",
-                    effect: Basic,
+                    effect: Simple,
                 },
             ],
         },
@@ -29,7 +29,7 @@ Redex {
             t: Redex {
                 function: Identifier {
                     name: "g",
-                    effect: Basic,
+                    effect: Simple,
                 },
                 args: [
                     Int {
@@ -43,7 +43,7 @@ Redex {
             body: Redex {
                 function: Identifier {
                     name: "h",
-                    effect: Basic,
+                    effect: Simple,
                 },
                 args: [
                     Int {

@@ -11,7 +11,7 @@ Defs {
                 ],
                 body: Identifier {
                     name: "x",
-                    effect: Basic,
+                    effect: Simple,
                 },
                 c_type: Default,
             },
@@ -36,16 +36,16 @@ Defs {
                         body: Redex {
                             function: Identifier {
                                 name: "_int_add",
-                                effect: Basic,
+                                effect: Simple,
                             },
                             args: [
                                 Identifier {
                                     name: "x",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                                 Identifier {
                                     name: "y",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                             ],
                         },
@@ -57,13 +57,13 @@ Defs {
                 Redex {
                     function: Identifier {
                         name: "g",
-                        effect: Basic,
+                        effect: Simple,
                     },
                     args: [
                         Redex {
                             function: Identifier {
                                 name: "f",
-                                effect: Basic,
+                                effect: Simple,
                             },
                             args: [
                                 Int {

@@ -56,12 +56,8 @@ pub enum CType {
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum Effect {
-    /// A computation that doesn't have any user effects and hence the function call can be specialized. Note that this
-    /// doesn't necessarily mean the computation is total. In fact, it can diverge, modify memory, or perform IO, etc.
-    /// It just won't invoke any operations that need to be handled by handlers.
-    Basic,
     /// A computation that may only have simple effects and hence the function call can be compiled via CBPV convention
-    /// but not specialized.
+    /// or is specialized.
     Simple,
     /// A computation that may have complex effects and hence the function call must be compiled via CPS transformation.
     Complex,
@@ -71,13 +67,11 @@ impl Effect {
     pub fn union(self, other: Effect) -> Effect {
         match (self, other) {
             (Effect::Complex, _) | (_, Effect::Complex) => Effect::Complex,
-            (Effect::Simple, _) | (_, Effect::Simple) => Effect::Simple,
-            _ => Effect::Basic,
+            _ => Effect::Simple,
         }
     }
     pub fn intersect(self, other: Effect) -> Effect {
         match (self, other) {
-            (Effect::Basic, _) | (_, Effect::Basic) => Effect::Basic,
             (Effect::Simple, _) | (_, Effect::Simple) => Effect::Simple,
             _ => Effect::Complex,
         }

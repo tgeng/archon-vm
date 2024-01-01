@@ -22,7 +22,12 @@ impl CpsFunctionTranslator {
         function_definition: &FunctionDefinition,
         local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>,
         clir: &mut Option<&mut Vec<(String, String)>>,
+        may_be_complex: bool,
     ) {
+        if !may_be_complex {
+            SimpleCpsFunctionTranslator::compile_cps_function(name, compiler, function_definition, local_function_arg_types, clir, false);
+            return;
+        }
         let mut function_analyzer = FunctionAnalyzer::new();
         function_analyzer.analyze(&function_definition.body, true);
         let num_blocks = function_analyzer.count;
@@ -31,7 +36,7 @@ impl CpsFunctionTranslator {
             let cps_impl_func_id = ComplexCpsFunctionTranslator::compile_cps_impl_function(name, compiler, function_definition, local_function_arg_types, num_blocks, case_blocks, clir);
             ComplexCpsFunctionTranslator::compile_cps_function(name, compiler, function_definition, local_function_arg_types, cps_impl_func_id, clir);
         } else {
-            SimpleCpsFunctionTranslator::compile_cps_function(name, compiler, function_definition, local_function_arg_types, clir);
+            SimpleCpsFunctionTranslator::compile_cps_function(name, compiler, function_definition, local_function_arg_types, clir, true);
         }
     }
 }
@@ -49,6 +54,7 @@ impl CpsFunctionTranslator {
 struct SimpleCpsFunctionTranslator<'a, M: Module> {
     function_translator: SimpleFunctionTranslator<'a, M>,
     next_continuation: Value,
+    may_be_complex: bool,
 }
 
 impl<'a, M: Module> Deref for SimpleCpsFunctionTranslator<'a, M> {
@@ -72,8 +78,9 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
         function_definition: &FunctionDefinition,
         local_function_arg_types: &HashMap<String, (Vec<VType>, CType)>,
         clir: &mut Option<&mut Vec<(String, String)>>,
+        may_be_complex: bool,
     ) {
-        let mut translator = SimpleCpsFunctionTranslator::new(compiler, function_definition, local_function_arg_types);
+        let mut translator = SimpleCpsFunctionTranslator::new(compiler, function_definition, local_function_arg_types, may_be_complex);
         let typed_return_value = translator.translate_c_term_cps(&function_definition.body, true);
         match typed_return_value {
             None => {}
@@ -97,6 +104,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
         compiler: &'a mut Compiler<M>,
         function_definition: &'a FunctionDefinition,
         local_function_arg_types: &'a HashMap<String, (Vec<VType>, CType)>,
+        may_be_complex: bool,
     ) -> Self {
         let signature = compiler.uniform_cps_func_signature.clone();
 
@@ -124,6 +132,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
         Self {
             function_translator,
             next_continuation: continuation,
+            may_be_complex,
         }
     }
 
@@ -144,7 +153,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                 None
             }
             (CTerm::Def { name, effect }, true) => {
-                if *effect == Effect::Complex {
+                if *effect == Effect::Complex && self.may_be_complex {
                     let func_ref = self.get_local_function(name, FunctionFlavor::Cps);
                     let next_continuation = self.next_continuation;
                     compute_cps_tail_call_base_address(self, next_continuation);
@@ -180,7 +189,12 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
             }
             (CTerm::Redex { .. }, _) => {
                 let s = self as *mut SimpleCpsFunctionTranslator<M>;
-                self.translate_redex(c_term, is_tail, Effect::Complex, |c_term, is_tail| {
+                let context_effect = if self.may_be_complex {
+                    Effect::Complex
+                } else {
+                    Effect::Simple
+                };
+                self.translate_redex(c_term, is_tail, context_effect, |c_term, is_tail| {
                     unsafe {
                         (*s).translate_c_term_cps(c_term, is_tail)
                     }
@@ -198,7 +212,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
             }
             // These terms cannot return a computation so we just extract the return value with the simple translator.
             (CTerm::Return { .. } | CTerm::Lambda { .. } | CTerm::MemGet { .. } | CTerm::MemSet { .. } |
-            CTerm::PrimitiveCall { .. } | CTerm::OperationCall { effect: (Effect::Basic | Effect::Simple), .. }, _) => {
+            CTerm::PrimitiveCall { .. } | CTerm::OperationCall { effect: Effect::Simple, .. }, _) => {
                 self.translate_c_term(c_term, false)
             }
             (_, false) => {
@@ -566,7 +580,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
             }
             // These terms cannot return a computation so we just extract the return value with the simple translator.
             (CTerm::Return { .. } | CTerm::Lambda { .. } | CTerm::MemGet { .. } | CTerm::MemSet { .. } |
-            CTerm::PrimitiveCall { .. } | CTerm::OperationCall { effect: (Effect::Basic | Effect::Simple), .. }, _) => {
+            CTerm::PrimitiveCall { .. } | CTerm::OperationCall { effect: Effect::Simple, .. }, _) => {
                 self.translate_c_term(c_term, false)
             }
             (_, false) => {

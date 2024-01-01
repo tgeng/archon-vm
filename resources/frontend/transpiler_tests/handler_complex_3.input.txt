@@ -1,18 +1,18 @@
-handler!! 0
-  "accumulate" #!!
-    \p x cont =>!!
+handler! 0
+  "accumulate" #!
+    \p x cont =>!
       let r = p + x
-      force!! cont 0 r r
-  "dissipate" #!!
-    \p x cont =>!!
+      force! cont 0 r r
+  "dissipate" #!
+    \p x cont =>!
       let r = p - x
-      force!! cont 0 r r
-  "proliferate" #!!
-    \p cont =>!!
+      force! cont 0 r r
+  "proliferate" #!
+    \p cont =>!
       let r = p * 2
-      force!! cont 0 r r
+      force! cont 0 r r
 
-"accumulate" #!! {2}
-"accumulate" #!! {4}
-"dissipate" #!! {1}
-"proliferate" #!! {}
+"accumulate" #! {2}
+"accumulate" #! {4}
+"dissipate" #! {1}
+"proliferate" #! {}

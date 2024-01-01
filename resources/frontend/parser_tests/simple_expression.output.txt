@@ -1,62 +1,62 @@
 Redex {
     function: Identifier {
         name: "_int_sub",
-        effect: Basic,
+        effect: Simple,
     },
     args: [
         Redex {
             function: Identifier {
                 name: "_int_add",
-                effect: Basic,
+                effect: Simple,
             },
             args: [
                 Identifier {
                     name: "a",
-                    effect: Basic,
+                    effect: Simple,
                 },
                 Identifier {
                     name: "b",
-                    effect: Basic,
+                    effect: Simple,
                 },
             ],
         },
         Redex {
             function: Identifier {
                 name: "_int_mod",
-                effect: Basic,
+                effect: Simple,
             },
             args: [
                 Redex {
                     function: Identifier {
                         name: "_int_div",
-                        effect: Basic,
+                        effect: Simple,
                     },
                     args: [
                         Redex {
                             function: Identifier {
                                 name: "_int_mul",
-                                effect: Basic,
+                                effect: Simple,
                             },
                             args: [
                                 Identifier {
                                     name: "c",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                                 Identifier {
                                     name: "d",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                             ],
                         },
                         Redex {
                             function: Identifier {
                                 name: "_int_neg",
-                                effect: Basic,
+                                effect: Simple,
                             },
                             args: [
                                 Identifier {
                                     name: "e",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                             ],
                         },
@@ -65,12 +65,12 @@ Redex {
                 Redex {
                     function: Identifier {
                         name: "_int_pos",
-                        effect: Basic,
+                        effect: Simple,
                     },
                     args: [
                         Identifier {
                             name: "f",
-                            effect: Basic,
+                            effect: Simple,
                         },
                     ],
                 },

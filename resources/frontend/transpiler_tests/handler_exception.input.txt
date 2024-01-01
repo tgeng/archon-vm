@@ -1,5 +1,5 @@
 handler 2
-  "exp" #!
+  "exp" #
     \p => {p, {0, 5}}
-"exp" #! {}
+"exp" # {}
 1

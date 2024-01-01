@@ -38,7 +38,7 @@ static PRECEDENCE: &[(&[OperatorAndName], Fixity)] = &[
 
 // keywords
 static KEYWORDS: &[&str] = &[
-    "let", "def", "case", "force", "thunk", "handler", "=>", "=>!", "=>!!", "=", "(", ")", ",", "\\", "{", "}", "@", "_", ":", "->", "!", "!!", "#", "#!", "#!!", "disposer", "replicator"
+    "let", "def", "case", "force", "thunk", "handler", "=>", "=>!", "=", "(", ")", ",", "\\", "{", "}", "@", "_", ":", "->", "!", "#", "#!", "disposer", "replicator"
 ];
 
 // tokenizer
@@ -307,26 +307,22 @@ fn id(input: Input) -> IResult<Input, String> {
 
 fn effect(input: Input) -> IResult<Input, Effect> {
     map(
-        opt(alt((
-            token("!").map(|_| Effect::Simple),
-            token("!!").map(|_| Effect::Complex),
-        ))),
-        |effect_opt| effect_opt.unwrap_or(Effect::Basic),
+        opt(token("!").map(|_| Effect::Complex)),
+        |effect_opt| effect_opt.unwrap_or(Effect::Simple),
     )(input)
 }
 
 fn op_effect(input: Input) -> IResult<Input, Effect> {
     alt((
-        token("#!").map(|_| Effect::Simple),
-        token("#!!").map(|_| Effect::Complex),
+        token("#").map(|_| Effect::Simple),
+        token("#!").map(|_| Effect::Complex),
     ))(input)
 }
 
 fn lambda_effect(input: Input) -> IResult<Input, Effect> {
     alt((
-        token("=>").map(|_| Effect::Basic),
-        token("=>!").map(|_| Effect::Simple),
-        token("=>!!").map(|_| Effect::Complex),
+        token("=>").map(|_| Effect::Simple),
+        token("=>!").map(|_| Effect::Complex),
     ))(input)
 }
 
@@ -447,7 +443,7 @@ fn operator_id(operators: &'static [OperatorAndName]) -> impl FnMut(Input) -> IR
                         None
                     })
                 .next()
-                .map(|fun_name| FTerm::Identifier { name: fun_name.to_string(), effect: Effect::Basic })
+                .map(|fun_name| FTerm::Identifier { name: fun_name.to_string(), effect: Effect::Simple })
         }
         _ => None,
     })
@@ -792,7 +788,7 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
                 parameter_disposer: Box::new(FTerm::Lambda {
                     arg_names: vec![("_".to_owned(), VType::Uniform)],
                     body: Box::new(FTerm::Struct { values: vec![] }),
-                    effect: Effect::Basic,
+                    effect: Effect::Simple,
                 }),
                 parameter_replicator: Box::new(FTerm::Lambda {
                     arg_names: vec![("p".to_owned(), VType::Uniform)],
@@ -800,19 +796,19 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
                         values: vec![
                             FTerm::Identifier {
                                 name: "p".to_owned(),
-                                effect: Effect::Basic,
+                                effect: Effect::Simple,
                             },
                             FTerm::Identifier {
                                 name: "p".to_owned(),
-                                effect: Effect::Basic,
+                                effect: Effect::Simple,
                             }]
                     }),
-                    effect: Effect::Basic,
+                    effect: Effect::Simple,
                 }),
                 transform: Box::new(FTerm::Lambda {
                     arg_names: vec![("p".to_owned(), VType::Uniform), ("r".to_owned(), VType::Uniform)],
-                    body: Box::new(FTerm::Identifier { name: "r".to_owned(), effect: Effect::Basic }),
-                    effect: Effect::Basic,
+                    body: Box::new(FTerm::Identifier { name: "r".to_owned(), effect: Effect::Simple }),
+                    effect: Effect::Simple,
                 }),
                 simple_handlers: vec![],
                 complex_handlers: vec![],

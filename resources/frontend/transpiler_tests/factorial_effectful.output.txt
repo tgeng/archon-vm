@@ -16,7 +16,7 @@ Defs {
                 body: CaseInt {
                     t: Identifier {
                         name: "n",
-                        effect: Basic,
+                        effect: Simple,
                     },
                     result_type: SpecializedF(
                         Specialized(
@@ -35,12 +35,12 @@ Defs {
                         Redex {
                             function: Identifier {
                                 name: "_int_mul",
-                                effect: Basic,
+                                effect: Simple,
                             },
                             args: [
                                 Identifier {
                                     name: "n",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                                 Redex {
                                     function: Identifier {
@@ -51,12 +51,12 @@ Defs {
                                         Redex {
                                             function: Identifier {
                                                 name: "_int_sub",
-                                                effect: Basic,
+                                                effect: Simple,
                                             },
                                             args: [
                                                 Identifier {
                                                     name: "n",
-                                                    effect: Basic,
+                                                    effect: Simple,
                                                 },
                                                 Int {
                                                     value: 1,
@@ -81,7 +81,7 @@ Defs {
         Redex {
             function: Identifier {
                 name: "factorial",
-                effect: Basic,
+                effect: Simple,
             },
             args: [
                 Int {
@@ -173,9 +173,9 @@ Defs
                 ),
             ),
             var_bound: 3,
-            may_be_simple: false,
-            may_be_complex: false,
-            may_be_specialized: true,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
         },
     ),
     (
@@ -185,7 +185,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "factorial",
-                    effect: Basic,
+                    effect: Simple,
                 },
                 args: [
                     Int {
@@ -199,9 +199,9 @@ Defs
                 ),
             ),
             var_bound: 0,
-            may_be_simple: false,
-            may_be_complex: false,
-            may_be_specialized: true,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
         },
     ),
 ]

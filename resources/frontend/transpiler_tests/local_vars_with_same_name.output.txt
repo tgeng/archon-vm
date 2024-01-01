@@ -21,12 +21,12 @@ Defs {
                         body: Redex {
                             function: Identifier {
                                 name: "_int_add",
-                                effect: Basic,
+                                effect: Simple,
                             },
                             args: [
                                 Identifier {
                                     name: "x",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                                 Int {
                                     value: 1,
@@ -37,12 +37,12 @@ Defs {
                     body: Redex {
                         function: Identifier {
                             name: "_int_add",
-                            effect: Basic,
+                            effect: Simple,
                         },
                         args: [
                             Identifier {
                                 name: "x",
-                                effect: Basic,
+                                effect: Simple,
                             },
                             Int {
                                 value: 2,
@@ -58,7 +58,7 @@ Defs {
         Redex {
             function: Identifier {
                 name: "f",
-                effect: Basic,
+                effect: Simple,
             },
             args: [
                 Int {
@@ -116,9 +116,9 @@ Defs
             },
             c_type: Default,
             var_bound: 3,
-            may_be_simple: true,
-            may_be_complex: false,
-            may_be_specialized: false,
+            need_simple: true,
+            need_cps: false,
+            need_specialized: false,
         },
     ),
     (
@@ -128,7 +128,7 @@ Defs
             body: Redex {
                 function: Def {
                     name: "f",
-                    effect: Basic,
+                    effect: Simple,
                 },
                 args: [
                     Int {
@@ -142,9 +142,9 @@ Defs
                 ),
             ),
             var_bound: 0,
-            may_be_simple: false,
-            may_be_complex: false,
-            may_be_specialized: true,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
         },
     ),
 ]

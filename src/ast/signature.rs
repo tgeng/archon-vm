@@ -14,11 +14,13 @@ pub struct FunctionDefinition {
     /// The (exclusive) upperbound of local variables bound in this definition. This is useful to
     /// initialize an array, which can be guaranteed to fit all local variables in this function.
     pub var_bound: usize,
-    /// This function may be simple. In this case a simple version of the function is generated for
-    /// faster calls.
-    pub may_be_simple: bool,
-    pub may_be_complex: bool,
-    pub may_be_specialized: bool,
+    /// This function may perform simple effects and a simple CBPV version of this function is generated.
+    pub need_simple: bool,
+    /// This function may perform complex effects. In this case a the function is CPS transformed.
+    pub need_cps: bool,
+    /// This function may perform simple effects can be specialized since it returns a value and there is at least a
+    /// callsite providing all the required arguments.
+    pub need_specialized: bool,
 }
 
 impl FunctionDefinition {
@@ -29,6 +31,12 @@ impl FunctionDefinition {
 
 pub struct Signature {
     pub defs: HashMap<String, FunctionDefinition>,
+}
+
+pub enum FunctionEnablement {
+    Specialized,
+    Simple,
+    Cps,
 }
 
 impl Signature {
@@ -55,28 +63,31 @@ impl Signature {
         self.rename_local_vars();
     }
 
-    pub fn enable(&mut self, name: &str, function_enablement: Effect) {
+    pub fn enable(&mut self, name: &str, function_enablement: FunctionEnablement) {
         let function_definition = self.defs.get_mut(name).unwrap();
-        match function_enablement {
-            Effect::Basic => {
-                if function_definition.may_be_specialized {
+        let effect = match function_enablement {
+            FunctionEnablement::Specialized => {
+                if function_definition.need_specialized {
                     return;
                 }
-                function_definition.may_be_specialized = true;
+                function_definition.need_specialized = true;
+                Effect::Simple
             }
-            Effect::Simple => {
-                if function_definition.may_be_simple {
+            FunctionEnablement::Simple => {
+                if function_definition.need_simple {
                     return;
                 }
-                function_definition.may_be_simple = true;
+                function_definition.need_simple = true;
+                Effect::Simple
             }
-            Effect::Complex => {
-                if function_definition.may_be_complex {
+            FunctionEnablement::Cps => {
+                if function_definition.need_cps {
                     return;
                 }
-                function_definition.may_be_complex = true;
+                function_definition.need_cps = true;
+                Effect::Complex
             }
-        }
+        };
 
         let c_term_ptr: *const CTerm = &function_definition.body;
         // This is safe because all the writes are only one the enablement fields inside the
@@ -84,7 +95,7 @@ impl Signature {
         // in a separate data structure outside of Signature. Both are annoying and requires more
         // work.
         unsafe {
-            self.visit_c_term(&*c_term_ptr, function_enablement);
+            self.visit_c_term(&*c_term_ptr, effect);
         }
     }
 
@@ -99,7 +110,7 @@ impl Signature {
     fn specialize_calls(&mut self) {
         let mut new_defs: Vec<(String, FunctionDefinition)> = Vec::new();
         let specializable_functions: HashMap<_, _> = self.defs.iter()
-            .filter_map(|(name, FunctionDefinition { args, c_type, may_be_simple, .. })| {
+            .filter_map(|(name, FunctionDefinition { args, c_type, need_simple: may_be_simple, .. })| {
                 if let CType::SpecializedF(_) = c_type && *may_be_simple {
                     Some((name.clone(), args.len()))
                 } else {
@@ -144,9 +155,9 @@ impl Signature {
             mut body,
             c_type,
             mut var_bound,
-            may_be_simple,
-            may_be_complex,
-            may_be_specialized
+            need_simple: may_be_simple,
+            need_cps: may_be_complex,
+            need_specialized: may_be_specialized,
         }) in new_defs.into_iter() {
             Self::rename_local_vars_in_def(&mut args, &mut body, &mut var_bound);
             self.insert(name, FunctionDefinition {
@@ -154,9 +165,9 @@ impl Signature {
                 body,
                 c_type,
                 var_bound,
-                may_be_simple,
-                may_be_complex,
-                may_be_specialized,
+                need_simple: may_be_simple,
+                need_cps: may_be_complex,
+                need_specialized: may_be_specialized,
             })
         }
     }
@@ -190,8 +201,7 @@ impl Visitor for Signature {
             _ => panic!("all thunks should have been lifted at this point"),
         };
         args.iter().for_each(|arg| self.visit_v_term(arg, context_effect));
-        // All thunked functions are treated effectful to simplify compilation.
-        self.enable(name, Effect::Complex);
+        self.enable(name, FunctionEnablement::Cps);
     }
 
     fn visit_redex(&mut self, c_term: &CTerm, context_effect: Effect) {
@@ -203,13 +213,13 @@ impl Visitor for Signature {
         };
         let effect = effect.intersect(context_effect);
         if effect == Effect::Complex {
-            self.enable(name, Effect::Complex);
+            self.enable(name, FunctionEnablement::Cps);
         } else {
             let function_def = self.defs.get(name).unwrap();
-            if function_def.args.len() == args.len() && function_def.is_specializable() && effect == Effect::Basic {
-                self.enable(name, Effect::Basic);
+            if function_def.args.len() == args.len() && function_def.is_specializable() {
+                self.enable(name, FunctionEnablement::Specialized);
             } else {
-                self.enable(name, Effect::Simple);
+                self.enable(name, FunctionEnablement::Simple);
             }
         }
     }
@@ -219,13 +229,13 @@ impl Visitor for Signature {
         let CTerm::Def { name, effect } = c_term else { unreachable!() };
         let effect = effect.intersect(context_effect);
         if effect == Effect::Complex {
-            self.enable(name, Effect::Complex);
+            self.enable(name, FunctionEnablement::Cps);
         } else {
             let function_def = self.defs.get(name).unwrap();
-            if function_def.args.is_empty() && function_def.is_specializable() && effect == Effect::Basic {
-                self.enable(name, Effect::Basic);
+            if function_def.args.is_empty() && function_def.is_specializable() {
+                self.enable(name, FunctionEnablement::Specialized);
             } else {
-                self.enable(name, Effect::Simple);
+                self.enable(name, FunctionEnablement::Simple);
             }
         }
     }
@@ -332,8 +342,8 @@ impl<'a> Transformer for CallSpecializer<'a> {
                 Ordering::Greater => {
                     let primitive_wrapper_name = format!("{}$__primitive_wrapper_{}", self.def_name, self.primitive_wrapper_counter);
                     // Primitive calls cannot be effectful.
-                    assert_eq!(*effect, Effect::Basic);
-                    *function = CTerm::Def { name: primitive_wrapper_name.clone(), effect: Effect::Basic };
+                    assert_eq!(*effect, Effect::Simple);
+                    *function = CTerm::Def { name: primitive_wrapper_name.clone(), effect: Effect::Simple };
                     self.new_defs.push((primitive_wrapper_name, FunctionDefinition {
                         args: arg_types.iter().enumerate().map(|(i, t)| (i, *t)).collect(),
                         body: CTerm::PrimitiveCall {
@@ -342,9 +352,9 @@ impl<'a> Transformer for CallSpecializer<'a> {
                         },
                         c_type: CType::SpecializedF(*return_type),
                         var_bound: arg_types.len(),
-                        may_be_simple: false,
-                        may_be_complex: false,
-                        may_be_specialized: false,
+                        need_simple: false,
+                        need_cps: false,
+                        need_specialized: false,
                     }))
                 }
                 Ordering::Equal => {
@@ -390,9 +400,9 @@ impl<'a> LambdaLifter<'a> {
             body,
             c_type: CType::Default,
             var_bound,
-            may_be_simple: false,
-            may_be_complex: false,
-            may_be_specialized: false,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: false,
         };
         self.new_defs.push((name, function_definition));
     }
@@ -404,7 +414,6 @@ impl<'a> Transformer for LambdaLifter<'a> {
         self.transform_c_term(c_term);
 
         if let CTerm::Redex { function: box CTerm::Def { .. }, .. } | CTerm::Def { .. } = c_term {
-            // TODO: still lift if the call is not effectful
             // There is no need to lift the thunk if it's already a simple function call.
             return;
         }

@@ -12,19 +12,19 @@ Handler {
         body: Redex {
             function: Identifier {
                 name: "_int_sub",
-                effect: Basic,
+                effect: Simple,
             },
             args: [
                 Identifier {
                     name: "p",
-                    effect: Basic,
+                    effect: Simple,
                 },
                 Int {
                     value: 1,
                 },
             ],
         },
-        effect: Basic,
+        effect: Simple,
     },
     parameter_replicator: Lambda {
         arg_names: [
@@ -38,12 +38,12 @@ Handler {
                 Redex {
                     function: Identifier {
                         name: "_int_add",
-                        effect: Basic,
+                        effect: Simple,
                     },
                     args: [
                         Identifier {
                             name: "p",
-                            effect: Basic,
+                            effect: Simple,
                         },
                         Int {
                             value: 1,
@@ -53,12 +53,12 @@ Handler {
                 Redex {
                     function: Identifier {
                         name: "_int_add",
-                        effect: Basic,
+                        effect: Simple,
                     },
                     args: [
                         Identifier {
                             name: "p",
-                            effect: Basic,
+                            effect: Simple,
                         },
                         Int {
                             value: 2,
@@ -67,7 +67,7 @@ Handler {
                 },
             ],
         },
-        effect: Basic,
+        effect: Simple,
     },
     transform: Lambda {
         arg_names: [
@@ -83,19 +83,19 @@ Handler {
         body: Redex {
             function: Identifier {
                 name: "_int_add",
-                effect: Basic,
+                effect: Simple,
             },
             args: [
                 Identifier {
                     name: "r",
-                    effect: Basic,
+                    effect: Simple,
                 },
                 Int {
                     value: 3,
                 },
             ],
         },
-        effect: Basic,
+        effect: Simple,
     },
     simple_handlers: [
         (
@@ -116,19 +116,19 @@ Handler {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
-                        effect: Basic,
+                        effect: Simple,
                     },
                     args: [
                         Identifier {
                             name: "x",
-                            effect: Basic,
+                            effect: Simple,
                         },
                         Int {
                             value: 2,
                         },
                     ],
                 },
-                effect: Basic,
+                effect: Simple,
             },
         ),
     ],
@@ -163,17 +163,17 @@ Handler {
                         },
                         Identifier {
                             name: "p",
-                            effect: Basic,
+                            effect: Simple,
                         },
                         Redex {
                             function: Identifier {
                                 name: "_int_add",
-                                effect: Basic,
+                                effect: Simple,
                             },
                             args: [
                                 Identifier {
                                     name: "x",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                                 Int {
                                     value: 1,
@@ -198,6 +198,6 @@ Handler {
             ],
             effect: Complex,
         },
-        effect: Basic,
+        effect: Simple,
     },
 }

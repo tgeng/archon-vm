@@ -5,6 +5,6 @@ Let {
     },
     body: Identifier {
         name: "x",
-        effect: Basic,
+        effect: Simple,
     },
 }

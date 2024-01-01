@@ -20,7 +20,7 @@ Let {
         t: MemSet {
             base: Identifier {
                 name: "a",
-                effect: Basic,
+                effect: Simple,
             },
             offset: Int {
                 value: 0,
@@ -34,7 +34,7 @@ Let {
             t: MemSet {
                 base: Identifier {
                     name: "a",
-                    effect: Basic,
+                    effect: Simple,
                 },
                 offset: Int {
                     value: 1,
@@ -48,7 +48,7 @@ Let {
                 t: MemSet {
                     base: Identifier {
                         name: "a",
-                        effect: Basic,
+                        effect: Simple,
                     },
                     offset: Int {
                         value: 2,
@@ -60,19 +60,19 @@ Let {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
-                        effect: Basic,
+                        effect: Simple,
                     },
                     args: [
                         Redex {
                             function: Identifier {
                                 name: "_int_add",
-                                effect: Basic,
+                                effect: Simple,
                             },
                             args: [
                                 MemGet {
                                     base: Identifier {
                                         name: "a",
-                                        effect: Basic,
+                                        effect: Simple,
                                     },
                                     offset: Int {
                                         value: 0,
@@ -81,7 +81,7 @@ Let {
                                 MemGet {
                                     base: Identifier {
                                         name: "a",
-                                        effect: Basic,
+                                        effect: Simple,
                                     },
                                     offset: Int {
                                         value: 1,
@@ -92,7 +92,7 @@ Let {
                         MemGet {
                             base: Identifier {
                                 name: "a",
-                                effect: Basic,
+                                effect: Simple,
                             },
                             offset: Int {
                                 value: 2,
@@ -236,9 +236,9 @@ Defs
                 ),
             ),
             var_bound: 8,
-            may_be_simple: false,
-            may_be_complex: false,
-            may_be_specialized: true,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
         },
     ),
 ]

@@ -12,7 +12,7 @@ Handler {
         body: Struct {
             values: [],
         },
-        effect: Basic,
+        effect: Simple,
     },
     parameter_replicator: Lambda {
         arg_names: [
@@ -25,15 +25,15 @@ Handler {
             values: [
                 Identifier {
                     name: "p",
-                    effect: Basic,
+                    effect: Simple,
                 },
                 Identifier {
                     name: "p",
-                    effect: Basic,
+                    effect: Simple,
                 },
             ],
         },
-        effect: Basic,
+        effect: Simple,
     },
     transform: Lambda {
         arg_names: [
@@ -48,9 +48,9 @@ Handler {
         ],
         body: Identifier {
             name: "r",
-            effect: Basic,
+            effect: Simple,
         },
-        effect: Basic,
+        effect: Simple,
     },
     simple_handlers: [],
     complex_handlers: [
@@ -84,17 +84,17 @@ Handler {
                         },
                         Identifier {
                             name: "p",
-                            effect: Basic,
+                            effect: Simple,
                         },
                         Redex {
                             function: Identifier {
                                 name: "_int_add",
-                                effect: Basic,
+                                effect: Simple,
                             },
                             args: [
                                 Identifier {
                                     name: "x",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                                 Int {
                                     value: 1,

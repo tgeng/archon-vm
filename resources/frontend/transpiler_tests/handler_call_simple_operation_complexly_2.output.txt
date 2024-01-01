@@ -14,7 +14,7 @@ Defs {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
-                        effect: Basic,
+                        effect: Simple,
                     },
                     args: [
                         OperationCall {
@@ -24,7 +24,7 @@ Defs {
                             args: [
                                 Identifier {
                                     name: "i",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                             ],
                             effect: Complex,
@@ -36,7 +36,7 @@ Defs {
                             args: [
                                 Identifier {
                                     name: "i",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                             ],
                             effect: Complex,
@@ -68,7 +68,7 @@ Defs {
                                 body: Struct {
                                     values: [],
                                 },
-                                effect: Basic,
+                                effect: Simple,
                             },
                             parameter_replicator: Lambda {
                                 arg_names: [
@@ -81,15 +81,15 @@ Defs {
                                     values: [
                                         Identifier {
                                             name: "p",
-                                            effect: Basic,
+                                            effect: Simple,
                                         },
                                         Identifier {
                                             name: "p",
-                                            effect: Basic,
+                                            effect: Simple,
                                         },
                                     ],
                                 },
-                                effect: Basic,
+                                effect: Simple,
                             },
                             transform: Lambda {
                                 arg_names: [
@@ -104,9 +104,9 @@ Defs {
                                 ],
                                 body: Identifier {
                                     name: "r",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
-                                effect: Basic,
+                                effect: Simple,
                             },
                             simple_handlers: [
                                 (
@@ -128,7 +128,7 @@ Defs {
                                             values: [
                                                 Identifier {
                                                     name: "p",
-                                                    effect: Basic,
+                                                    effect: Simple,
                                                 },
                                                 Struct {
                                                     values: [
@@ -137,13 +137,13 @@ Defs {
                                                         },
                                                         Identifier {
                                                             name: "x",
-                                                            effect: Basic,
+                                                            effect: Simple,
                                                         },
                                                     ],
                                                 },
                                             ],
                                         },
-                                        effect: Basic,
+                                        effect: Simple,
                                     },
                                 ),
                             ],
@@ -160,7 +160,7 @@ Defs {
                                         },
                                     ],
                                 },
-                                effect: Basic,
+                                effect: Simple,
                             },
                         },
                         c_type: Default,
@@ -188,7 +188,7 @@ Defs {
                                         body: Struct {
                                             values: [],
                                         },
-                                        effect: Basic,
+                                        effect: Simple,
                                     },
                                     parameter_replicator: Lambda {
                                         arg_names: [
@@ -201,15 +201,15 @@ Defs {
                                             values: [
                                                 Identifier {
                                                     name: "p",
-                                                    effect: Basic,
+                                                    effect: Simple,
                                                 },
                                                 Identifier {
                                                     name: "p",
-                                                    effect: Basic,
+                                                    effect: Simple,
                                                 },
                                             ],
                                         },
-                                        effect: Basic,
+                                        effect: Simple,
                                     },
                                     transform: Lambda {
                                         arg_names: [
@@ -224,9 +224,9 @@ Defs {
                                         ],
                                         body: Identifier {
                                             name: "r",
-                                            effect: Basic,
+                                            effect: Simple,
                                         },
-                                        effect: Basic,
+                                        effect: Simple,
                                     },
                                     simple_handlers: [
                                         (
@@ -248,7 +248,7 @@ Defs {
                                                     values: [
                                                         Identifier {
                                                             name: "p",
-                                                            effect: Basic,
+                                                            effect: Simple,
                                                         },
                                                         Struct {
                                                             values: [
@@ -257,13 +257,13 @@ Defs {
                                                                 },
                                                                 Identifier {
                                                                     name: "x",
-                                                                    effect: Basic,
+                                                                    effect: Simple,
                                                                 },
                                                             ],
                                                         },
                                                     ],
                                                 },
-                                                effect: Basic,
+                                                effect: Simple,
                                             },
                                         ),
                                     ],
@@ -280,7 +280,7 @@ Defs {
                                                 },
                                             ],
                                         },
-                                        effect: Basic,
+                                        effect: Simple,
                                     },
                                 },
                                 c_type: Default,
@@ -291,16 +291,16 @@ Defs {
                         Redex {
                             function: Identifier {
                                 name: "_int_add",
-                                effect: Basic,
+                                effect: Simple,
                             },
                             args: [
                                 Identifier {
                                     name: "simple_linear",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                                 Identifier {
                                     name: "simple_exp",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                             ],
                         },
@@ -364,9 +364,9 @@ Defs
             },
             c_type: Default,
             var_bound: 3,
-            may_be_simple: false,
-            may_be_complex: true,
-            may_be_specialized: false,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
         },
     ),
     (
@@ -376,13 +376,13 @@ Defs
             body: Let {
                 t: Def {
                     name: "simple_linear",
-                    effect: Basic,
+                    effect: Simple,
                 },
                 bound_index: 0,
                 body: Let {
                     t: Def {
                         name: "simple_exp",
-                        effect: Basic,
+                        effect: Simple,
                     },
                     bound_index: 1,
                     body: PrimitiveCall {
@@ -404,9 +404,9 @@ Defs
                 ),
             ),
             var_bound: 2,
-            may_be_simple: false,
-            may_be_complex: false,
-            may_be_specialized: true,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
         },
     ),
     (
@@ -421,31 +421,31 @@ Defs
                     t: Redex {
                         function: Def {
                             name: "simple_exp$__lambda_0",
-                            effect: Basic,
+                            effect: Simple,
                         },
                         args: [],
                     },
-                    effect: Basic,
+                    effect: Simple,
                 },
                 parameter_replicator: Thunk {
                     t: Redex {
                         function: Def {
                             name: "simple_exp$__lambda_1",
-                            effect: Basic,
+                            effect: Simple,
                         },
                         args: [],
                     },
-                    effect: Basic,
+                    effect: Simple,
                 },
                 transform: Thunk {
                     t: Redex {
                         function: Def {
                             name: "simple_exp$__lambda_2",
-                            effect: Basic,
+                            effect: Simple,
                         },
                         args: [],
                     },
-                    effect: Basic,
+                    effect: Simple,
                 },
                 complex_handlers: [],
                 simple_handlers: [
@@ -457,11 +457,11 @@ Defs
                             t: Redex {
                                 function: Def {
                                     name: "simple_exp$__lambda_3",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                                 args: [],
                             },
-                            effect: Basic,
+                            effect: Simple,
                         },
                     ),
                 ],
@@ -477,14 +477,14 @@ Defs
                             },
                         ],
                     },
-                    effect: Basic,
+                    effect: Simple,
                 },
             },
             c_type: Default,
             var_bound: 0,
-            may_be_simple: true,
-            may_be_complex: false,
-            may_be_specialized: false,
+            need_simple: true,
+            need_cps: false,
+            need_specialized: false,
         },
     ),
     (
@@ -503,9 +503,9 @@ Defs
             },
             c_type: Default,
             var_bound: 1,
-            may_be_simple: false,
-            may_be_complex: true,
-            may_be_specialized: false,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
         },
     ),
     (
@@ -531,9 +531,9 @@ Defs
             },
             c_type: Default,
             var_bound: 1,
-            may_be_simple: false,
-            may_be_complex: true,
-            may_be_specialized: false,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
         },
     ),
     (
@@ -556,9 +556,9 @@ Defs
             },
             c_type: Default,
             var_bound: 2,
-            may_be_simple: false,
-            may_be_complex: true,
-            may_be_specialized: false,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
         },
     ),
     (
@@ -595,9 +595,9 @@ Defs
             },
             c_type: Default,
             var_bound: 2,
-            may_be_simple: false,
-            may_be_complex: true,
-            may_be_specialized: false,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
         },
     ),
     (
@@ -612,31 +612,31 @@ Defs
                     t: Redex {
                         function: Def {
                             name: "simple_linear$__lambda_0",
-                            effect: Basic,
+                            effect: Simple,
                         },
                         args: [],
                     },
-                    effect: Basic,
+                    effect: Simple,
                 },
                 parameter_replicator: Thunk {
                     t: Redex {
                         function: Def {
                             name: "simple_linear$__lambda_1",
-                            effect: Basic,
+                            effect: Simple,
                         },
                         args: [],
                     },
-                    effect: Basic,
+                    effect: Simple,
                 },
                 transform: Thunk {
                     t: Redex {
                         function: Def {
                             name: "simple_linear$__lambda_2",
-                            effect: Basic,
+                            effect: Simple,
                         },
                         args: [],
                     },
-                    effect: Basic,
+                    effect: Simple,
                 },
                 complex_handlers: [],
                 simple_handlers: [
@@ -648,11 +648,11 @@ Defs
                             t: Redex {
                                 function: Def {
                                     name: "simple_linear$__lambda_3",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                                 args: [],
                             },
-                            effect: Basic,
+                            effect: Simple,
                         },
                     ),
                 ],
@@ -668,14 +668,14 @@ Defs
                             },
                         ],
                     },
-                    effect: Basic,
+                    effect: Simple,
                 },
             },
             c_type: Default,
             var_bound: 0,
-            may_be_simple: true,
-            may_be_complex: false,
-            may_be_specialized: false,
+            need_simple: true,
+            need_cps: false,
+            need_specialized: false,
         },
     ),
     (
@@ -694,9 +694,9 @@ Defs
             },
             c_type: Default,
             var_bound: 1,
-            may_be_simple: false,
-            may_be_complex: true,
-            may_be_specialized: false,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
         },
     ),
     (
@@ -722,9 +722,9 @@ Defs
             },
             c_type: Default,
             var_bound: 1,
-            may_be_simple: false,
-            may_be_complex: true,
-            may_be_specialized: false,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
         },
     ),
     (
@@ -747,9 +747,9 @@ Defs
             },
             c_type: Default,
             var_bound: 2,
-            may_be_simple: false,
-            may_be_complex: true,
-            may_be_specialized: false,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
         },
     ),
     (
@@ -786,9 +786,9 @@ Defs
             },
             c_type: Default,
             var_bound: 2,
-            may_be_simple: false,
-            may_be_complex: true,
-            may_be_specialized: false,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
         },
     ),
 ]

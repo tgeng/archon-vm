@@ -2,7 +2,7 @@ handler 42
   disposer \p => p - 1
   replicator \p => {p + 1, p + 2}
   # \p r => r + 3
-  "foo" #!! \p x cont =>!! cont!! 0 p (x + 1)
-  "bar" #! \p x => x + 2
+  "foo" #! \p x cont =>! cont! 0 p (x + 1)
+  "bar" # \p x => x + 2
 
-"foo" #!! {1}
+"foo" #! {1}

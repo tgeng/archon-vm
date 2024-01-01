@@ -2,7 +2,7 @@ Struct {
     values: [
         Identifier {
             name: "a",
-            effect: Basic,
+            effect: Simple,
         },
     ],
 }

@@ -13,16 +13,16 @@ Let {
         body: Redex {
             function: Identifier {
                 name: "_int_add",
-                effect: Basic,
+                effect: Simple,
             },
             args: [
                 Identifier {
                     name: "a",
-                    effect: Basic,
+                    effect: Simple,
                 },
                 Identifier {
                     name: "b",
-                    effect: Basic,
+                    effect: Simple,
                 },
             ],
         },
@@ -69,9 +69,9 @@ Defs
                 ),
             ),
             var_bound: 2,
-            may_be_simple: false,
-            may_be_complex: false,
-            may_be_specialized: true,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
         },
     ),
 ]

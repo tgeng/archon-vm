@@ -3,15 +3,15 @@ MemGet {
         values: [
             Identifier {
                 name: "a",
-                effect: Basic,
+                effect: Simple,
             },
             Identifier {
                 name: "b",
-                effect: Basic,
+                effect: Simple,
             },
             Identifier {
                 name: "c",
-                effect: Basic,
+                effect: Simple,
             },
         ],
     },

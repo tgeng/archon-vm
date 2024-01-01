@@ -20,30 +20,30 @@ Let {
                 body: Redex {
                     function: Identifier {
                         name: "_int_add",
-                        effect: Basic,
+                        effect: Simple,
                     },
                     args: [
                         Identifier {
                             name: "x",
-                            effect: Basic,
+                            effect: Simple,
                         },
                         Identifier {
                             name: "a",
-                            effect: Basic,
+                            effect: Simple,
                         },
                     ],
                 },
-                effect: Basic,
+                effect: Simple,
             },
-            effect: Basic,
+            effect: Simple,
         },
         body: Redex {
             function: Force {
                 thunk: Identifier {
                     name: "f",
-                    effect: Basic,
+                    effect: Simple,
                 },
-                effect: Basic,
+                effect: Simple,
             },
             args: [
                 Int {
@@ -74,7 +74,7 @@ Defs
                             t: Redex {
                                 function: Def {
                                     name: "main$__lambda_0",
-                                    effect: Basic,
+                                    effect: Simple,
                                 },
                                 args: [
                                     Var {
@@ -82,7 +82,7 @@ Defs
                                     },
                                 ],
                             },
-                            effect: Basic,
+                            effect: Simple,
                         },
                     },
                     bound_index: 1,
@@ -91,7 +91,7 @@ Defs
                             thunk: Var {
                                 index: 1,
                             },
-                            effect: Basic,
+                            effect: Simple,
                         },
                         args: [
                             Int {
@@ -107,9 +107,9 @@ Defs
                 ),
             ),
             var_bound: 2,
-            may_be_simple: false,
-            may_be_complex: false,
-            may_be_specialized: true,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
         },
     ),
     (
@@ -140,9 +140,9 @@ Defs
             },
             c_type: Default,
             var_bound: 2,
-            may_be_simple: false,
-            may_be_complex: true,
-            may_be_specialized: false,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
         },
     ),
 ]

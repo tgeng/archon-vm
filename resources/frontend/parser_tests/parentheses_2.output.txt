@@ -1,18 +1,18 @@
 Redex {
     function: Identifier {
         name: "f",
-        effect: Basic,
+        effect: Simple,
     },
     args: [
         Redex {
             function: Identifier {
                 name: "g",
-                effect: Basic,
+                effect: Simple,
             },
             args: [
                 Identifier {
                     name: "a",
-                    effect: Basic,
+                    effect: Simple,
                 },
             ],
         },

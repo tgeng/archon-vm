@@ -118,7 +118,7 @@ impl<M: Module> Compiler<M> {
                 (function_definition.args.iter().map(|(_, v_type)| *v_type).collect::<Vec<_>>(), function_definition.c_type),
             );
 
-            if function_definition.may_be_complex {
+            if function_definition.need_cps {
                 let cps_name = FunctionFlavor::Cps.decorate_name(name);
                 let function = self.module.declare_function(&cps_name, Linkage::Local, &self.uniform_cps_func_signature).unwrap();
                 self.local_functions.insert(cps_name, function);
@@ -128,14 +128,14 @@ impl<M: Module> Compiler<M> {
                 self.local_functions.insert(cps_impl_name, function);
             }
 
-            if function_definition.may_be_simple {
+            if function_definition.need_simple {
                 // Simple
                 let simple_name = FunctionFlavor::Simple.decorate_name(name);
                 let function = self.module.declare_function(&simple_name, Linkage::Local, &self.uniform_func_signature).unwrap();
                 self.local_functions.insert(simple_name, function);
             }
 
-            if function_definition.may_be_specialized {
+            if function_definition.need_specialized {
                 let CType::SpecializedF(v_type) = function_definition.c_type else { unreachable!() };
                 let mut sig = self.module.make_signature();
                 sig.call_conv = CallConv::Tail;
@@ -153,17 +153,17 @@ impl<M: Module> Compiler<M> {
         }
 
         for (name, function_definition) in defs.iter() {
-            if function_definition.may_be_complex {
+            if function_definition.need_cps {
                 // CPS
-                CpsFunctionTranslator::compile_cps_function(name, self, function_definition, &local_function_arg_types, clir);
+                CpsFunctionTranslator::compile_cps_function(name, self, function_definition, &local_function_arg_types, clir, true);
             }
 
-            if function_definition.may_be_simple {
+            if function_definition.need_simple {
                 // simple
                 SimpleFunctionTranslator::compile_simple_function(name, self, function_definition, &local_function_arg_types, clir);
             }
             // specialized
-            if function_definition.may_be_specialized {
+            if function_definition.need_specialized {
                 let sig = specialized_function_signatures.get(name).unwrap();
                 SimpleFunctionTranslator::compile_specialized_function(name, self, sig.clone(), function_definition, &local_function_arg_types, clir);
             }
