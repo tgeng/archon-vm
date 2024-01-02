@@ -1,0 +1,148 @@
+FTerm
+========
+Let {
+    name: "a",
+    t: Int {
+        value: 1,
+    },
+    body: Let {
+        name: "f",
+        t: Thunk {
+            computation: Lambda {
+                arg_names: [
+                    (
+                        "x",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                ],
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                        effect: Simple,
+                    },
+                    args: [
+                        Identifier {
+                            name: "x",
+                            effect: Simple,
+                        },
+                        Identifier {
+                            name: "a",
+                            effect: Simple,
+                        },
+                    ],
+                },
+                effect: Simple,
+            },
+            effect: Simple,
+        },
+        body: Redex {
+            function: Force {
+                thunk: Identifier {
+                    name: "f",
+                    effect: Simple,
+                },
+                effect: Simple,
+            },
+            args: [
+                Int {
+                    value: 2,
+                },
+            ],
+        },
+    },
+}
+
+Defs
+========
+[
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Let {
+                t: Return {
+                    value: Int {
+                        value: 1,
+                    },
+                },
+                bound_index: 0,
+                body: Let {
+                    t: Return {
+                        value: Thunk {
+                            t: Redex {
+                                function: Def {
+                                    name: "main$__lambda_0",
+                                    effect: Simple,
+                                },
+                                args: [
+                                    Var {
+                                        index: 0,
+                                    },
+                                ],
+                            },
+                            effect: Simple,
+                        },
+                    },
+                    bound_index: 1,
+                    body: Redex {
+                        function: Force {
+                            thunk: Var {
+                                index: 1,
+                            },
+                            effect: Simple,
+                        },
+                        args: [
+                            Int {
+                                value: 2,
+                            },
+                        ],
+                    },
+                },
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 2,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
+        },
+    ),
+    (
+        "main$__lambda_0",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            ],
+            body: PrimitiveCall {
+                name: "_int_add",
+                args: [
+                    Var {
+                        index: 1,
+                    },
+                    Var {
+                        index: 0,
+                    },
+                ],
+            },
+            c_type: Default,
+            var_bound: 2,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
+        },
+    ),
+]

@@ -1,0 +1,77 @@
+FTerm
+========
+Let {
+    name: "a",
+    t: Int {
+        value: 1,
+    },
+    body: Let {
+        name: "b",
+        t: Int {
+            value: 2,
+        },
+        body: Redex {
+            function: Identifier {
+                name: "_int_add",
+                effect: Simple,
+            },
+            args: [
+                Identifier {
+                    name: "a",
+                    effect: Simple,
+                },
+                Identifier {
+                    name: "b",
+                    effect: Simple,
+                },
+            ],
+        },
+    },
+}
+
+Defs
+========
+[
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Let {
+                t: Return {
+                    value: Int {
+                        value: 1,
+                    },
+                },
+                bound_index: 0,
+                body: Let {
+                    t: Return {
+                        value: Int {
+                            value: 2,
+                        },
+                    },
+                    bound_index: 1,
+                    body: PrimitiveCall {
+                        name: "_int_add",
+                        args: [
+                            Var {
+                                index: 0,
+                            },
+                            Var {
+                                index: 1,
+                            },
+                        ],
+                    },
+                },
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 2,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
+        },
+    ),
+]

@@ -1,0 +1,207 @@
+FTerm
+========
+Defs {
+    defs: [
+        (
+            "factorial",
+            Def {
+                args: [
+                    (
+                        "n",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                ],
+                body: CaseInt {
+                    t: Identifier {
+                        name: "n",
+                        effect: Simple,
+                    },
+                    result_type: SpecializedF(
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                    branches: [
+                        (
+                            0,
+                            Int {
+                                value: 1,
+                            },
+                        ),
+                    ],
+                    default_branch: Some(
+                        Redex {
+                            function: Identifier {
+                                name: "_int_mul",
+                                effect: Simple,
+                            },
+                            args: [
+                                Identifier {
+                                    name: "n",
+                                    effect: Simple,
+                                },
+                                Redex {
+                                    function: Identifier {
+                                        name: "factorial",
+                                        effect: Simple,
+                                    },
+                                    args: [
+                                        Redex {
+                                            function: Identifier {
+                                                name: "_int_sub",
+                                                effect: Simple,
+                                            },
+                                            args: [
+                                                Identifier {
+                                                    name: "n",
+                                                    effect: Simple,
+                                                },
+                                                Int {
+                                                    value: 1,
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ),
+                },
+                c_type: SpecializedF(
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            },
+        ),
+    ],
+    body: Some(
+        Redex {
+            function: Identifier {
+                name: "factorial",
+                effect: Simple,
+            },
+            args: [
+                Int {
+                    value: 5,
+                },
+            ],
+        },
+    ),
+}
+
+Defs
+========
+[
+    (
+        "factorial",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            ],
+            body: CaseInt {
+                t: Var {
+                    index: 0,
+                },
+                result_type: SpecializedF(
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                branches: [
+                    (
+                        0,
+                        Return {
+                            value: Int {
+                                value: 1,
+                            },
+                        },
+                    ),
+                ],
+                default_branch: Some(
+                    Let {
+                        t: Let {
+                            t: PrimitiveCall {
+                                name: "_int_sub",
+                                args: [
+                                    Var {
+                                        index: 0,
+                                    },
+                                    Int {
+                                        value: 1,
+                                    },
+                                ],
+                            },
+                            bound_index: 1,
+                            body: Redex {
+                                function: Def {
+                                    name: "factorial",
+                                    effect: Simple,
+                                },
+                                args: [
+                                    Var {
+                                        index: 1,
+                                    },
+                                ],
+                            },
+                        },
+                        bound_index: 2,
+                        body: PrimitiveCall {
+                            name: "_int_mul",
+                            args: [
+                                Var {
+                                    index: 0,
+                                },
+                                Var {
+                                    index: 2,
+                                },
+                            ],
+                        },
+                    },
+                ),
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 3,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
+        },
+    ),
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Redex {
+                function: Def {
+                    name: "factorial",
+                    effect: Simple,
+                },
+                args: [
+                    Int {
+                        value: 5,
+                    },
+                ],
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 0,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
+        },
+    ),
+]

@@ -1,0 +1,244 @@
+FTerm
+========
+Let {
+    name: "a",
+    t: Struct {
+        values: [
+            Int {
+                value: 1,
+            },
+            Int {
+                value: 2,
+            },
+            Int {
+                value: 3,
+            },
+        ],
+    },
+    body: Let {
+        name: "_",
+        t: MemSet {
+            base: Identifier {
+                name: "a",
+                effect: Simple,
+            },
+            offset: Int {
+                value: 0,
+            },
+            value: Int {
+                value: 4,
+            },
+        },
+        body: Let {
+            name: "_",
+            t: MemSet {
+                base: Identifier {
+                    name: "a",
+                    effect: Simple,
+                },
+                offset: Int {
+                    value: 1,
+                },
+                value: Int {
+                    value: 5,
+                },
+            },
+            body: Let {
+                name: "_",
+                t: MemSet {
+                    base: Identifier {
+                        name: "a",
+                        effect: Simple,
+                    },
+                    offset: Int {
+                        value: 2,
+                    },
+                    value: Int {
+                        value: 6,
+                    },
+                },
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                        effect: Simple,
+                    },
+                    args: [
+                        Redex {
+                            function: Identifier {
+                                name: "_int_add",
+                                effect: Simple,
+                            },
+                            args: [
+                                MemGet {
+                                    base: Identifier {
+                                        name: "a",
+                                        effect: Simple,
+                                    },
+                                    offset: Int {
+                                        value: 0,
+                                    },
+                                },
+                                MemGet {
+                                    base: Identifier {
+                                        name: "a",
+                                        effect: Simple,
+                                    },
+                                    offset: Int {
+                                        value: 1,
+                                    },
+                                },
+                            ],
+                        },
+                        MemGet {
+                            base: Identifier {
+                                name: "a",
+                                effect: Simple,
+                            },
+                            offset: Int {
+                                value: 2,
+                            },
+                        },
+                    ],
+                },
+            },
+        },
+    },
+}
+
+Defs
+========
+[
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Let {
+                t: Return {
+                    value: Struct {
+                        values: [
+                            Int {
+                                value: 1,
+                            },
+                            Int {
+                                value: 2,
+                            },
+                            Int {
+                                value: 3,
+                            },
+                        ],
+                    },
+                },
+                bound_index: 0,
+                body: Let {
+                    t: MemSet {
+                        base: Var {
+                            index: 0,
+                        },
+                        offset: Int {
+                            value: 0,
+                        },
+                        value: Int {
+                            value: 4,
+                        },
+                    },
+                    bound_index: 1,
+                    body: Let {
+                        t: MemSet {
+                            base: Var {
+                                index: 0,
+                            },
+                            offset: Int {
+                                value: 1,
+                            },
+                            value: Int {
+                                value: 5,
+                            },
+                        },
+                        bound_index: 2,
+                        body: Let {
+                            t: MemSet {
+                                base: Var {
+                                    index: 0,
+                                },
+                                offset: Int {
+                                    value: 2,
+                                },
+                                value: Int {
+                                    value: 6,
+                                },
+                            },
+                            bound_index: 3,
+                            body: Let {
+                                t: Let {
+                                    t: MemGet {
+                                        base: Var {
+                                            index: 0,
+                                        },
+                                        offset: Int {
+                                            value: 0,
+                                        },
+                                    },
+                                    bound_index: 4,
+                                    body: Let {
+                                        t: MemGet {
+                                            base: Var {
+                                                index: 0,
+                                            },
+                                            offset: Int {
+                                                value: 1,
+                                            },
+                                        },
+                                        bound_index: 5,
+                                        body: PrimitiveCall {
+                                            name: "_int_add",
+                                            args: [
+                                                Var {
+                                                    index: 4,
+                                                },
+                                                Var {
+                                                    index: 5,
+                                                },
+                                            ],
+                                        },
+                                    },
+                                },
+                                bound_index: 6,
+                                body: Let {
+                                    t: MemGet {
+                                        base: Var {
+                                            index: 0,
+                                        },
+                                        offset: Int {
+                                            value: 2,
+                                        },
+                                    },
+                                    bound_index: 7,
+                                    body: PrimitiveCall {
+                                        name: "_int_add",
+                                        args: [
+                                            Var {
+                                                index: 6,
+                                            },
+                                            Var {
+                                                index: 7,
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 8,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
+        },
+    ),
+]

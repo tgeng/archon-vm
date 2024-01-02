@@ -1,0 +1,205 @@
+FTerm
+========
+Defs {
+    defs: [
+        (
+            "f",
+            Def {
+                args: [
+                    (
+                        "g",
+                        Uniform,
+                    ),
+                    (
+                        "x",
+                        Uniform,
+                    ),
+                    (
+                        "y",
+                        Uniform,
+                    ),
+                ],
+                body: Redex {
+                    function: Force {
+                        thunk: Identifier {
+                            name: "g",
+                            effect: Simple,
+                        },
+                        effect: Simple,
+                    },
+                    args: [
+                        Identifier {
+                            name: "x",
+                            effect: Simple,
+                        },
+                        Identifier {
+                            name: "y",
+                            effect: Simple,
+                        },
+                    ],
+                },
+                c_type: Default,
+            },
+        ),
+    ],
+    body: Some(
+        Redex {
+            function: Identifier {
+                name: "f",
+                effect: Simple,
+            },
+            args: [
+                Lambda {
+                    arg_names: [
+                        (
+                            "a",
+                            Uniform,
+                        ),
+                        (
+                            "b",
+                            Uniform,
+                        ),
+                    ],
+                    body: Redex {
+                        function: Identifier {
+                            name: "_int_add",
+                            effect: Simple,
+                        },
+                        args: [
+                            Identifier {
+                                name: "a",
+                                effect: Simple,
+                            },
+                            Identifier {
+                                name: "b",
+                                effect: Simple,
+                            },
+                        ],
+                    },
+                    effect: Simple,
+                },
+                Int {
+                    value: 1,
+                },
+                Int {
+                    value: 2,
+                },
+            ],
+        },
+    ),
+}
+
+Defs
+========
+[
+    (
+        "f",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+                (
+                    2,
+                    Uniform,
+                ),
+            ],
+            body: Redex {
+                function: Force {
+                    thunk: Var {
+                        index: 0,
+                    },
+                    effect: Simple,
+                },
+                args: [
+                    Var {
+                        index: 1,
+                    },
+                    Var {
+                        index: 2,
+                    },
+                ],
+            },
+            c_type: Default,
+            var_bound: 3,
+            need_simple: true,
+            need_cps: false,
+            need_specialized: false,
+        },
+    ),
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Redex {
+                function: Def {
+                    name: "f",
+                    effect: Simple,
+                },
+                args: [
+                    Thunk {
+                        t: Redex {
+                            function: Def {
+                                name: "main$__lambda_0",
+                                effect: Simple,
+                            },
+                            args: [],
+                        },
+                        effect: Simple,
+                    },
+                    Int {
+                        value: 1,
+                    },
+                    Int {
+                        value: 2,
+                    },
+                ],
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 0,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
+        },
+    ),
+    (
+        "main$__lambda_0",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+            ],
+            body: PrimitiveCall {
+                name: "_int_add",
+                args: [
+                    Var {
+                        index: 0,
+                    },
+                    Var {
+                        index: 1,
+                    },
+                ],
+            },
+            c_type: Default,
+            var_bound: 2,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
+        },
+    ),
+]

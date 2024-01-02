@@ -1,0 +1,78 @@
+FTerm
+========
+Redex {
+    function: Force {
+        thunk: Thunk {
+            computation: Lambda {
+                arg_names: [
+                    (
+                        "x",
+                        Uniform,
+                    ),
+                    (
+                        "y",
+                        Uniform,
+                    ),
+                ],
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                        effect: Simple,
+                    },
+                    args: [
+                        Identifier {
+                            name: "x",
+                            effect: Simple,
+                        },
+                        Identifier {
+                            name: "y",
+                            effect: Simple,
+                        },
+                    ],
+                },
+                effect: Simple,
+            },
+            effect: Simple,
+        },
+        effect: Simple,
+    },
+    args: [
+        Int {
+            value: 1,
+        },
+        Int {
+            value: 2,
+        },
+    ],
+}
+
+Defs
+========
+[
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: PrimitiveCall {
+                name: "_int_add",
+                args: [
+                    Int {
+                        value: 1,
+                    },
+                    Int {
+                        value: 2,
+                    },
+                ],
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 0,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
+        },
+    ),
+]

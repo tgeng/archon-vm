@@ -1,0 +1,150 @@
+FTerm
+========
+Defs {
+    defs: [
+        (
+            "f",
+            Def {
+                args: [
+                    (
+                        "x",
+                        Uniform,
+                    ),
+                ],
+                body: Let {
+                    name: "y",
+                    t: Let {
+                        name: "x",
+                        t: Int {
+                            value: 1,
+                        },
+                        body: Redex {
+                            function: Identifier {
+                                name: "_int_add",
+                                effect: Simple,
+                            },
+                            args: [
+                                Identifier {
+                                    name: "x",
+                                    effect: Simple,
+                                },
+                                Int {
+                                    value: 1,
+                                },
+                            ],
+                        },
+                    },
+                    body: Redex {
+                        function: Identifier {
+                            name: "_int_add",
+                            effect: Simple,
+                        },
+                        args: [
+                            Identifier {
+                                name: "x",
+                                effect: Simple,
+                            },
+                            Int {
+                                value: 2,
+                            },
+                        ],
+                    },
+                },
+                c_type: Default,
+            },
+        ),
+    ],
+    body: Some(
+        Redex {
+            function: Identifier {
+                name: "f",
+                effect: Simple,
+            },
+            args: [
+                Int {
+                    value: 0,
+                },
+            ],
+        },
+    ),
+}
+
+Defs
+========
+[
+    (
+        "f",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
+            body: Let {
+                t: Let {
+                    t: Return {
+                        value: Int {
+                            value: 1,
+                        },
+                    },
+                    bound_index: 1,
+                    body: PrimitiveCall {
+                        name: "_int_add",
+                        args: [
+                            Var {
+                                index: 1,
+                            },
+                            Int {
+                                value: 1,
+                            },
+                        ],
+                    },
+                },
+                bound_index: 2,
+                body: PrimitiveCall {
+                    name: "_int_add",
+                    args: [
+                        Var {
+                            index: 0,
+                        },
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+            },
+            c_type: Default,
+            var_bound: 3,
+            need_simple: true,
+            need_cps: false,
+            need_specialized: false,
+        },
+    ),
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Redex {
+                function: Def {
+                    name: "f",
+                    effect: Simple,
+                },
+                args: [
+                    Int {
+                        value: 0,
+                    },
+                ],
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 0,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
+        },
+    ),
+]

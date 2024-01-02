@@ -1,0 +1,71 @@
+CLIR
+========
+[main__specialized]
+function u0:0(i64) -> i64 tail {
+    ss0 = explicit_slot 8
+    sig0 = (i64) -> i64 apple_aarch64
+    fn0 = u0:0 sig0
+
+block0(v0: i64):
+    v1 = iconst.i64 1
+    v2 = ishl_imm v1, 1  ; v1 = 1
+    v3 = iconst.i64 2
+    v4 = ishl_imm v3, 1  ; v3 = 2
+    v5 = iconst.i64 3
+    v6 = ishl_imm v5, 1  ; v5 = 3
+    v7 = iconst.i64 3
+    v8 = call fn0(v7)  ; v7 = 3
+    store aligned v2, v8
+    store aligned v4, v8+8
+    store aligned v6, v8+16
+    v9 = iconst.i64 0
+    v10 = iconst.i64 4
+    v11 = ishl_imm v9, 3  ; v9 = 0
+    v12 = ishl_imm v10, 1  ; v10 = 4
+    v13 = iadd v8, v11
+    store v12, v13
+    v14 = iconst.i64 1
+    v15 = iconst.i64 5
+    v16 = ishl_imm v14, 3  ; v14 = 1
+    v17 = ishl_imm v15, 1  ; v15 = 5
+    v18 = iadd v8, v16
+    store v17, v18
+    v19 = iconst.i64 2
+    v20 = iconst.i64 6
+    v21 = ishl_imm v19, 3  ; v19 = 2
+    v22 = ishl_imm v20, 1  ; v20 = 6
+    v23 = iadd v8, v21
+    store v22, v23
+    v24 = iconst.i64 0
+    v25 = ishl_imm v24, 3  ; v24 = 0
+    v26 = iadd v8, v25
+    v27 = load.i64 v26
+    v28 = iconst.i64 1
+    v29 = ishl_imm v28, 3  ; v28 = 1
+    v30 = iadd v8, v29
+    v31 = load.i64 v30
+    v32 = sshr_imm v27, 1
+    v33 = sshr_imm v31, 1
+    v34 = iadd v32, v33
+    v35 = iconst.i64 2
+    v36 = ishl_imm v35, 3  ; v35 = 2
+    v37 = iadd v8, v36
+    v38 = load.i64 v37
+    v39 = sshr_imm v38, 1
+    v40 = iadd v34, v39
+    return v40
+}
+
+
+[__main__]
+function u0:0() -> i64 fast {
+    sig0 = () -> i64 apple_aarch64
+    sig1 = (i64) -> i64 tail
+    fn0 = u0:2 sig0
+    fn1 = colocated u0:22 sig1
+
+block0:
+    v0 = call fn0()
+    v1 = call fn1(v0)
+    return v1
+}

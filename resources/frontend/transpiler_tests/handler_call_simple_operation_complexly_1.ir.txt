@@ -1,0 +1,545 @@
+FTerm
+========
+Defs {
+    defs: [
+        (
+            "call",
+            Def {
+                args: [
+                    (
+                        "x",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                    (
+                        "y",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                    (
+                        "z",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                ],
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                        effect: Simple,
+                    },
+                    args: [
+                        Redex {
+                            function: Identifier {
+                                name: "_int_add",
+                                effect: Simple,
+                            },
+                            args: [
+                                OperationCall {
+                                    eff: Str {
+                                        value: "double",
+                                    },
+                                    args: [
+                                        Identifier {
+                                            name: "x",
+                                            effect: Simple,
+                                        },
+                                    ],
+                                    effect: Complex,
+                                },
+                                OperationCall {
+                                    eff: Str {
+                                        value: "double",
+                                    },
+                                    args: [
+                                        Identifier {
+                                            name: "y",
+                                            effect: Simple,
+                                        },
+                                    ],
+                                    effect: Complex,
+                                },
+                            ],
+                        },
+                        OperationCall {
+                            eff: Str {
+                                value: "double",
+                            },
+                            args: [
+                                Identifier {
+                                    name: "z",
+                                    effect: Simple,
+                                },
+                            ],
+                            effect: Complex,
+                        },
+                    ],
+                },
+                c_type: SpecializedF(
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            },
+        ),
+    ],
+    body: Some(
+        Handler {
+            parameter: Struct {
+                values: [],
+            },
+            parameter_disposer: Lambda {
+                arg_names: [
+                    (
+                        "_",
+                        Uniform,
+                    ),
+                ],
+                body: Struct {
+                    values: [],
+                },
+                effect: Simple,
+            },
+            parameter_replicator: Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                ],
+                body: Struct {
+                    values: [
+                        Identifier {
+                            name: "p",
+                            effect: Simple,
+                        },
+                        Identifier {
+                            name: "p",
+                            effect: Simple,
+                        },
+                    ],
+                },
+                effect: Simple,
+            },
+            transform: Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                    (
+                        "r",
+                        Uniform,
+                    ),
+                ],
+                body: Identifier {
+                    name: "r",
+                    effect: Simple,
+                },
+                effect: Simple,
+            },
+            simple_handlers: [
+                (
+                    Str {
+                        value: "double",
+                    },
+                    Lambda {
+                        arg_names: [
+                            (
+                                "p",
+                                Uniform,
+                            ),
+                            (
+                                "x",
+                                Uniform,
+                            ),
+                        ],
+                        body: Struct {
+                            values: [
+                                Identifier {
+                                    name: "p",
+                                    effect: Simple,
+                                },
+                                Struct {
+                                    values: [
+                                        Int {
+                                            value: 1,
+                                        },
+                                        Redex {
+                                            function: Identifier {
+                                                name: "_int_mul",
+                                                effect: Simple,
+                                            },
+                                            args: [
+                                                Identifier {
+                                                    name: "x",
+                                                    effect: Simple,
+                                                },
+                                                Int {
+                                                    value: 2,
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        effect: Simple,
+                    },
+                ),
+            ],
+            complex_handlers: [],
+            input: Thunk {
+                computation: Redex {
+                    function: Identifier {
+                        name: "call",
+                        effect: Simple,
+                    },
+                    args: [
+                        Int {
+                            value: 1,
+                        },
+                        Int {
+                            value: 2,
+                        },
+                        Int {
+                            value: 3,
+                        },
+                    ],
+                },
+                effect: Simple,
+            },
+        },
+    ),
+}
+
+Defs
+========
+[
+    (
+        "call",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                (
+                    1,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                (
+                    2,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            ],
+            body: Let {
+                t: Let {
+                    t: OperationCall {
+                        eff: Str {
+                            value: "double",
+                        },
+                        args: [
+                            Var {
+                                index: 0,
+                            },
+                        ],
+                        effect: Complex,
+                    },
+                    bound_index: 3,
+                    body: Let {
+                        t: OperationCall {
+                            eff: Str {
+                                value: "double",
+                            },
+                            args: [
+                                Var {
+                                    index: 1,
+                                },
+                            ],
+                            effect: Complex,
+                        },
+                        bound_index: 4,
+                        body: PrimitiveCall {
+                            name: "_int_add",
+                            args: [
+                                Var {
+                                    index: 3,
+                                },
+                                Var {
+                                    index: 4,
+                                },
+                            ],
+                        },
+                    },
+                },
+                bound_index: 5,
+                body: Let {
+                    t: OperationCall {
+                        eff: Str {
+                            value: "double",
+                        },
+                        args: [
+                            Var {
+                                index: 2,
+                            },
+                        ],
+                        effect: Complex,
+                    },
+                    bound_index: 6,
+                    body: PrimitiveCall {
+                        name: "_int_add",
+                        args: [
+                            Var {
+                                index: 5,
+                            },
+                            Var {
+                                index: 6,
+                            },
+                        ],
+                    },
+                },
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 7,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
+        },
+    ),
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Handler {
+                parameter: Struct {
+                    values: [],
+                },
+                parameter_disposer: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "main$__lambda_0",
+                            effect: Simple,
+                        },
+                        args: [],
+                    },
+                    effect: Simple,
+                },
+                parameter_replicator: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "main$__lambda_1",
+                            effect: Simple,
+                        },
+                        args: [],
+                    },
+                    effect: Simple,
+                },
+                transform: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "main$__lambda_2",
+                            effect: Simple,
+                        },
+                        args: [],
+                    },
+                    effect: Simple,
+                },
+                complex_handlers: [],
+                simple_handlers: [
+                    (
+                        Str {
+                            value: "double",
+                        },
+                        Thunk {
+                            t: Redex {
+                                function: Def {
+                                    name: "main$__lambda_3",
+                                    effect: Simple,
+                                },
+                                args: [],
+                            },
+                            effect: Simple,
+                        },
+                    ),
+                ],
+                input: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "call",
+                            effect: Simple,
+                        },
+                        args: [
+                            Int {
+                                value: 1,
+                            },
+                            Int {
+                                value: 2,
+                            },
+                            Int {
+                                value: 3,
+                            },
+                        ],
+                    },
+                    effect: Simple,
+                },
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 0,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
+        },
+    ),
+    (
+        "main$__lambda_0",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
+            body: Return {
+                value: Struct {
+                    values: [],
+                },
+            },
+            c_type: Default,
+            var_bound: 1,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_1",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
+            body: Return {
+                value: Struct {
+                    values: [
+                        Var {
+                            index: 0,
+                        },
+                        Var {
+                            index: 0,
+                        },
+                    ],
+                },
+            },
+            c_type: Default,
+            var_bound: 1,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_2",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+            ],
+            body: Return {
+                value: Var {
+                    index: 1,
+                },
+            },
+            c_type: Default,
+            var_bound: 2,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_3",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+            ],
+            body: Let {
+                t: Let {
+                    t: PrimitiveCall {
+                        name: "_int_mul",
+                        args: [
+                            Var {
+                                index: 1,
+                            },
+                            Int {
+                                value: 2,
+                            },
+                        ],
+                    },
+                    bound_index: 2,
+                    body: Return {
+                        value: Struct {
+                            values: [
+                                Int {
+                                    value: 1,
+                                },
+                                Var {
+                                    index: 2,
+                                },
+                            ],
+                        },
+                    },
+                },
+                bound_index: 3,
+                body: Return {
+                    value: Struct {
+                        values: [
+                            Var {
+                                index: 0,
+                            },
+                            Var {
+                                index: 3,
+                            },
+                        ],
+                    },
+                },
+            },
+            c_type: Default,
+            var_bound: 4,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
+        },
+    ),
+]

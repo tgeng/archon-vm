@@ -1,0 +1,129 @@
+FTerm
+========
+Defs {
+    defs: [
+        (
+            "f",
+            Def {
+                args: [],
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                        effect: Simple,
+                    },
+                    args: [
+                        Int {
+                            value: 1,
+                        },
+                    ],
+                },
+                c_type: Default,
+            },
+        ),
+    ],
+    body: Some(
+        Redex {
+            function: Identifier {
+                name: "f",
+                effect: Simple,
+            },
+            args: [
+                Int {
+                    value: 2,
+                },
+            ],
+        },
+    ),
+}
+
+Defs
+========
+[
+    (
+        "f",
+        FunctionDefinition {
+            args: [],
+            body: Redex {
+                function: Def {
+                    name: "f$__primitive_wrapper_0",
+                    effect: Simple,
+                },
+                args: [
+                    Int {
+                        value: 1,
+                    },
+                ],
+            },
+            c_type: Default,
+            var_bound: 0,
+            need_simple: true,
+            need_cps: false,
+            need_specialized: false,
+        },
+    ),
+    (
+        "f$__primitive_wrapper_0",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                (
+                    1,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            ],
+            body: PrimitiveCall {
+                name: "_int_add",
+                args: [
+                    Var {
+                        index: 0,
+                    },
+                    Var {
+                        index: 1,
+                    },
+                ],
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 2,
+            need_simple: true,
+            need_cps: false,
+            need_specialized: false,
+        },
+    ),
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Redex {
+                function: Def {
+                    name: "f",
+                    effect: Simple,
+                },
+                args: [
+                    Int {
+                        value: 2,
+                    },
+                ],
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 0,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
+        },
+    ),
+]

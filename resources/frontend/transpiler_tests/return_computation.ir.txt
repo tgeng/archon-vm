@@ -1,0 +1,175 @@
+FTerm
+========
+Defs {
+    defs: [
+        (
+            "f",
+            Def {
+                args: [
+                    (
+                        "x",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                    (
+                        "y",
+                        Specialized(
+                            Integer,
+                        ),
+                    ),
+                ],
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                        effect: Simple,
+                    },
+                    args: [
+                        Identifier {
+                            name: "x",
+                            effect: Simple,
+                        },
+                        Identifier {
+                            name: "y",
+                            effect: Simple,
+                        },
+                    ],
+                },
+                c_type: SpecializedF(
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            },
+        ),
+    ],
+    body: Some(
+        Defs {
+            defs: [
+                (
+                    "g",
+                    Def {
+                        args: [],
+                        body: Redex {
+                            function: Identifier {
+                                name: "f",
+                                effect: Simple,
+                            },
+                            args: [
+                                Int {
+                                    value: 1,
+                                },
+                            ],
+                        },
+                        c_type: Default,
+                    },
+                ),
+            ],
+            body: Some(
+                Redex {
+                    function: Identifier {
+                        name: "g",
+                        effect: Simple,
+                    },
+                    args: [
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+            ),
+        },
+    ),
+}
+
+Defs
+========
+[
+    (
+        "f",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+                (
+                    1,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
+            ],
+            body: PrimitiveCall {
+                name: "_int_add",
+                args: [
+                    Var {
+                        index: 0,
+                    },
+                    Var {
+                        index: 1,
+                    },
+                ],
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 2,
+            need_simple: true,
+            need_cps: false,
+            need_specialized: false,
+        },
+    ),
+    (
+        "g",
+        FunctionDefinition {
+            args: [],
+            body: Redex {
+                function: Def {
+                    name: "f",
+                    effect: Simple,
+                },
+                args: [
+                    Int {
+                        value: 1,
+                    },
+                ],
+            },
+            c_type: Default,
+            var_bound: 0,
+            need_simple: true,
+            need_cps: false,
+            need_specialized: false,
+        },
+    ),
+    (
+        "main",
+        FunctionDefinition {
+            args: [],
+            body: Redex {
+                function: Def {
+                    name: "g",
+                    effect: Simple,
+                },
+                args: [
+                    Int {
+                        value: 2,
+                    },
+                ],
+            },
+            c_type: SpecializedF(
+                Specialized(
+                    Integer,
+                ),
+            ),
+            var_bound: 0,
+            need_simple: false,
+            need_cps: false,
+            need_specialized: true,
+        },
+    ),
+]

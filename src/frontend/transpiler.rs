@@ -423,8 +423,8 @@ mod tests {
     use crate::ast::signature::{FunctionEnablement, Signature};
     use crate::frontend::transpiler::Transpiler;
 
-    fn check(test_input_path: &str, test_output_path: &str) -> Result<(), String> {
-        println!("checking {}", test_input_path);
+    fn check(test_input_path: &PathBuf) -> Result<(), String> {
+        println!("checking {}", test_input_path.to_str().unwrap());
         let f_term = parse_f_term(&fs::read_to_string(test_input_path).unwrap())?;
         let mut transpiler = Transpiler {
             signature: Signature::new(),
@@ -438,40 +438,40 @@ mod tests {
         let mut defs = signature.into_defs().into_iter().collect::<Vec<_>>();
         defs.sort_by_key(|(name, _)| name.clone());
 
-        let expected = match fs::read_to_string(test_output_path) {
-            Ok(s) => s,
-            Err(_) => "".to_owned(),
-        };
+        let test_ir_path = test_input_path.with_extension("").with_extension("ir.txt");
+        let expected = fs::read_to_string(&test_ir_path).unwrap_or_else(|_| "".to_owned());
         let partial_actual = format!(
             "FTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}",
             f_term,
             defs);
-        if !expected.starts_with(&partial_actual) {
+        if expected != partial_actual {
             // Write partial actual to expected in case executing the compiled function crashes the
             // test.
-            fs::write(test_output_path, &partial_actual).unwrap();
+            fs::write(&test_ir_path, &partial_actual).unwrap();
         }
+        let test_clir_path = test_input_path.with_extension("").with_extension("clir.txt");
+        let expected = fs::read_to_string(&test_clir_path).unwrap_or_else(|_| "".to_owned());
         let mut compiler: Compiler<JITModule> = Default::default();
         let mut clir = vec![];
         compiler.compile(&defs, &mut Some(&mut clir));
         let main_func = compiler.finalize_and_get_main();
 
         let partial_actual = format!(
-            "FTerm\n========\n{:#?}\n\nDefs\n========\n{:#?}\n\nCLIR\n========\n{}",
-            f_term,
-            defs,
+            "CLIR\n========\n{}",
             clir.iter().map(|(name, clir)| format!("[{}]\n{}", name, clir)).collect::<Vec<_>>().join("\n\n"));
-        if !expected.starts_with(&partial_actual) {
+        if expected != partial_actual {
             // Write partial actual to expected in case executing the compiled function crashes the
             // test.
-            fs::write(test_output_path, &partial_actual).unwrap();
+            fs::write(test_clir_path, &partial_actual).unwrap();
         }
 
+        let test_output_path = test_input_path.with_extension("").with_extension("output.txt");
+        let expected = fs::read_to_string(&test_output_path).unwrap_or_else(|_| "".to_owned());
         let result = main_func();
-        let actual = format!("{}\n\nResult\n========\n{}", partial_actual, result);
+        let actual = format!("{}", result);
         if expected != actual {
             fs::write(test_output_path, actual).unwrap();
-            Err(format!("Output mismatch for {}", test_input_path))
+            Err(format!("Output mismatch for {}", test_input_path.to_str().unwrap()))
         } else {
             Ok(())
         }
@@ -488,8 +488,7 @@ mod tests {
             .collect::<Vec<_>>();
         test_input_paths.sort();
         let all_results = test_input_paths.into_iter().map(|test_input_path| {
-            let test_output_path = test_input_path.with_extension("").with_extension("output.txt");
-            let result = check(test_input_path.to_str().unwrap(), test_output_path.to_str().unwrap());
+            let result = check(&test_input_path);
             (test_input_path, result)
         }).filter(|(_, r)| r.is_err()).collect::<Vec<_>>();
         if all_results.is_empty() {
