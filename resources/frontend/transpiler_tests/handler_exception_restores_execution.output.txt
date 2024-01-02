@@ -992,7 +992,7 @@ function u0:0(i64, i64) -> i64 tail {
     fn2 = colocated u0:23 sig2
     fn3 = colocated u0:25 sig3
     fn4 = colocated u0:27 sig4
-    fn5 = colocated u0:20 sig5
+    fn5 = colocated u0:21 sig5
     fn6 = u0:6 sig6
     fn7 = u0:7 sig7
     fn8 = colocated u0:29 sig8
@@ -1169,11 +1169,11 @@ function u0:0(i64, i64) -> i64 tail {
     sig10 = (i64, i64, i64) -> i64 tail
     fn0 = colocated u0:14 sig0
     fn1 = colocated u0:16 sig1
-    fn2 = colocated u0:18 sig2
+    fn2 = colocated u0:19 sig2
     fn3 = u0:4 sig3
     fn4 = colocated u0:14 sig5
     fn5 = colocated u0:16 sig6
-    fn6 = colocated u0:18 sig7
+    fn6 = colocated u0:19 sig7
     fn7 = u0:4 sig8
 
 block0(v0: i64, v1: i64):
@@ -1246,7 +1246,7 @@ function u0:0(i64) -> i64 tail {
     fn1 = colocated u0:34 sig1
     fn2 = colocated u0:36 sig2
     fn3 = colocated u0:38 sig3
-    fn4 = colocated u0:20 sig4
+    fn4 = colocated u0:21 sig4
     fn5 = u0:6 sig5
     fn6 = u0:7 sig6
     fn7 = colocated u0:40 sig7
@@ -1443,22 +1443,22 @@ function u0:0(i64, i64) -> i64 tail {
     sig23 = (i64, i64, i64) -> i64 tail
     fn0 = colocated u0:14 sig0
     fn1 = colocated u0:16 sig1
-    fn2 = colocated u0:18 sig2
+    fn2 = colocated u0:19 sig2
     fn3 = u0:4 sig3
     fn4 = colocated u0:22 sig5
     fn5 = colocated u0:14 sig6
     fn6 = colocated u0:16 sig7
-    fn7 = colocated u0:18 sig8
+    fn7 = colocated u0:19 sig8
     fn8 = u0:4 sig9
     fn9 = colocated u0:22 sig11
     fn10 = colocated u0:14 sig12
     fn11 = colocated u0:16 sig13
-    fn12 = colocated u0:18 sig14
+    fn12 = colocated u0:19 sig14
     fn13 = u0:4 sig15
     fn14 = colocated u0:22 sig17
     fn15 = colocated u0:14 sig18
     fn16 = colocated u0:16 sig19
-    fn17 = colocated u0:18 sig20
+    fn17 = colocated u0:19 sig20
     fn18 = u0:4 sig21
 
 block0(v0: i64, v1: i64):

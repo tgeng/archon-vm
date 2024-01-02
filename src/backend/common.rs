@@ -199,7 +199,7 @@ impl BuiltinFunction {
             BuiltinFunction::AddComplexHandler => declare_func(3, 0, Linkage::Import),
             BuiltinFunction::PrepareResumeContinuation => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::PrepareDisposeContinuation => declare_func(7, 1, Linkage::Import),
-            BuiltinFunction::ReplicateContinuation => declare_func(6, 1, Linkage::Import),
+            BuiltinFunction::ReplicateContinuation => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::ProcessSimpleHandlerResult => declare_func(4, 1, Linkage::Import),
             BuiltinFunction::MarkHandler => declare_func_with_call_conv(m, 4, 1, Linkage::Import, CallConv::Tail),
 
@@ -374,8 +374,15 @@ impl BuiltinFunction {
 
         // replicate
         builder.switch_to_block(replicate_block);
-        let zero = builder.ins().iconst(I64, 0);
-        builder.ins().return_(&[zero]);
+        let invoke_cps_function_with_trivial_continuation = Self::get_built_in_func_ptr(m, builder, BuiltinFunction::InvokeCpsFunctionWithTrivialContinuation);
+        let inst = Self::call_built_in(
+            m,
+            builder,
+            BuiltinFunction::ReplicateContinuation,
+            &[base_address, next_continuation, captured_continuation, handler_parameter, frame_pointer, stack_pointer, invoke_cps_function_with_trivial_continuation],
+        );
+        let prepare_result_ptr = builder.inst_results(inst)[0];
+        builder.ins().jump(final_block, &[prepare_result_ptr]);
 
         // default
         builder.switch_to_block(default_block);

@@ -566,13 +566,13 @@ function u0:0(i64, i64, i64) -> i64 tail {
     sig11 = (i64, i64) -> i64 tail
     sig12 = (i64, i64, i64) -> i64 tail
     fn0 = colocated u0:16 sig0
-    fn1 = colocated u0:18 sig1
+    fn1 = colocated u0:19 sig1
     fn2 = u0:4 sig2
     fn3 = colocated u0:16 sig4
-    fn4 = colocated u0:18 sig5
+    fn4 = colocated u0:19 sig5
     fn5 = u0:4 sig6
     fn6 = colocated u0:16 sig8
-    fn7 = colocated u0:18 sig9
+    fn7 = colocated u0:19 sig9
     fn8 = u0:4 sig10
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -720,7 +720,7 @@ function u0:0(i64) -> i64 tail {
     fn2 = colocated u0:25 sig2
     fn3 = colocated u0:27 sig3
     fn4 = colocated u0:29 sig4
-    fn5 = colocated u0:20 sig5
+    fn5 = colocated u0:21 sig5
     fn6 = u0:6 sig6
     fn7 = u0:7 sig7
     fn8 = colocated u0:31 sig8

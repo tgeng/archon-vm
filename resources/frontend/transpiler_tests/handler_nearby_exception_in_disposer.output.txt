@@ -1320,7 +1320,7 @@ function u0:0(i64) -> i64 tail {
     fn1 = colocated u0:23 sig1
     fn2 = colocated u0:25 sig2
     fn3 = colocated u0:45 sig3
-    fn4 = colocated u0:20 sig4
+    fn4 = colocated u0:21 sig4
     fn5 = u0:6 sig5
     fn6 = u0:7 sig6
     fn7 = colocated u0:47 sig7
@@ -1449,7 +1449,7 @@ function u0:0(i64, i64) -> i64 tail {
     sig7 = (i64, i64, i64) -> i64 tail
     fn0 = colocated u0:14 sig0
     fn1 = colocated u0:16 sig1
-    fn2 = colocated u0:18 sig2
+    fn2 = colocated u0:19 sig2
     fn3 = u0:4 sig3
     fn4 = u0:0 sig5
     fn5 = u0:0 sig6
@@ -1515,11 +1515,11 @@ function u0:0(i64, i64) -> i64 tail {
     sig9 = (i64, i64) -> i64 tail
     fn0 = colocated u0:14 sig0
     fn1 = colocated u0:16 sig1
-    fn2 = colocated u0:18 sig2
+    fn2 = colocated u0:19 sig2
     fn3 = u0:4 sig3
     fn4 = %Memmove sig5
     fn5 = colocated u0:16 sig6
-    fn6 = colocated u0:18 sig7
+    fn6 = colocated u0:19 sig7
     fn7 = u0:4 sig8
 
 block0(v0: i64, v1: i64):
@@ -1625,7 +1625,7 @@ function u0:0(i64, i64) -> i64 tail {
     sig5 = (i64, i64, i64) -> i64 tail
     fn0 = colocated u0:14 sig0
     fn1 = colocated u0:16 sig1
-    fn2 = colocated u0:18 sig2
+    fn2 = colocated u0:19 sig2
     fn3 = u0:4 sig3
 
 block0(v0: i64, v1: i64):
@@ -1678,7 +1678,7 @@ function u0:0(i64, i64) -> i64 tail {
     fn1 = colocated u0:31 sig1
     fn2 = colocated u0:33 sig2
     fn3 = colocated u0:35 sig3
-    fn4 = colocated u0:20 sig4
+    fn4 = colocated u0:21 sig4
     fn5 = u0:6 sig5
     fn6 = u0:7 sig6
     fn7 = u0:8 sig7
@@ -1744,7 +1744,7 @@ function u0:0(i64, i64) -> i64 tail {
     fn1 = colocated u0:57 sig1
     fn2 = colocated u0:59 sig2
     fn3 = colocated u0:27 sig3
-    fn4 = colocated u0:20 sig4
+    fn4 = colocated u0:21 sig4
     fn5 = u0:6 sig5
     fn6 = u0:7 sig6
     fn7 = colocated u0:29 sig7
@@ -1817,7 +1817,7 @@ function u0:0(i64, i64) -> i64 tail {
     fn1 = colocated u0:49 sig1
     fn2 = colocated u0:51 sig2
     fn3 = colocated u0:53 sig3
-    fn4 = colocated u0:20 sig4
+    fn4 = colocated u0:21 sig4
     fn5 = u0:6 sig5
     fn6 = u0:7 sig6
     fn7 = colocated u0:55 sig7
@@ -1948,7 +1948,7 @@ function u0:0(i64, i64) -> i64 tail {
     sig4 = (i64, i64) -> i64 tail
     fn0 = %Memmove sig0
     fn1 = colocated u0:16 sig1
-    fn2 = colocated u0:18 sig2
+    fn2 = colocated u0:19 sig2
     fn3 = u0:4 sig3
 
 block0(v0: i64, v1: i64):
@@ -2037,7 +2037,7 @@ function u0:0(i64, i64) -> i64 tail {
     sig7 = (i64, i64, i64) -> i64 tail
     fn0 = colocated u0:14 sig0
     fn1 = colocated u0:16 sig1
-    fn2 = colocated u0:18 sig2
+    fn2 = colocated u0:19 sig2
     fn3 = u0:4 sig3
     fn4 = u0:0 sig5
     fn5 = u0:0 sig6
@@ -2097,7 +2097,7 @@ function u0:0(i64, i64) -> i64 tail {
     sig4 = (i64, i64) -> i64 tail
     fn0 = %Memmove sig0
     fn1 = colocated u0:16 sig1
-    fn2 = colocated u0:18 sig2
+    fn2 = colocated u0:19 sig2
     fn3 = u0:4 sig3
 
 block0(v0: i64, v1: i64):

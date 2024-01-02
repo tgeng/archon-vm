@@ -386,6 +386,11 @@ pub unsafe fn runtime_pop_handler() -> Uniform {
     })
 }
 
+/// Convert transform continuations in the handler stack to disposer continuations. Technically
+/// we don't have to implement disposers this way. Instead, we can just invoke the disposer directly
+/// since they are guranteed to not cause any effects with my current plan. But if somehow I decide
+/// to allow disposer and simple operations to perform simple exceptional effects, this
+/// implementation will be useful.
 unsafe fn convert_handler_transformers_to_disposers(
     matching_handler_index: usize,
     mut next_base_address: *mut Uniform,
@@ -411,10 +416,11 @@ unsafe fn convert_handler_transformers_to_disposers(
             (*handler.transform_loader_continuation).next = next_continuation;
             (*handler.transform_loader_continuation).func = runtime_disposer_loader_cps_impl;
             if (*next_continuation).state != usize::MAX {
-                // trivial continuation has state equal to 0xffffffffffffffff and we don't want to update the frame
-                // height of trivial continuations because this field is not supposed to be
-                // consumed. And for debug build, it's set to a very large value so that it can
-                // allow arbitrary increment and decrement without overflow or underflow.
+                // trivial continuation has state equal to 0xffffffffffffffff and we don't want to
+                // update the frame height of trivial continuations because this field is not
+                // supposed to be consumed. And for debug build, it's set to a very large value so
+                // that it can allow arbitrary increment and decrement without overflow or
+                // underflow.
                 (*next_continuation).arg_stack_frame_height = next_base_address.offset_from(handler.transform_loader_base_address) as usize;
             }
 
@@ -672,12 +678,14 @@ unsafe fn unpack_captured_continuation(
 /// Returns the pointer to the result of disposer.
 pub unsafe fn runtime_replicate_continuation(
     base_address: *mut usize,
+    next_continuation: &mut Continuation,
     captured_continuation: *mut CapturedContinuation,
     parameter: Uniform,
-    runtime_invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
     frame_pointer: *const u8,
     stack_pointer: *const u8,
+    runtime_invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
 ) -> *const Uniform {
+
     todo!()
 }
 
