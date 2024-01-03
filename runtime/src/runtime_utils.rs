@@ -231,24 +231,12 @@ unsafe fn prepare_complex_operation(
         }
     }).collect();
 
-    let captured_continuation = runtime_alloc((std::mem::size_of::<CapturedContinuation>()) / 8) as *mut CapturedContinuation;
+    let captured_continuation_thunk = create_captured_continuation(captured_continuation_thunk_impl, tip_continuation, stack_fragment, handler_fragment);
 
-    *captured_continuation = CapturedContinuation {
-        tip_continuation,
-        handler_fragment,
-        stack_fragment,
-    };
+    let mut new_tip_address = stack_fragment_end;
 
-    let mut new_tip_address = stack_fragment_end as *mut usize;
     // Set up arguments for invoking the handler. Note that arguments on the stack are in reverse
     // order.
-
-    // Firstly, set up the reified continuation.
-    let captured_continuation_thunk = runtime_alloc(3);
-    captured_continuation_thunk.write(UniformType::to_uniform_pptr(captured_continuation_thunk_impl));
-    captured_continuation_thunk.add(1).write(1);
-    captured_continuation_thunk.add(2).write(UniformType::to_uniform_sptr(captured_continuation));
-
     new_tip_address = new_tip_address.sub(1);
     new_tip_address.write(UniformType::to_uniform_sptr(captured_continuation_thunk));
 
@@ -268,6 +256,31 @@ unsafe fn prepare_complex_operation(
     // unpacking captured arguments of the handler would affect frame height of the next continuation as well.
     (*next_continuation).arg_stack_frame_height += tip_address_before_forcing_handler_impl.offset_from(new_tip_address) as usize;
     (handler_function_ptr, new_tip_address, next_continuation)
+}
+
+unsafe fn create_captured_continuation(
+    captured_continuation_thunk_impl: RawFuncPtr,
+    tip_continuation: *mut Continuation,
+    stack_fragment: Vec<Generic>,
+    handler_fragment: Vec<Handler<usize>>,
+) -> *mut usize {
+    let captured_continuation = runtime_alloc((std::mem::size_of::<CapturedContinuation>()) / 8) as *mut CapturedContinuation;
+
+    *captured_continuation = CapturedContinuation {
+        tip_continuation,
+        handler_fragment,
+        stack_fragment,
+    };
+
+    create_captured_continuation_thunk(captured_continuation_thunk_impl, captured_continuation)
+}
+
+unsafe fn create_captured_continuation_thunk(captured_continuation_thunk_impl: RawFuncPtr, captured_continuation: *mut CapturedContinuation) -> *mut usize {
+    let captured_continuation_thunk = runtime_alloc(3);
+    captured_continuation_thunk.write(UniformType::to_uniform_pptr(captured_continuation_thunk_impl));
+    captured_continuation_thunk.add(1).write(1);
+    captured_continuation_thunk.add(2).write(UniformType::to_uniform_sptr(captured_continuation));
+    captured_continuation_thunk
 }
 
 #[repr(C, align(8))]
@@ -365,7 +378,7 @@ pub unsafe fn runtime_process_simple_handler_result(
             // ignores the last result.
             let result_ptr = next_base_address.sub(1);
             // plus 1 to tag the pointer a an SPtr.
-            result_ptr.write(empty_struct_ptr() as usize + 1);
+            result_ptr.write(UniformType::to_uniform_sptr(empty_struct_ptr()));
             // Here we use the matching handler because the jump needs to restore execution to the state at the matching
             // handler. This mismatch between fp, sp, and lr with the continuation and argument stack is fine because
             // the continuation is a disposer loader continuation, which does not care about fp, sp, or lr.
@@ -606,7 +619,7 @@ pub unsafe fn runtime_prepare_dispose_continuation(
     // Write the last result
     let last_result_address = next_base_address.sub(1);
     // Add 1 so it's tagged as an SPtr
-    last_result_address.write(empty_struct_ptr() as usize + 1);
+    last_result_address.write(UniformType::to_uniform_sptr(empty_struct_ptr()));
 
     // Write the return values of this helper function.
     let result_ptr = last_result_address.sub(3);
@@ -684,9 +697,99 @@ pub unsafe fn runtime_replicate_continuation(
     frame_pointer: *const u8,
     stack_pointer: *const u8,
     runtime_invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
+    captured_continuation_thunk_impl: RawFuncPtr,
 ) -> *const Uniform {
+    let matching_handler_index = HANDLERS.with(|handlers| handlers.borrow().len());
 
-    todo!()
+    // 3 arguments passed to captured continuation: captured continuation object, field, and handler parameter.
+    let dispose_num_args = 3;
+    unpack_captured_continuation(
+        base_address,
+        next_continuation,
+        captured_continuation,
+        parameter,
+        frame_pointer,
+        stack_pointer,
+        dispose_num_args,
+    );
+
+    let mut parameters = Vec::new();
+    HANDLERS.with(|handlers| {
+        let mut handlers = handlers.borrow_mut();
+        while handlers.len() > matching_handler_index {
+            let handler = match handlers.pop().unwrap() {
+                HandlerEntry::Handler(handler) => handler,
+                _ => panic!("Expect a handler entry")
+            };
+            let mut tip_address = base_address.sub(1);
+            tip_address.write(handler.parameter);
+            runtime_force_thunk(handler.parameter_replicator, &mut tip_address);
+            let parameter_pair = runtime_invoke_cps_function_with_trivial_continuation(base_address, tip_address);
+            parameters.push((parameter_pair.read(), parameter_pair.add(1).read()));
+        }
+    });
+
+    let mut cloned_continuation = std::ptr::null_mut();
+    clone_continuation((*captured_continuation).tip_continuation, &mut cloned_continuation);
+
+    let mut cloned_handler_fragment = Vec::new();
+    for ((parameter1, parameter2), handler) in parameters.into_iter().zip((*captured_continuation).handler_fragment.iter_mut()) {
+        handler.parameter = parameter1;
+        let cloned_handler = Handler {
+            transform_loader_continuation: handler.transform_loader_continuation,
+            transform_loader_base_address: handler.transform_loader_base_address,
+            parameter: parameter2,
+            parameter_disposer: handler.parameter_disposer,
+            parameter_replicator: handler.parameter_replicator,
+            frame_pointer: handler.frame_pointer,
+            stack_pointer: handler.stack_pointer,
+            return_address: handler.return_address,
+            simple_handler: handler.simple_handler.clone(),
+            complex_handler: handler.complex_handler.clone(),
+        };
+        cloned_handler_fragment.push(cloned_handler);
+    }
+
+    let captured_continuation_thunk1 = create_captured_continuation_thunk(
+        captured_continuation_thunk_impl,
+        captured_continuation,
+    );
+    let captured_continuation_thunk2 = create_captured_continuation(
+        captured_continuation_thunk_impl,
+        cloned_continuation,
+        (*captured_continuation).stack_fragment.clone(),
+        cloned_handler_fragment,
+    );
+
+    // Write the last result
+    let last_result_address = base_address.sub(1);
+    let pair_of_captured_continuation_thuns = runtime_alloc(2);
+    pair_of_captured_continuation_thuns.write(UniformType::to_uniform_sptr(captured_continuation_thunk1));
+    pair_of_captured_continuation_thuns.add(1).write(UniformType::to_uniform_sptr(captured_continuation_thunk2));
+
+    last_result_address.write(UniformType::to_uniform_sptr(pair_of_captured_continuation_thuns));
+
+    // Write the return values of this helper function.
+    let result_ptr = last_result_address.sub(3);
+
+    let next_base_address = base_address.add(next_continuation.arg_stack_frame_height);
+    result_ptr.write(next_continuation as *const Continuation as usize);
+    result_ptr.add(1).write(next_base_address as usize);
+    result_ptr.add(2).write(last_result_address as usize);
+
+    result_ptr
+}
+
+unsafe fn clone_continuation(continuation: *mut Continuation, cloned_continuation_ptr: &mut *mut Continuation) {
+    let continuation_addr = continuation as *const usize;
+    let length = (continuation_addr).sub(1).read();
+    let cloned_continuation_addr = runtime_alloc(length);
+    // we must clone like this because continuation struct is not aware of the variable number of
+    // local variables that are allocated right after the continuation object.
+    std::ptr::copy_nonoverlapping(continuation_addr, cloned_continuation_addr, length);
+    let cloned_continuation = cloned_continuation_addr as *mut Continuation;
+    *cloned_continuation_ptr = cloned_continuation;
+    clone_continuation((*continuation).next, &mut (*cloned_continuation).next)
 }
 
 unsafe fn compare_uniform(a: Uniform, b: Uniform) -> bool {
