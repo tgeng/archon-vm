@@ -29,6 +29,7 @@ pub struct Continuation {
 
 // TODO: use custom allocator that allocates through Boehm GC for vecs
 #[repr(C, align(8))]
+#[derive(Clone)]
 pub struct Handler<T> {
     pub transform_loader_continuation: *mut Continuation,
     pub transform_loader_base_address: T,
@@ -48,6 +49,7 @@ pub enum HandlerEntry {
     SimpleOperationMarker { handler_index: usize },
 }
 
+#[derive(Clone)]
 pub struct CapturedContinuation {
     pub tip_continuation: *mut Continuation,
     pub handler_fragment: Vec<Handler<usize>>,
