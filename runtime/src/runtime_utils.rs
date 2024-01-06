@@ -1,8 +1,10 @@
 use std::arch::global_asm;
 use std::cell::RefCell;
+use std::io::Write;
 use std::iter::Peekable;
 use std::ops::{DerefMut};
 use std::slice::IterMut;
+use crate::debug_helper::trace_continuation;
 use crate::runtime::{Continuation, HandlerEntry, Handler, Uniform, ThunkPtr, Eff, Generic, CapturedContinuation, RawFuncPtr, ContImplPtr};
 use crate::runtime::HandlerEntry::SimpleOperationMarker;
 use crate::types::{UPtr, UniformPtr, UniformType};
@@ -137,7 +139,7 @@ pub unsafe fn runtime_alloc_stack() -> *mut usize {
 }
 
 /// Returns the result of the operation in uniform representation
-pub unsafe fn debug_helper(base: *const usize, nc: *const Continuation, last_result_ptr: *const usize) -> usize {
+pub unsafe fn debug_helper(base: *const usize, last_result_ptr: *const usize, thunk: *const usize) -> usize {
     return 1 + 1;
 }
 
@@ -366,11 +368,12 @@ pub unsafe fn runtime_process_simple_handler_result(
                 func: simple_exception_continuation_impl,
                 arg_stack_frame_height: 0,
                 next: next_continuation,
+                // The exceptional value is stored inside the state field of the continuation.
                 state: handler_output_result,
             };
             let last_handler = convert_handler_transformers_to_disposers(
+                (*matching_handler).transform_loader_base_address,
                 handler_index,
-                (*matching_handler).transform_loader_base_address.add((*next_continuation).arg_stack_frame_height),
                 simple_exception_continuation,
                 runtime_disposer_loader_cps_impl,
             );
@@ -407,11 +410,22 @@ pub unsafe fn runtime_pop_handler() -> Uniform {
 /// to allow disposer and simple operations to perform simple exceptional effects, this
 /// implementation will be useful.
 unsafe fn convert_handler_transformers_to_disposers(
+    base_address: *mut Uniform,
     matching_handler_index: usize,
-    mut next_base_address: *mut Uniform,
     mut next_continuation: *mut Continuation,
     runtime_disposer_loader_cps_impl: ContImplPtr,
 ) -> *const Handler<*mut Uniform> {
+    let mut next_base_address = if (*next_continuation).state == usize::MAX {
+        // Disregard the height of trivial continuations because they are not supposed to be used.
+        // Changes to the frame height of trivial continuations is useful. But the same information
+        // is also inside the last result address passed to the trivial continuation. Hence,
+        // consumer of the trivial continuation can recover the tip address from the last result
+        // value instead.
+        base_address
+    } else {
+        base_address.add((*next_continuation).arg_stack_frame_height)
+    };
+
     HANDLERS.with(|handlers| {
         let mut ref_mut = handlers.borrow_mut();
         let handlers = ref_mut.deref_mut();
@@ -610,8 +624,8 @@ pub unsafe fn runtime_prepare_dispose_continuation(
     );
 
     let last_handler = convert_handler_transformers_to_disposers(
+        base_address,
         matching_handler_index,
-        base_address.add(next_continuation.arg_stack_frame_height),
         next_continuation,
         runtime_disposer_loader_cps_impl,
     );

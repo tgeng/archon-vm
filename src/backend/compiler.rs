@@ -9,7 +9,7 @@ use crate::ast::signature::FunctionDefinition;
 use crate::ast::term::{CType};
 use strum::IntoEnumIterator;
 use enum_map::{EnumMap};
-use crate::backend::common::{BuiltinFunction, create_cps_impl_signature, create_cps_signature, FunctionFlavor, HasType};
+use crate::backend::common::{BuiltinData, BuiltinFunction, create_cps_impl_signature, create_cps_signature, FunctionFlavor, HasType};
 use crate::backend::cps_function_translator::{CpsFunctionTranslator};
 use crate::backend::simple_function_translator::SimpleFunctionTranslator;
 
@@ -29,6 +29,7 @@ pub struct Compiler<M: Module> {
     pub module: M,
 
     pub builtin_functions: EnumMap<BuiltinFunction, FuncId>,
+    pub builtin_data: EnumMap<BuiltinData, DataId>,
     pub static_strings: HashMap<String, DataId>,
     pub local_functions: HashMap<String, FuncId>,
     pub uniform_func_signature: Signature,
@@ -56,11 +57,7 @@ impl Default for Compiler<JITModule> {
             f.declare_symbol(&mut builder);
         }
 
-        let mut module = JITModule::new(builder);
-
-        let builtin_functions = EnumMap::from_fn(|e: BuiltinFunction| e.declare_or_define(&mut module));
-
-        Self::new(module, builtin_functions)
+        Self::new(JITModule::new(builder))
     }
 }
 
@@ -86,7 +83,10 @@ impl Compiler<ObjectModule> {
 }
 
 impl<M: Module> Compiler<M> {
-    fn new(module: M, builtin_functions: EnumMap<BuiltinFunction, FuncId>) -> Self {
+    fn new(mut module: M) -> Self {
+        let builtin_functions = EnumMap::from_fn(|e: BuiltinFunction| e.declare_or_define(&mut module));
+        let builtin_data = EnumMap::from_fn(|e: BuiltinData| e.define(&mut module));
+
         let mut uniform_func_signature = module.make_signature();
         uniform_func_signature.params.push(AbiParam::new(I64));
         uniform_func_signature.returns.push(AbiParam::new(I64));
@@ -101,6 +101,7 @@ impl<M: Module> Compiler<M> {
             ctx: module.make_context(),
             module,
             builtin_functions,
+            builtin_data,
             static_strings: HashMap::new(),
             local_functions: HashMap::new(),
             uniform_func_signature,

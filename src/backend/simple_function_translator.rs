@@ -9,7 +9,7 @@ use crate::ast::term::{CTerm, VTerm, VType, SpecializedType, PType, CType, Effec
 use enum_map::{EnumMap};
 use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
-use crate::backend::common::{BuiltinFunction, FunctionFlavor, HasType, TypedReturnValue, TypedValue};
+use crate::backend::common::{BuiltinData, BuiltinFunction, FunctionFlavor, HasType, TypedReturnValue, TypedValue};
 use crate::ast::primitive_functions::PRIMITIVE_FUNCTIONS;
 use crate::ast::signature::FunctionDefinition;
 use crate::backend::compiler::Compiler;
@@ -19,6 +19,7 @@ pub struct SimpleFunctionTranslator<'a, M: Module> {
     pub function_builder: FunctionBuilder<'a>,
     pub data_description: DataDescription,
     pub builtin_functions: EnumMap<BuiltinFunction, FuncId>,
+    pub builtin_data: EnumMap<BuiltinData, DataId>,
     pub static_strings: &'a mut HashMap<String, DataId>,
     pub local_functions: &'a HashMap<String, FuncId>,
     pub local_vars: Vec<TypedReturnValue>,
@@ -200,6 +201,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             function_builder,
             data_description: DataDescription::new(),
             builtin_functions: compiler.builtin_functions,
+            builtin_data: compiler.builtin_data,
             static_strings: &mut compiler.static_strings,
             local_functions: &compiler.local_functions,
             local_vars: vec![None; function_definition.var_bound],
@@ -240,8 +242,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             }
             CTerm::Return { value } => self.translate_v_term(value),
             CTerm::Force { thunk, .. } => {
-                let inst = self.call_builtin_func(BuiltinFunction::GetTrivialContinuation, &[]);
-                let trivial_continuation = self.function_builder.inst_results(inst)[0];
+                let trivial_continuation = self.get_builtin_data(BuiltinData::TrivialContinuation);
                 self.invoke_thunk(is_tail, thunk, trivial_continuation)
             }
             CTerm::Let { box t, bound_index, box body } => {
@@ -302,8 +303,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             CTerm::OperationCall { eff, args, .. } => {
                 let eff_value = self.translate_v_term(eff);
                 let eff_value = self.convert_to_uniform(eff_value);
-                let inst = self.call_builtin_func(BuiltinFunction::GetTrivialContinuation, &[]);
-                let trivial_continuation = self.function_builder.inst_results(inst)[0];
+                let trivial_continuation = self.get_builtin_data(BuiltinData::TrivialContinuation);
                 self.push_arg_v_terms(args);
                 let use_tail_call = is_tail && !self.is_specialized;
                 self.update_tip_address(use_tail_call);
@@ -315,8 +315,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 }
             }
             CTerm::Handler { .. } => {
-                let inst = self.call_builtin_func(BuiltinFunction::GetTrivialContinuation, &[]);
-                let trivial_continuation = self.function_builder.inst_results(inst)[0];
+                let trivial_continuation = self.get_builtin_data(BuiltinData::TrivialContinuation);
                 self.update_tip_address(is_tail && !self.is_specialized);
                 self.translate_handler(is_tail, c_term, trivial_continuation)
             }
@@ -652,7 +651,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                     let bytes = len_bytes.iter().copied().chain(bytes).collect::<Vec<_>>();
                     self.data_description.define(bytes.into_boxed_slice());
                     // Align to 8 bytes because comparison logic compares aligned words.
-                    self.data_description.align = Some(8);
+                    self.data_description.set_align(8);
                     let data_id = self.module.declare_data(value, Linkage::Local, false, false).unwrap();
                     self.module.define_data(data_id, &self.data_description).unwrap();
                     self.data_description.clear();
@@ -706,6 +705,16 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
     pub(crate) fn call_builtin_func(&mut self, builtin_function: BuiltinFunction, args: &[Value]) -> Inst {
         let func_ref = self.module.declare_func_in_func(self.builtin_functions[builtin_function], self.function_builder.func);
         self.function_builder.ins().call(func_ref, args)
+    }
+
+    pub(crate) fn get_builtin_data(&mut self, builtin_data: BuiltinData) -> Value {
+        let data_ref = self.module.declare_data_in_func(self.builtin_data[builtin_data], self.function_builder.func);
+        let result = if builtin_data.is_tls() {
+            return self.function_builder.ins().tls_value(I64, data_ref);
+        } else {
+            self.function_builder.ins().global_value(I64, data_ref)
+        };
+        self.function_builder.ins().iadd_imm(result, builtin_data.offset())
     }
 
     pub(crate) fn convert_to_uniform(&mut self, value_and_type: TypedReturnValue) -> Value {

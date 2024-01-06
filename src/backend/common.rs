@@ -1,11 +1,11 @@
-use cranelift::codegen::ir::Inst;
+use cranelift::codegen::ir::{Endianness, Inst};
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
 use cbpv_runtime::runtime_utils::*;
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder};
-use cranelift_module::{FuncId, Linkage, Module};
+use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
 use crate::ast::term::{VType, SpecializedType, PType};
 use strum_macros::EnumIter;
 use enum_map::{Enum};
@@ -69,7 +69,6 @@ pub enum BuiltinFunction {
     MarkHandler,
 
     // generated
-    GetTrivialContinuation,
     TrivialContinuationImpl,
 
     /// CPS function implementing reified continuation record. This function takes a captured
@@ -129,7 +128,6 @@ impl BuiltinFunction {
             BuiltinFunction::ProcessSimpleHandlerResult => "__runtime_process_simple_handler_result",
             BuiltinFunction::MarkHandler => "__runtime_mark_handler",
 
-            BuiltinFunction::GetTrivialContinuation => "__runtime_get_trivial_continuation",
             BuiltinFunction::TrivialContinuationImpl => "__runtime_trivial_continuation_impl",
             BuiltinFunction::CapturedContinuationRecordImpl => "__runtime_captured_continuation_record_impl",
             BuiltinFunction::SimpleHandlerRunnerImpl => "__runtime_simple_handler_runner_impl",
@@ -157,7 +155,6 @@ impl BuiltinFunction {
             BuiltinFunction::ProcessSimpleHandlerResult => runtime_process_simple_handler_result as *const u8,
             BuiltinFunction::MarkHandler => runtime_mark_handler as *const u8,
 
-            BuiltinFunction::GetTrivialContinuation => return,
             BuiltinFunction::TrivialContinuationImpl => return,
             BuiltinFunction::CapturedContinuationRecordImpl => return,
             BuiltinFunction::SimpleHandlerRunnerImpl => return,
@@ -203,7 +200,6 @@ impl BuiltinFunction {
             BuiltinFunction::ProcessSimpleHandlerResult => declare_func(4, 1, Linkage::Import),
             BuiltinFunction::MarkHandler => declare_func_with_call_conv(m, 4, 1, Linkage::Import, CallConv::Tail),
 
-            BuiltinFunction::GetTrivialContinuation => declare_func(0, 1, Linkage::Local),
             BuiltinFunction::TrivialContinuationImpl => declare_func_with_call_conv(m, 3, 1, Linkage::Local, CallConv::Tail),
             BuiltinFunction::CapturedContinuationRecordImpl => declare_func_with_call_conv(m, 2, 1, Linkage::Local, CallConv::Tail),
             BuiltinFunction::SimpleHandlerRunnerImpl => declare_func_with_call_conv(m, 2, 1, Linkage::Local, CallConv::Tail),
@@ -225,7 +221,6 @@ impl BuiltinFunction {
         let mut builder_ctx = FunctionBuilderContext::new();
         let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_ctx);
         match self {
-            BuiltinFunction::GetTrivialContinuation => Self::get_trivial_continuation(m, &mut builder),
             BuiltinFunction::TrivialContinuationImpl => Self::trivial_continuation_impl(&mut builder),
             BuiltinFunction::CapturedContinuationRecordImpl => Self::captured_continuation_record_impl(m, &mut builder),
             BuiltinFunction::SimpleHandlerRunnerImpl => Self::simple_handler_runner_impl(m, &mut builder),
@@ -254,38 +249,6 @@ impl BuiltinFunction {
         // trivial continuation should be placing the result.
         let last_result_ptr = builder.block_params(entry_block)[2];
         builder.ins().return_(&[last_result_ptr]);
-    }
-
-    fn get_trivial_continuation<M: Module>(m: &mut M, builder: &mut FunctionBuilder) {
-        let entry_block = builder.create_block();
-        builder.append_block_params_for_function_params(entry_block);
-        builder.switch_to_block(entry_block);
-        builder.seal_block(entry_block);
-
-        // We only need the first two words for the trivial continuation. The height is only
-        // allocated so that it can be written to. Its value does not matter because trivial
-        // continuation does not care about base address as it doesn't have any arguments.
-        let continuation_size = builder.ins().iconst(I64, 4);
-        let inst = Self::call_built_in(m, builder, BuiltinFunction::Alloc, &[continuation_size]);
-        let continuation_ptr = builder.inst_results(inst)[0];
-
-        // first word of continuation is the continuation implementation
-        let impl_func_ptr = Self::get_built_in_func_ptr(m, builder, BuiltinFunction::TrivialContinuationImpl);
-        builder.ins().store(MemFlags::new(), impl_func_ptr, continuation_ptr, 0);
-
-        // second word is the frame height, whose value does not matter. But we set it to a large
-        // value so that it won't overflow or underflow easily (this only matters for debug build,
-        // where it panics when arithmetics overflows or underflows). Note that we can't go too
-        // close to the maximum value of I64 because we often shifts the frame height by 3 bits to
-        // the right to get the size in bytes for computation.
-        let frame_height = builder.ins().iconst(I64, 1 << 59);
-        builder.ins().store(MemFlags::new(), frame_height, continuation_ptr, 8);
-
-        let state = builder.ins().iconst(I64, -1);
-        builder.ins().store(MemFlags::new(), state, continuation_ptr, 24);
-
-        // return the pointer to the continuation object
-        builder.ins().return_(&[continuation_ptr]);
     }
 
     fn captured_continuation_record_impl<M: Module>(m: &mut M, builder: &mut FunctionBuilder) {
@@ -412,8 +375,7 @@ impl BuiltinFunction {
         let handler_function_ptr = builder.ins().load(I64, MemFlags::new(), base_address, 0);
         let handler_index = builder.ins().load(I64, MemFlags::new(), base_address, 8);
 
-        let inst = Self::call_built_in(m, builder, BuiltinFunction::GetTrivialContinuation, &[]);
-        let trivial_continuation = builder.inst_results(inst)[0];
+        let trivial_continuation = Self::get_built_in_data(m, builder, BuiltinData::TrivialContinuation);
 
         let new_base_address = builder.ins().iadd_imm(base_address, 16);
         let sig = create_cps_signature(m);
@@ -452,6 +414,7 @@ impl BuiltinFunction {
         // transform thunk is set on the argument stack by `runtime_register_handler` when it
         // creates the transform loader continuation.
         let transform_thunk = builder.ins().load(I64, MemFlags::new(), base_address, 0);
+        Self::call_built_in(m, builder, BuiltinFunction::DebugHelper, &[base_address, last_result_ptr, transform_thunk]);
 
         let inst = Self::call_built_in(m, builder, BuiltinFunction::PopHandler, &[]);
         let handler_parameter = builder.inst_results(inst)[0];
@@ -500,8 +463,8 @@ impl BuiltinFunction {
         // transform thunk is set on the argument stack by `runtime_register_handler` when it
         // creates the transform loader continuation.
         let disposer_thunk = builder.ins().load(I64, MemFlags::new(), base_address, 0);
-
-        Self::call_built_in(m, builder, BuiltinFunction::DebugHelper, &[base_address, current_continuation, disposer_thunk]);
+        let one = builder.ins().iconst(I64, 1);
+        Self::call_built_in(m, builder, BuiltinFunction::DebugHelper, &[base_address, one, disposer_thunk]);
 
         let inst = Self::call_built_in(m, builder, BuiltinFunction::PopHandler, &[]);
         let handler_parameter = builder.inst_results(inst)[0];
@@ -532,7 +495,7 @@ impl BuiltinFunction {
         let sig = create_cps_signature(m);
         let sig_ref = builder.import_signature(sig);
         let two = builder.ins().iconst(I64, 2);
-        Self::call_built_in(m, builder, BuiltinFunction::DebugHelper, &[tip_address, next_continuation, two]);
+        Self::call_built_in(m, builder, BuiltinFunction::DebugHelper, &[tip_address, two, next_continuation]);
         builder.ins().return_call_indirect(sig_ref, disposer_ptr, &[tip_address, next_continuation]);
     }
 
@@ -545,8 +508,7 @@ impl BuiltinFunction {
         let func_ptr = builder.block_params(entry_block)[0];
         let base_address = builder.block_params(entry_block)[1];
 
-        let inst = Self::call_built_in(m, builder, BuiltinFunction::GetTrivialContinuation, &[]);
-        let trivial_continuation = builder.inst_results(inst)[0];
+        let trivial_continuation = Self::get_built_in_data(m, builder, BuiltinData::TrivialContinuation);
 
         let sig = create_cps_signature(m);
         let sig_ref = builder.import_signature(sig);
@@ -564,6 +526,7 @@ impl BuiltinFunction {
         let base_address = builder.block_params(entry_block)[0];
         let current_continuation = builder.block_params(entry_block)[1];
 
+        // The exceptional value is stored inside the state field of the continuation.
         let exception_value = builder.ins().load(I64, MemFlags::new(), current_continuation, 24);
         let result_ptr = builder.ins().iadd_imm(base_address, -8);
         builder.ins().store(MemFlags::new(), exception_value, result_ptr, 0);
@@ -573,6 +536,17 @@ impl BuiltinFunction {
         let cps_impl_sig = create_cps_impl_signature(m);
         let cps_impl_sig_ref = builder.import_signature(cps_impl_sig);
         builder.ins().return_call_indirect(cps_impl_sig_ref, next_func, &[base_address, next_continuation, result_ptr]);
+    }
+
+    fn get_built_in_data<M: Module>(m: &mut M, builder: &mut FunctionBuilder, data: BuiltinData) -> Value {
+        let data_id = data.declare(m);
+        let data_ref = m.declare_data_in_func(data_id, builder.func);
+        let result = if data.is_tls() {
+            return builder.ins().tls_value(I64, data_ref);
+        } else {
+            builder.ins().global_value(I64, data_ref)
+        };
+        builder.ins().iadd_imm(result, data.offset())
     }
 
     fn call_built_in<M: Module>(m: &mut M, builder: &mut FunctionBuilder, func: BuiltinFunction, args: &[Value]) -> Inst {
@@ -638,3 +612,69 @@ pub fn create_cps_signature<M: Module>(module: &M) -> Signature {
     uniform_cps_func_signature
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, Enum)]
+pub enum BuiltinData {
+    TrivialContinuation,
+}
+
+impl BuiltinData {
+    fn name(&self) -> &'static str {
+        match self { BuiltinData::TrivialContinuation => "__runtime_trivial_continuation" }
+    }
+
+    pub fn declare<M: Module>(&self, m: &mut M) -> DataId {
+        m.declare_data(self.name(), Linkage::Local, self.is_writable(), self.is_tls()).unwrap()
+    }
+
+    pub fn is_tls(&self) -> bool {
+        match self {
+            // TODO: use TLS for trivial continuation when Cranelift's JIT supports it.
+            BuiltinData::TrivialContinuation => false,
+        }
+    }
+
+    pub fn is_writable(&self) -> bool {
+        match self {
+            BuiltinData::TrivialContinuation => true,
+        }
+    }
+
+    pub fn offset(&self) -> i64 {
+        match self {
+            // Offset by a machine word since a trivial continuation is an object, whose first word is the object length.
+            BuiltinData::TrivialContinuation => 8,
+        }
+    }
+
+    pub fn define<M: Module>(&self, m: &mut M) -> DataId {
+        let data_id = self.declare(m);
+        let mut data_description = DataDescription::new();
+        let (trivial_continuation_impl_func_id, ..) = BuiltinFunction::TrivialContinuationImpl.declare(m);
+        let trivial_continuation_impl_func_ref = m.declare_func_in_data(trivial_continuation_impl_func_id, &mut data_description);
+        data_description.set_align(8);
+        // A trivial continuation takes 1 word for object header and 4 words for object body.
+
+        // Zeroth word the object header, which just tracks the size of the object.
+
+        // First word is the continuation implementation function pointer, which is written below.
+
+        // Second word is the frame height, whose value does not matter. But we set it to a large
+        // value so that it won't overflow or underflow easily (this only matters for debug build,
+        // where it panics when arithmetics overflows or underflows). Note that we can't go too
+        // close to the maximum value of I64 because we often shifts the frame height by 3 bits to
+        // the right to get the size in bytes for computation.
+
+        // Third word is next continuation, which doesn't exist for trivial continuation.
+
+        // Fourth word is state and we set it to be -1 to indicate that this is a trivial continuation.
+        let data: Vec<usize> = vec![4, 0, 1 << 58, 0, usize::MAX];
+        let data_bytes = data.iter().flat_map(|x| match m.isa().endianness() {
+            Endianness::Little => x.to_le_bytes(),
+            Endianness::Big => x.to_be_bytes(),
+        }).collect::<Vec<u8>>();
+        data_description.define(data_bytes.into_boxed_slice());
+        data_description.write_function_addr(8, trivial_continuation_impl_func_ref);
+        m.define_data(data_id, &data_description).unwrap();
+        data_id
+    }
+}
