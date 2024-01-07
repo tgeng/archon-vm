@@ -8,4 +8,4 @@ handler 1
       let b = force! cont2 0 p 5
       a + b
 
-"getNumber" #! {} * 2
+"getNumber" #! {} * 2 + "getNumber" #! {}

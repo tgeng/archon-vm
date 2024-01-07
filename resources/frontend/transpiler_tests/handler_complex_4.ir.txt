@@ -187,19 +187,34 @@ Handler {
     input: Thunk {
         computation: Redex {
             function: Identifier {
-                name: "_int_mul",
+                name: "_int_add",
                 effect: Simple,
             },
             args: [
+                Redex {
+                    function: Identifier {
+                        name: "_int_mul",
+                        effect: Simple,
+                    },
+                    args: [
+                        OperationCall {
+                            eff: Str {
+                                value: "getNumber",
+                            },
+                            args: [],
+                            effect: Complex,
+                        },
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
                 OperationCall {
                     eff: Str {
                         value: "getNumber",
                     },
                     args: [],
                     effect: Complex,
-                },
-                Int {
-                    value: 2,
                 },
             ],
         },
@@ -483,28 +498,52 @@ Defs
         FunctionDefinition {
             args: [],
             body: Let {
-                t: OperationCall {
-                    eff: Str {
-                        value: "getNumber",
+                t: Let {
+                    t: OperationCall {
+                        eff: Str {
+                            value: "getNumber",
+                        },
+                        args: [],
+                        effect: Complex,
                     },
-                    args: [],
-                    effect: Complex,
+                    bound_index: 0,
+                    body: PrimitiveCall {
+                        name: "_int_mul",
+                        args: [
+                            Var {
+                                index: 0,
+                            },
+                            Int {
+                                value: 2,
+                            },
+                        ],
+                    },
                 },
-                bound_index: 0,
-                body: PrimitiveCall {
-                    name: "_int_mul",
-                    args: [
-                        Var {
-                            index: 0,
+                bound_index: 1,
+                body: Let {
+                    t: OperationCall {
+                        eff: Str {
+                            value: "getNumber",
                         },
-                        Int {
-                            value: 2,
-                        },
-                    ],
+                        args: [],
+                        effect: Complex,
+                    },
+                    bound_index: 2,
+                    body: PrimitiveCall {
+                        name: "_int_add",
+                        args: [
+                            Var {
+                                index: 1,
+                            },
+                            Var {
+                                index: 2,
+                            },
+                        ],
+                    },
                 },
             },
             c_type: Default,
-            var_bound: 1,
+            var_bound: 3,
             need_simple: false,
             need_cps: true,
             need_specialized: false,
