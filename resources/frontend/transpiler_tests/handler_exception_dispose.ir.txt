@@ -435,7 +435,7 @@ Defs
                 parameter_replicator: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "main$__lambda_6",
+                            name: "main$__lambda_1",
                             effect: Simple,
                         },
                         args: [],
@@ -612,34 +612,6 @@ Defs
                     },
                 ],
                 effect: Simple,
-            },
-            c_type: Default,
-            var_bound: 1,
-            need_simple: false,
-            need_cps: true,
-            need_specialized: false,
-        },
-    ),
-    (
-        "main$__lambda_6",
-        FunctionDefinition {
-            args: [
-                (
-                    0,
-                    Uniform,
-                ),
-            ],
-            body: Return {
-                value: Struct {
-                    values: [
-                        Var {
-                            index: 0,
-                        },
-                        Var {
-                            index: 0,
-                        },
-                    ],
-                },
             },
             c_type: Default,
             var_bound: 1,

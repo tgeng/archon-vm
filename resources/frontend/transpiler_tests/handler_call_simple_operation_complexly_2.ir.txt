@@ -611,7 +611,7 @@ Defs
                 parameter_disposer: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "simple_linear$__lambda_0",
+                            name: "simple_exp$__lambda_0",
                             effect: Simple,
                         },
                         args: [],
@@ -621,7 +621,7 @@ Defs
                 parameter_replicator: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "simple_linear$__lambda_1",
+                            name: "simple_exp$__lambda_1",
                             effect: Simple,
                         },
                         args: [],
@@ -631,7 +631,7 @@ Defs
                 transform: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "simple_linear$__lambda_2",
+                            name: "simple_exp$__lambda_2",
                             effect: Simple,
                         },
                         args: [],
@@ -675,80 +675,6 @@ Defs
             var_bound: 0,
             need_simple: true,
             need_cps: false,
-            need_specialized: false,
-        },
-    ),
-    (
-        "simple_linear$__lambda_0",
-        FunctionDefinition {
-            args: [
-                (
-                    0,
-                    Uniform,
-                ),
-            ],
-            body: Return {
-                value: Struct {
-                    values: [],
-                },
-            },
-            c_type: Default,
-            var_bound: 1,
-            need_simple: false,
-            need_cps: true,
-            need_specialized: false,
-        },
-    ),
-    (
-        "simple_linear$__lambda_1",
-        FunctionDefinition {
-            args: [
-                (
-                    0,
-                    Uniform,
-                ),
-            ],
-            body: Return {
-                value: Struct {
-                    values: [
-                        Var {
-                            index: 0,
-                        },
-                        Var {
-                            index: 0,
-                        },
-                    ],
-                },
-            },
-            c_type: Default,
-            var_bound: 1,
-            need_simple: false,
-            need_cps: true,
-            need_specialized: false,
-        },
-    ),
-    (
-        "simple_linear$__lambda_2",
-        FunctionDefinition {
-            args: [
-                (
-                    0,
-                    Uniform,
-                ),
-                (
-                    1,
-                    Uniform,
-                ),
-            ],
-            body: Return {
-                value: Var {
-                    index: 1,
-                },
-            },
-            c_type: Default,
-            var_bound: 2,
-            need_simple: false,
-            need_cps: true,
             need_specialized: false,
         },
     ),

@@ -571,7 +571,7 @@ Defs
                 parameter_disposer: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "main$__lambda_5",
+                            name: "main$__lambda_0",
                             effect: Simple,
                         },
                         args: [],
@@ -581,7 +581,7 @@ Defs
                 parameter_replicator: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "main$__lambda_6",
+                            name: "main$__lambda_1",
                             effect: Simple,
                         },
                         args: [],
@@ -591,7 +591,7 @@ Defs
                 transform: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "main$__lambda_7",
+                            name: "main$__lambda_2",
                             effect: Simple,
                         },
                         args: [],
@@ -739,80 +739,6 @@ Defs
                             ],
                         },
                     ],
-                },
-            },
-            c_type: Default,
-            var_bound: 2,
-            need_simple: false,
-            need_cps: true,
-            need_specialized: false,
-        },
-    ),
-    (
-        "main$__lambda_5",
-        FunctionDefinition {
-            args: [
-                (
-                    0,
-                    Uniform,
-                ),
-            ],
-            body: Return {
-                value: Struct {
-                    values: [],
-                },
-            },
-            c_type: Default,
-            var_bound: 1,
-            need_simple: false,
-            need_cps: true,
-            need_specialized: false,
-        },
-    ),
-    (
-        "main$__lambda_6",
-        FunctionDefinition {
-            args: [
-                (
-                    0,
-                    Uniform,
-                ),
-            ],
-            body: Return {
-                value: Struct {
-                    values: [
-                        Var {
-                            index: 0,
-                        },
-                        Var {
-                            index: 0,
-                        },
-                    ],
-                },
-            },
-            c_type: Default,
-            var_bound: 1,
-            need_simple: false,
-            need_cps: true,
-            need_specialized: false,
-        },
-    ),
-    (
-        "main$__lambda_7",
-        FunctionDefinition {
-            args: [
-                (
-                    0,
-                    Uniform,
-                ),
-                (
-                    1,
-                    Uniform,
-                ),
-            ],
-            body: Return {
-                value: Var {
-                    index: 1,
                 },
             },
             c_type: Default,

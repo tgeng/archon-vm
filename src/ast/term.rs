@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PType {
     I64,
     I32,
@@ -7,7 +7,7 @@ pub enum PType {
 }
 
 /// See [[cbpv_runtime::types::UniformType]] for how these are represented in uniform representation.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SpecializedType {
     /// 61-bit integer
     Integer,
@@ -24,7 +24,7 @@ pub enum SpecializedType {
     Primitive(PType),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VType {
     /// Uniform representation of values. See [[cbpv_runtime::types::UniformType]] for details.
     /// Uniform representation is used across function boundaries (call args and return values)
@@ -43,7 +43,7 @@ pub enum VType {
     Specialized(SpecializedType),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CType {
     /// Default type for computations. The computation may return a value or continue another
     /// computation (for example consuming more arguments to produce a value through a tail call).
@@ -54,7 +54,7 @@ pub enum CType {
     SpecializedF(VType),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, Hash)]
 pub enum Effect {
     /// A computation that may only have simple effects and hence the function call can be compiled via CBPV convention
     /// or is specialized.
@@ -78,7 +78,7 @@ impl Effect {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum VTerm {
     Var { index: usize },
     Thunk { t: Box<CTerm>, effect: Effect },
@@ -94,7 +94,7 @@ pub enum VTerm {
     // I32 { value: i32 },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CTerm {
     Redex { function: Box<CTerm>, args: Vec<VTerm> },
     Return { value: VTerm },

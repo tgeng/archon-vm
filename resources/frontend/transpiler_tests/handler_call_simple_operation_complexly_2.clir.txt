@@ -334,13 +334,13 @@ function u0:0(i64) -> i64 tail {
     sig11 = (i64) -> i64 apple_aarch64
     sig12 = (i64, i64) -> i64 apple_aarch64
     fn0 = u0:0 sig0
-    fn1 = colocated u0:34 sig1
-    fn2 = colocated u0:36 sig2
-    fn3 = colocated u0:38 sig3
+    fn1 = colocated u0:25 sig1
+    fn2 = colocated u0:27 sig2
+    fn3 = colocated u0:29 sig3
     fn4 = colocated u0:20 sig4
     fn5 = u0:6 sig5
     fn6 = u0:7 sig6
-    fn7 = colocated u0:40 sig7
+    fn7 = colocated u0:34 sig7
     fn8 = u0:8 sig8
     fn9 = u0:13 sig9
     fn10 = colocated u0:21 sig10
@@ -393,70 +393,6 @@ block0(v0: i64):
     v37 = ushr_imm v36, 3
     store v37, v21+8
     return_call fn9(v32, v21, v31, v14)
-}
-
-
-[simple_linear$__lambda_0__cps]
-function u0:0(i64, i64) -> i64 tail {
-    ss0 = explicit_slot 8
-    sig0 = (i64) -> i64 apple_aarch64
-    sig1 = (i64, i64, i64) -> i64 tail
-    fn0 = u0:0 sig0
-
-block0(v0: i64, v1: i64):
-    v2 = load.i64 v0
-    v3 = iconst.i64 0
-    v4 = call fn0(v3)  ; v3 = 0
-    v5 = iadd_imm v4, 1
-    v6 = iadd_imm v0, 0
-    store v5, v6
-    v7 = load.i64 v1+8
-    v8 = ishl_imm v7, 3
-    v9 = iadd v0, v8
-    v10 = load.i64 v1
-    return_call_indirect sig1, v10(v9, v1, v6)
-}
-
-
-[simple_linear$__lambda_1__cps]
-function u0:0(i64, i64) -> i64 tail {
-    ss0 = explicit_slot 8
-    sig0 = (i64) -> i64 apple_aarch64
-    sig1 = (i64, i64, i64) -> i64 tail
-    fn0 = u0:0 sig0
-
-block0(v0: i64, v1: i64):
-    v2 = load.i64 v0
-    v3 = iconst.i64 2
-    v4 = call fn0(v3)  ; v3 = 2
-    store aligned v2, v4
-    store aligned v2, v4+8
-    v5 = iadd_imm v4, 1
-    v6 = iadd_imm v0, 0
-    store v5, v6
-    v7 = load.i64 v1+8
-    v8 = ishl_imm v7, 3
-    v9 = iadd v0, v8
-    v10 = load.i64 v1
-    return_call_indirect sig1, v10(v9, v1, v6)
-}
-
-
-[simple_linear$__lambda_2__cps]
-function u0:0(i64, i64) -> i64 tail {
-    ss0 = explicit_slot 8
-    sig0 = (i64, i64, i64) -> i64 tail
-
-block0(v0: i64, v1: i64):
-    v2 = load.i64 v0
-    v3 = load.i64 v0+8
-    v4 = iadd_imm v0, 8
-    store v3, v4
-    v5 = load.i64 v1+8
-    v6 = ishl_imm v5, 3
-    v7 = iadd v0, v6
-    v8 = load.i64 v1
-    return_call_indirect sig0, v8(v7, v1, v4)
 }
 
 

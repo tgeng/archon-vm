@@ -142,15 +142,15 @@ function u0:0(i64, i64) -> i64 tail {
     sig9 = (i64, i64) -> i64 tail
     sig10 = (i64, i64) -> i64 apple_aarch64
     fn0 = colocated u0:34 sig0
-    fn1 = colocated u0:36 sig1
-    fn2 = colocated u0:38 sig2
+    fn1 = colocated u0:24 sig1
+    fn2 = colocated u0:36 sig2
     fn3 = colocated u0:20 sig3
     fn4 = u0:6 sig4
     fn5 = u0:7 sig5
-    fn6 = colocated u0:40 sig6
+    fn6 = colocated u0:38 sig6
     fn7 = u0:8 sig7
     fn8 = u0:13 sig8
-    fn9 = colocated u0:42 sig9
+    fn9 = colocated u0:40 sig9
     fn10 = u0:1 sig10
 
 block0(v0: i64, v1: i64):
@@ -329,30 +329,6 @@ block0(v0: i64, v1: i64):
     v21 = load.i64 v19+8
     v22 = load.i64 v19+16
     return_call_indirect sig4, v20(v21, v22)
-}
-
-
-[main$__lambda_6__cps]
-function u0:0(i64, i64) -> i64 tail {
-    ss0 = explicit_slot 8
-    sig0 = (i64) -> i64 apple_aarch64
-    sig1 = (i64, i64, i64) -> i64 tail
-    fn0 = u0:0 sig0
-
-block0(v0: i64, v1: i64):
-    v2 = load.i64 v0
-    v3 = iconst.i64 2
-    v4 = call fn0(v3)  ; v3 = 2
-    store aligned v2, v4
-    store aligned v2, v4+8
-    v5 = iadd_imm v4, 1
-    v6 = iadd_imm v0, 0
-    store v5, v6
-    v7 = load.i64 v1+8
-    v8 = ishl_imm v7, 3
-    v9 = iadd v0, v8
-    v10 = load.i64 v1
-    return_call_indirect sig1, v10(v9, v1, v6)
 }
 
 

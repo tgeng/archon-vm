@@ -1,5 +1,6 @@
 use std::cmp::{min, Ordering};
 use std::collections::{HashMap};
+use itertools::Itertools;
 use crate::ast::free_var::HasFreeVar;
 use crate::ast::primitive_functions::{PRIMITIVE_FUNCTIONS, PrimitiveFunction};
 use crate::ast::term::{CTerm, CType, Effect, VTerm, VType};
@@ -61,6 +62,7 @@ impl Signature {
         self.reduce_immediate_redexes();
         self.lift_lambdas();
         self.rename_local_vars();
+        self.remove_duplicate_defs();
     }
 
     pub fn enable(&mut self, name: &str, function_enablement: FunctionEnablement) {
@@ -135,7 +137,6 @@ impl Signature {
 
     /// Assume all local variables are distinct. Also this transformation preserves this property.
     fn lift_lambdas(&mut self) {
-        // TODO: cache identical lambdas
         let mut new_defs: Vec<(String, FunctionDefinition)> = Vec::new();
         self.defs.iter_mut().for_each(|(name, FunctionDefinition { args, body, var_bound, .. })| {
             let local_var_types = &mut vec![VType::Uniform; *var_bound];
@@ -177,6 +178,30 @@ impl Signature {
             Self::rename_local_vars_in_def(args, body, max_arg_size);
         });
     }
+
+    fn remove_duplicate_defs(&mut self) {
+        let mut def_replacement: HashMap<String, String> = HashMap::new();
+        let mut def_content_map = HashMap::new();
+        for (name, FunctionDefinition { args, body, c_type, .. }) in self.defs.iter().sorted_by_key(|(name, _)| *name) {
+            let chosen_name = def_content_map.entry((args, body, c_type)).or_insert_with(|| name);
+            if *chosen_name != name {
+                def_replacement.insert(name.clone(), chosen_name.clone());
+            }
+        }
+        for (name, replacement) in def_replacement.iter() {
+            let function_definition = self.defs.remove(name).unwrap();
+            let FunctionDefinition { need_simple, need_cps, need_specialized, .. } = function_definition;
+            let replacement_function_definition = self.defs.get_mut(replacement).unwrap();
+            replacement_function_definition.need_simple |= need_simple;
+            replacement_function_definition.need_cps |= need_cps;
+            replacement_function_definition.need_specialized |= need_specialized;
+        }
+        let mut def_replacer = DefReplacer { def_replacement };
+        self.defs.iter_mut().for_each(|(_, FunctionDefinition { body, .. })| {
+            def_replacer.transform_c_term(body);
+        });
+    }
+
     fn rename_local_vars_in_def(args: &mut [(usize, VType)], body: &mut CTerm, var_bound: &mut usize) {
         let mut renamer = DistinctVarRenamer { bindings: HashMap::new(), counter: 0 };
         for (i, _) in args.iter_mut() {
@@ -484,6 +509,19 @@ impl Transformer for Substitutor {
         let VTerm::Var { index } = v_term else { unreachable!() };
         if let Some(replacement) = self.bindings.get(index) {
             *v_term = replacement.clone();
+        }
+    }
+}
+
+struct DefReplacer {
+    def_replacement: HashMap<String, String>,
+}
+
+impl Transformer for DefReplacer {
+    fn transform_def(&mut self, c_term: &mut CTerm) {
+        let CTerm::Def { name, .. } = c_term else { unreachable!() };
+        if let Some(replacement) = self.def_replacement.get(name.as_str()) {
+            *name = replacement.clone()
         }
     }
 }
