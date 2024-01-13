@@ -236,7 +236,6 @@ impl BuiltinFunction {
     }
 
 
-    // TODO: replace this with a constant value to avoid allocations.
     fn trivial_continuation_impl(builder: &mut FunctionBuilder) {
         let entry_block = builder.create_block();
         builder.append_block_params_for_function_params(entry_block);

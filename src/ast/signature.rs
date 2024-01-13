@@ -276,6 +276,8 @@ impl Transformer for DistinctVarRenamer {
         let indexes = self.bindings.entry(index).or_default();
         let new_index = self.counter;
         indexes.push(new_index);
+        // TODO: rather than doing plus one, we can track what variables are no longer used and reuse them so that
+        //  continuation objects can be smaller.
         self.counter += 1;
         new_index
     }
