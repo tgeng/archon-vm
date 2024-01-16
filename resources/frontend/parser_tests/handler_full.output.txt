@@ -2,73 +2,77 @@ Handler {
     parameter: Int {
         value: 42,
     },
-    parameter_disposer: Lambda {
-        arg_names: [
-            (
-                "p",
-                Uniform,
-            ),
-        ],
-        body: Redex {
-            function: Identifier {
-                name: "_int_sub",
-                effect: Simple,
-            },
-            args: [
-                Identifier {
-                    name: "p",
+    parameter_disposer: Some(
+        Lambda {
+            arg_names: [
+                (
+                    "p",
+                    Uniform,
+                ),
+            ],
+            body: Redex {
+                function: Identifier {
+                    name: "_int_sub",
                     effect: Simple,
                 },
-                Int {
-                    value: 1,
-                },
-            ],
-        },
-        effect: Simple,
-    },
-    parameter_replicator: Lambda {
-        arg_names: [
-            (
-                "p",
-                Uniform,
-            ),
-        ],
-        body: Struct {
-            values: [
-                Redex {
-                    function: Identifier {
-                        name: "_int_add",
+                args: [
+                    Identifier {
+                        name: "p",
                         effect: Simple,
                     },
-                    args: [
-                        Identifier {
-                            name: "p",
-                            effect: Simple,
-                        },
-                        Int {
-                            value: 1,
-                        },
-                    ],
-                },
-                Redex {
-                    function: Identifier {
-                        name: "_int_add",
-                        effect: Simple,
+                    Int {
+                        value: 1,
                     },
-                    args: [
-                        Identifier {
-                            name: "p",
+                ],
+            },
+            effect: Simple,
+        },
+    ),
+    parameter_replicator: Some(
+        Lambda {
+            arg_names: [
+                (
+                    "p",
+                    Uniform,
+                ),
+            ],
+            body: Struct {
+                values: [
+                    Redex {
+                        function: Identifier {
+                            name: "_int_add",
                             effect: Simple,
                         },
-                        Int {
-                            value: 2,
+                        args: [
+                            Identifier {
+                                name: "p",
+                                effect: Simple,
+                            },
+                            Int {
+                                value: 1,
+                            },
+                        ],
+                    },
+                    Redex {
+                        function: Identifier {
+                            name: "_int_add",
+                            effect: Simple,
                         },
-                    ],
-                },
-            ],
+                        args: [
+                            Identifier {
+                                name: "p",
+                                effect: Simple,
+                            },
+                            Int {
+                                value: 2,
+                            },
+                        ],
+                    },
+                ],
+            },
+            effect: Simple,
         },
-        effect: Simple,
-    },
+    ),
     transform: Lambda {
         arg_names: [
             (

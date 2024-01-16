@@ -19,8 +19,8 @@ pub enum FTerm {
     OperationCall { eff: Box<FTerm>, args: Vec<FTerm>, effect: Effect },
     Handler {
         parameter: Box<FTerm>,
-        parameter_disposer: Box<FTerm>,
-        parameter_replicator: Box<FTerm>,
+        parameter_disposer: Option<Box<FTerm>>,
+        parameter_replicator: Option<Box<FTerm>>,
         transform: Box<FTerm>,
         handlers: Vec<(FTerm, FTerm, HandlerType)>,
         input: Box<FTerm>,

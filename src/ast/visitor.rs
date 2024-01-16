@@ -126,8 +126,8 @@ pub trait Visitor {
             input
         } = c_term else { unreachable!() };
         self.visit_v_term(parameter, ctx);
-        self.visit_v_term(parameter_disposer, ctx);
-        self.visit_v_term(parameter_replicator, ctx);
+        parameter_disposer.iter().for_each(|disposer| self.visit_v_term(disposer, ctx));
+        parameter_replicator.iter().for_each(|replicator| self.visit_v_term(replicator, ctx));
         self.visit_v_term(transform, ctx);
         for (eff, handler, ..) in handlers.iter() {
             self.visit_v_term(eff, ctx);

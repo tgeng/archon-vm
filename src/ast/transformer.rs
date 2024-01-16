@@ -144,8 +144,8 @@ pub trait Transformer {
             input
         } = c_term else { unreachable!() };
         self.transform_v_term(parameter);
-        self.transform_v_term(parameter_disposer);
-        self.transform_v_term(parameter_replicator);
+        parameter_disposer.iter_mut().for_each(|disposer| self.transform_v_term(disposer));
+        parameter_replicator.iter_mut().for_each(|replicator| self.transform_v_term(replicator));
         self.transform_v_term(transform);
         for (eff, handler, ..) in handlers.iter_mut() {
             self.transform_v_term(eff);

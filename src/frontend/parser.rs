@@ -795,26 +795,8 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
         |(((effect, parameter, ), handler_components), input)| {
             let mut handler = FTerm::Handler {
                 parameter: Box::new(parameter.unwrap_or(FTerm::Struct { values: vec![] })),
-                parameter_disposer: Box::new(FTerm::Lambda {
-                    arg_names: vec![("_".to_owned(), VType::Uniform)],
-                    body: Box::new(FTerm::Struct { values: vec![] }),
-                    effect: Effect::Simple,
-                }),
-                parameter_replicator: Box::new(FTerm::Lambda {
-                    arg_names: vec![("p".to_owned(), VType::Uniform)],
-                    body: Box::new(FTerm::Struct {
-                        values: vec![
-                            FTerm::Identifier {
-                                name: "p".to_owned(),
-                                effect: Effect::Simple,
-                            },
-                            FTerm::Identifier {
-                                name: "p".to_owned(),
-                                effect: Effect::Simple,
-                            }]
-                    }),
-                    effect: Effect::Simple,
-                }),
+                parameter_disposer: None,
+                parameter_replicator: None,
                 transform: Box::new(FTerm::Lambda {
                     arg_names: vec![("p".to_owned(), VType::Uniform), ("r".to_owned(), VType::Uniform)],
                     body: Box::new(FTerm::Identifier { name: "r".to_owned(), effect: Effect::Simple }),
@@ -825,8 +807,8 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
             };
             for handler_component in handler_components.into_iter() {
                 let FTerm::Handler {
-                    box parameter_disposer,
-                    box parameter_replicator,
+                    parameter_disposer,
+                    parameter_replicator,
                     box transform,
                     handlers,
                     ..
@@ -834,10 +816,10 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
 
                 match handler_component {
                     HandlerComponent::Disposer(disposer) => {
-                        *parameter_disposer = disposer;
+                        *parameter_disposer = Some(Box::new(disposer));
                     }
                     HandlerComponent::Replicator(replicator) => {
-                        *parameter_replicator = replicator;
+                        *parameter_replicator = Some(Box::new(replicator));
                     }
                     HandlerComponent::Transform(t) => {
                         *transform = t;

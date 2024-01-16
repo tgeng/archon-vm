@@ -4,39 +4,8 @@ Handler {
     parameter: Int {
         value: 0,
     },
-    parameter_disposer: Lambda {
-        arg_names: [
-            (
-                "_",
-                Uniform,
-            ),
-        ],
-        body: Struct {
-            values: [],
-        },
-        effect: Simple,
-    },
-    parameter_replicator: Lambda {
-        arg_names: [
-            (
-                "p",
-                Uniform,
-            ),
-        ],
-        body: Struct {
-            values: [
-                Identifier {
-                    name: "p",
-                    effect: Simple,
-                },
-                Identifier {
-                    name: "p",
-                    effect: Simple,
-                },
-            ],
-        },
-        effect: Simple,
-    },
+    parameter_disposer: None,
+    parameter_replicator: None,
     transform: Lambda {
         arg_names: [
             (
@@ -132,39 +101,8 @@ Handler {
             parameter: Int {
                 value: 1,
             },
-            parameter_disposer: Lambda {
-                arg_names: [
-                    (
-                        "_",
-                        Uniform,
-                    ),
-                ],
-                body: Struct {
-                    values: [],
-                },
-                effect: Simple,
-            },
-            parameter_replicator: Lambda {
-                arg_names: [
-                    (
-                        "p",
-                        Uniform,
-                    ),
-                ],
-                body: Struct {
-                    values: [
-                        Identifier {
-                            name: "p",
-                            effect: Simple,
-                        },
-                        Identifier {
-                            name: "p",
-                            effect: Simple,
-                        },
-                    ],
-                },
-                effect: Simple,
-            },
+            parameter_disposer: None,
+            parameter_replicator: None,
             transform: Lambda {
                 arg_names: [
                     (
@@ -366,30 +304,12 @@ Defs
                 parameter: Int {
                     value: 0,
                 },
-                parameter_disposer: Thunk {
-                    t: Redex {
-                        function: Def {
-                            name: "main$__lambda_0",
-                            effect: Simple,
-                        },
-                        args: [],
-                    },
-                    effect: Simple,
-                },
-                parameter_replicator: Thunk {
-                    t: Redex {
-                        function: Def {
-                            name: "main$__lambda_1",
-                            effect: Simple,
-                        },
-                        args: [],
-                    },
-                    effect: Simple,
-                },
+                parameter_disposer: None,
+                parameter_replicator: None,
                 transform: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "main$__lambda_2",
+                            name: "main$__lambda_0",
                             effect: Simple,
                         },
                         args: [],
@@ -404,7 +324,7 @@ Defs
                         Thunk {
                             t: Redex {
                                 function: Def {
-                                    name: "main$__lambda_3",
+                                    name: "main$__lambda_1",
                                     effect: Simple,
                                 },
                                 args: [],
@@ -420,7 +340,7 @@ Defs
                         Thunk {
                             t: Redex {
                                 function: Def {
-                                    name: "main$__lambda_4",
+                                    name: "main$__lambda_2",
                                     effect: Simple,
                                 },
                                 args: [],
@@ -433,7 +353,7 @@ Defs
                 input: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "main$__lambda_11",
+                            name: "main$__lambda_7",
                             effect: Simple,
                         },
                         args: [],
@@ -460,207 +380,6 @@ Defs
                     0,
                     Uniform,
                 ),
-            ],
-            body: Return {
-                value: Struct {
-                    values: [],
-                },
-            },
-            c_type: Default,
-            var_bound: 1,
-            need_simple: false,
-            need_cps: true,
-            need_specialized: false,
-        },
-    ),
-    (
-        "main$__lambda_1",
-        FunctionDefinition {
-            args: [
-                (
-                    0,
-                    Uniform,
-                ),
-            ],
-            body: Return {
-                value: Struct {
-                    values: [
-                        Var {
-                            index: 0,
-                        },
-                        Var {
-                            index: 0,
-                        },
-                    ],
-                },
-            },
-            c_type: Default,
-            var_bound: 1,
-            need_simple: false,
-            need_cps: true,
-            need_specialized: false,
-        },
-    ),
-    (
-        "main$__lambda_10",
-        FunctionDefinition {
-            args: [],
-            body: Let {
-                t: OperationCall {
-                    eff: Str {
-                        value: "set",
-                    },
-                    args: [
-                        Int {
-                            value: 1,
-                        },
-                    ],
-                    effect: Simple,
-                },
-                bound_index: 0,
-                body: Let {
-                    t: OperationCall {
-                        eff: Str {
-                            value: "inc",
-                        },
-                        args: [],
-                        effect: Simple,
-                    },
-                    bound_index: 1,
-                    body: Let {
-                        t: OperationCall {
-                            eff: Str {
-                                value: "inc",
-                            },
-                            args: [],
-                            effect: Simple,
-                        },
-                        bound_index: 2,
-                        body: Let {
-                            t: OperationCall {
-                                eff: Str {
-                                    value: "dup",
-                                },
-                                args: [],
-                                effect: Simple,
-                            },
-                            bound_index: 3,
-                            body: OperationCall {
-                                eff: Str {
-                                    value: "get",
-                                },
-                                args: [],
-                                effect: Simple,
-                            },
-                        },
-                    },
-                },
-            },
-            c_type: Default,
-            var_bound: 4,
-            need_simple: false,
-            need_cps: true,
-            need_specialized: false,
-        },
-    ),
-    (
-        "main$__lambda_11",
-        FunctionDefinition {
-            args: [],
-            body: Handler {
-                parameter: Int {
-                    value: 1,
-                },
-                parameter_disposer: Thunk {
-                    t: Redex {
-                        function: Def {
-                            name: "main$__lambda_0",
-                            effect: Simple,
-                        },
-                        args: [],
-                    },
-                    effect: Simple,
-                },
-                parameter_replicator: Thunk {
-                    t: Redex {
-                        function: Def {
-                            name: "main$__lambda_1",
-                            effect: Simple,
-                        },
-                        args: [],
-                    },
-                    effect: Simple,
-                },
-                transform: Thunk {
-                    t: Redex {
-                        function: Def {
-                            name: "main$__lambda_2",
-                            effect: Simple,
-                        },
-                        args: [],
-                    },
-                    effect: Simple,
-                },
-                handlers: [
-                    (
-                        Str {
-                            value: "inc",
-                        },
-                        Thunk {
-                            t: Redex {
-                                function: Def {
-                                    name: "main$__lambda_8",
-                                    effect: Simple,
-                                },
-                                args: [],
-                            },
-                            effect: Simple,
-                        },
-                        Affine,
-                    ),
-                    (
-                        Str {
-                            value: "dup",
-                        },
-                        Thunk {
-                            t: Redex {
-                                function: Def {
-                                    name: "main$__lambda_9",
-                                    effect: Simple,
-                                },
-                                args: [],
-                            },
-                            effect: Simple,
-                        },
-                        Affine,
-                    ),
-                ],
-                input: Thunk {
-                    t: Redex {
-                        function: Def {
-                            name: "main$__lambda_10",
-                            effect: Simple,
-                        },
-                        args: [],
-                    },
-                    effect: Simple,
-                },
-            },
-            c_type: Default,
-            var_bound: 0,
-            need_simple: false,
-            need_cps: true,
-            need_specialized: false,
-        },
-    ),
-    (
-        "main$__lambda_2",
-        FunctionDefinition {
-            args: [
-                (
-                    0,
-                    Uniform,
-                ),
                 (
                     1,
                     Uniform,
@@ -679,7 +398,7 @@ Defs
         },
     ),
     (
-        "main$__lambda_3",
+        "main$__lambda_1",
         FunctionDefinition {
             args: [
                 (
@@ -714,7 +433,7 @@ Defs
         },
     ),
     (
-        "main$__lambda_4",
+        "main$__lambda_2",
         FunctionDefinition {
             args: [
                 (
@@ -753,7 +472,7 @@ Defs
         },
     ),
     (
-        "main$__lambda_8",
+        "main$__lambda_4",
         FunctionDefinition {
             args: [
                 (
@@ -834,7 +553,7 @@ Defs
         },
     ),
     (
-        "main$__lambda_9",
+        "main$__lambda_5",
         FunctionDefinition {
             args: [
                 (
@@ -909,6 +628,140 @@ Defs
             },
             c_type: Default,
             var_bound: 5,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_6",
+        FunctionDefinition {
+            args: [],
+            body: Let {
+                t: OperationCall {
+                    eff: Str {
+                        value: "set",
+                    },
+                    args: [
+                        Int {
+                            value: 1,
+                        },
+                    ],
+                    effect: Simple,
+                },
+                bound_index: 0,
+                body: Let {
+                    t: OperationCall {
+                        eff: Str {
+                            value: "inc",
+                        },
+                        args: [],
+                        effect: Simple,
+                    },
+                    bound_index: 1,
+                    body: Let {
+                        t: OperationCall {
+                            eff: Str {
+                                value: "inc",
+                            },
+                            args: [],
+                            effect: Simple,
+                        },
+                        bound_index: 2,
+                        body: Let {
+                            t: OperationCall {
+                                eff: Str {
+                                    value: "dup",
+                                },
+                                args: [],
+                                effect: Simple,
+                            },
+                            bound_index: 3,
+                            body: OperationCall {
+                                eff: Str {
+                                    value: "get",
+                                },
+                                args: [],
+                                effect: Simple,
+                            },
+                        },
+                    },
+                },
+            },
+            c_type: Default,
+            var_bound: 4,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_7",
+        FunctionDefinition {
+            args: [],
+            body: Handler {
+                parameter: Int {
+                    value: 1,
+                },
+                parameter_disposer: None,
+                parameter_replicator: None,
+                transform: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "main$__lambda_0",
+                            effect: Simple,
+                        },
+                        args: [],
+                    },
+                    effect: Simple,
+                },
+                handlers: [
+                    (
+                        Str {
+                            value: "inc",
+                        },
+                        Thunk {
+                            t: Redex {
+                                function: Def {
+                                    name: "main$__lambda_4",
+                                    effect: Simple,
+                                },
+                                args: [],
+                            },
+                            effect: Simple,
+                        },
+                        Affine,
+                    ),
+                    (
+                        Str {
+                            value: "dup",
+                        },
+                        Thunk {
+                            t: Redex {
+                                function: Def {
+                                    name: "main$__lambda_5",
+                                    effect: Simple,
+                                },
+                                args: [],
+                            },
+                            effect: Simple,
+                        },
+                        Affine,
+                    ),
+                ],
+                input: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "main$__lambda_6",
+                            effect: Simple,
+                        },
+                        args: [],
+                    },
+                    effect: Simple,
+                },
+            },
+            c_type: Default,
+            var_bound: 0,
             need_simple: false,
             need_cps: true,
             need_specialized: false,

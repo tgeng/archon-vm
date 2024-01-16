@@ -397,14 +397,12 @@ pub unsafe fn runtime_process_simple_handler_result(
                 // The exceptional value is stored inside the state field of the continuation.
                 state: handler_output_result,
             };
-            let last_handler = convert_handler_transformers_to_disposers(
+            let (next_continuation, next_base_address) = convert_handler_transformers_to_disposers(
                 (*matching_handler).transform_loader_base_address,
                 handler_index,
                 simple_exception_continuation,
                 runtime_disposer_loader_cps_impl,
             );
-            let next_base_address = (*last_handler).transform_loader_base_address;
-            let next_continuation = (*last_handler).transform_loader_continuation;
             // Actually the result is not needed since the continuation is a disposer loader continuation, which always
             // ignores the last result.
             let result_ptr = next_base_address.sub(1);
@@ -440,7 +438,7 @@ unsafe fn convert_handler_transformers_to_disposers(
     matching_handler_index: usize,
     mut next_continuation: *mut Continuation,
     runtime_disposer_loader_cps_impl: ContImplPtr,
-) -> *const Handler<*mut Uniform> {
+) -> (*mut Continuation, *mut Uniform) {
     let mut next_base_address = if (*next_continuation).state == usize::MAX {
         // Disregard the height of trivial continuations because they are not supposed to be used.
         // Changes to the frame height of trivial continuations is useful. But the same information
@@ -468,6 +466,7 @@ unsafe fn convert_handler_transformers_to_disposers(
         let mut last_handler = std::ptr::null();
         for entry in handlers[matching_handler_index..].iter_mut() {
             let HandlerEntry::Handler(handler) = entry else { unreachable!() };
+            let parameter_disposer = handler.parameter_disposer as Uniform;
             (*handler.transform_loader_continuation).next = next_continuation;
             (*handler.transform_loader_continuation).func = runtime_disposer_loader_cps_impl;
             if (*next_continuation).state != usize::MAX {
@@ -481,10 +480,10 @@ unsafe fn convert_handler_transformers_to_disposers(
 
             next_continuation = handler.transform_loader_continuation;
             next_base_address = handler.transform_loader_base_address;
-            handler.transform_loader_base_address.write(handler.parameter_disposer as usize);
+            handler.transform_loader_base_address.write(parameter_disposer);
             last_handler = handler;
         }
-        last_handler
+        ((*last_handler).transform_loader_continuation, (*last_handler).transform_loader_base_address)
     })
 }
 
@@ -654,14 +653,12 @@ pub unsafe fn runtime_prepare_dispose_continuation(
         dispose_num_args,
     );
 
-    let last_handler = convert_handler_transformers_to_disposers(
+    let (next_continuation, next_base_address) = convert_handler_transformers_to_disposers(
         base_address,
         matching_handler_index,
         next_continuation,
         runtime_disposer_loader_cps_impl,
     );
-    let next_continuation = (*last_handler).transform_loader_continuation;
-    let next_base_address = (*last_handler).transform_loader_base_address;
 
     // Write the last result
     let last_result_address = next_base_address.sub(1);
@@ -767,9 +764,16 @@ pub unsafe fn runtime_replicate_continuation(
                 HandlerEntry::Handler(handler) => handler,
                 _ => panic!("Expect a handler entry")
             };
+            let parameter_replicator = handler.parameter_replicator;
+            if parameter_replicator as Uniform == 0b11 {
+                // if parameter replicator is null, then we just shallow copy the parameter (that's fine since
+                // everything on the heap is immutable)
+                parameters.push((handler.parameter, handler.parameter));
+                continue;
+            }
             let mut tip_address = base_address.sub(1);
             tip_address.write(handler.parameter);
-            let replicator_func_ptr = runtime_force_thunk(handler.parameter_replicator, &mut tip_address);
+            let replicator_func_ptr = runtime_force_thunk(parameter_replicator, &mut tip_address);
             let parameter_pair = runtime_invoke_cps_function_with_trivial_continuation(replicator_func_ptr, tip_address);
             parameters.push((parameter_pair.read(), parameter_pair.add(1).read()));
         }

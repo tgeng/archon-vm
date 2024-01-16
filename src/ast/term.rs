@@ -125,9 +125,9 @@ pub enum CTerm {
     Handler {
         parameter: VTerm,
         /// thunk of lambda: parameter -> 0
-        parameter_disposer: VTerm,
+        parameter_disposer: Option<VTerm>,
         /// thunk of lambda: parameter -> (parameter, parameter)
-        parameter_replicator: VTerm,
+        parameter_replicator: Option<VTerm>,
         /// thunk of lambda: (parameter, input) -> output
         transform: VTerm,
         /// each linear handler: (effect, thunk of lambda: (parameter index, operation_arg indexes...) -> (param, result type))

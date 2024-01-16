@@ -428,9 +428,15 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         } = handler_c_term else { unreachable!() };
         let parameter_typed_value = self.translate_v_term(parameter);
         let parameter_value = self.convert_to_uniform(parameter_typed_value);
-        let parameter_disposer_typed_value = self.translate_v_term(parameter_disposer);
+        let parameter_disposer_typed_value = match parameter_disposer {
+            Some(parameter_disposer) => self.translate_v_term(parameter_disposer),
+            None => Some((self.function_builder.ins().iconst(I64, 0b11), Uniform)),
+        };
         let parameter_disposer_value = self.convert_to_uniform(parameter_disposer_typed_value);
-        let parameter_replicator_typed_value = self.translate_v_term(parameter_replicator);
+        let parameter_replicator_typed_value =  match parameter_replicator {
+            Some(parameter_replicator) => self.translate_v_term(parameter_replicator),
+            None => Some((self.function_builder.ins().iconst(I64, 0b11), Uniform)),
+        };
         let parameter_replicator_value = self.convert_to_uniform(parameter_replicator_typed_value);
         let transform_typed_value = self.translate_v_term(transform);
         let transform_value = self.convert_to_uniform(transform_typed_value);

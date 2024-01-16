@@ -196,15 +196,15 @@ impl Transpiler {
             }
             FTerm::Handler {
                 box parameter,
-                box parameter_disposer,
-                box parameter_replicator,
+                parameter_disposer,
+                parameter_replicator,
                 box transform,
                 handlers,
                 box input
             } => {
                 self.transpile_value_and_map(parameter, context, |(s, parameter)| {
-                    s.transpile_value_and_map(parameter_disposer, context, |(s, parameter_disposer)| {
-                        s.transpile_value_and_map(parameter_replicator, context, |(s, parameter_replicator)| {
+                    s.transpile_option_value_and_map(parameter_disposer, context, |(s, parameter_disposer)| {
+                        s.transpile_option_value_and_map(parameter_replicator, context, |(s, parameter_replicator)| {
                             s.transpile_value_and_map(transform, context, |(s, transform)| {
                                 let (simple_effs, simple_handlers, handler_types): (Vec<_>, Vec<_>, Vec<_>) = itertools::multiunzip(handlers);
                                 let (effs_v, simple_effs_c) = s.transpile_values(simple_effs, context);
@@ -267,6 +267,20 @@ impl Transpiler {
 
     fn transpile_values(&mut self, f_terms: Vec<FTerm>, context: &Context) -> (Vec<VTerm>, Vec<Option<(usize, CTerm)>>) {
         f_terms.into_iter().map(|v| self.transpile_value(v, context)).unzip()
+    }
+
+    fn transpile_option_value_and_map<F>(&mut self, f_term: Option<Box<FTerm>>, context: &Context, f: F) -> CTerm where F: FnOnce((&mut Self, Option<VTerm>)) -> CTerm {
+        match f_term {
+            Some(box f_term) => {
+                let (v_term, computation) = self.transpile_value(f_term, context);
+                if let Some((name, computation)) = computation {
+                    CTerm::Let { t: Box::new(computation), bound_index: name, body: Box::new(f((self, Some(v_term)))) }
+                } else {
+                    f((self, Some(v_term)))
+                }
+            }
+            None => f((self, None)),
+        }
     }
 
     fn transpile_value_and_map<F>(&mut self, f_term: FTerm, context: &Context, f: F) -> CTerm where F: FnOnce((&mut Self, VTerm)) -> CTerm {
@@ -381,15 +395,21 @@ impl Transpiler {
             }
             FTerm::Handler {
                 box parameter,
-                box parameter_disposer,
-                box parameter_replicator,
+                parameter_disposer,
+                parameter_replicator,
                 box transform,
                 handlers: simple_handlers,
                 box input
             } => {
                 Self::get_free_vars(parameter, bound_names, free_vars);
-                Self::get_free_vars(parameter_disposer, bound_names, free_vars);
-                Self::get_free_vars(parameter_replicator, bound_names, free_vars);
+                match parameter_disposer {
+                    Some(box parameter_disposer) => Self::get_free_vars(parameter_disposer, bound_names, free_vars),
+                    None => {}
+                };
+                match parameter_replicator {
+                    Some(box parameter_replicator) => Self::get_free_vars(parameter_replicator, bound_names, free_vars),
+                    None => {}
+                };
                 Self::get_free_vars(transform, bound_names, free_vars);
                 simple_handlers.iter().for_each(|(eff, handler, ..)| {
                     Self::get_free_vars(eff, bound_names, free_vars);
