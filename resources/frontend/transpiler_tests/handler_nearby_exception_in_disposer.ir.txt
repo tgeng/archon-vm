@@ -77,7 +77,7 @@ Handler {
         },
         effect: Simple,
     },
-    simple_handlers: [
+    handlers: [
         (
             Str {
                 value: "track",
@@ -125,9 +125,9 @@ Handler {
                 },
                 effect: Simple,
             },
+            Affine,
         ),
     ],
-    complex_handlers: [],
     input: Thunk {
         computation: Handler {
             parameter: Struct {
@@ -191,7 +191,7 @@ Handler {
                 },
                 effect: Simple,
             },
-            simple_handlers: [
+            handlers: [
                 (
                     Str {
                         value: "outerExp",
@@ -242,9 +242,9 @@ Handler {
                         },
                         effect: Simple,
                     },
+                    Affine,
                 ),
             ],
-            complex_handlers: [],
             input: Thunk {
                 computation: Handler {
                     parameter: Struct {
@@ -308,7 +308,7 @@ Handler {
                         },
                         effect: Simple,
                     },
-                    simple_handlers: [
+                    handlers: [
                         (
                             Str {
                                 value: "innerExp",
@@ -359,9 +359,9 @@ Handler {
                                 },
                                 effect: Simple,
                             },
+                            Affine,
                         ),
                     ],
-                    complex_handlers: [],
                     input: Thunk {
                         computation: Handler {
                             parameter: Struct {
@@ -439,8 +439,7 @@ Handler {
                                 },
                                 effect: Simple,
                             },
-                            simple_handlers: [],
-                            complex_handlers: [],
+                            handlers: [],
                             input: Thunk {
                                 computation: Let {
                                     name: "_",
@@ -513,8 +512,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [],
-                simple_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "track",
@@ -529,6 +527,7 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
                 ],
                 input: Thunk {
@@ -789,8 +788,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [],
-                simple_handlers: [],
+                handlers: [],
                 input: Thunk {
                     t: Redex {
                         function: Def {
@@ -847,8 +845,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [],
-                simple_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "innerExp",
@@ -863,6 +860,7 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
                 ],
                 input: Thunk {
@@ -921,8 +919,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [],
-                simple_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "outerExp",
@@ -937,6 +934,7 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
                 ],
                 input: Thunk {

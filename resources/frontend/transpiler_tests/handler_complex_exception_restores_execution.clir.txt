@@ -4,33 +4,31 @@ CLIR
 function u0:0(i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
     gv0 = symbol colocated userextname0
-    gv1 = symbol colocated userextname9
+    gv1 = symbol colocated userextname7
     sig0 = (i64) -> i64 apple_aarch64
     sig1 = (i64, i64) -> i64 tail
     sig2 = (i64, i64) -> i64 tail
     sig3 = (i64, i64) -> i64 tail
     sig4 = (i64, i64, i64) -> i64 tail
     sig5 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
-    sig6 = (i64, i64, i64) apple_aarch64
-    sig7 = (i64, i64, i64) apple_aarch64
-    sig8 = (i64, i64) -> i64 tail
-    sig9 = (i64, i64, i64, i64) -> i64 tail
-    sig10 = (i64, i64) -> i64 tail
-    sig11 = (i64) -> i64 apple_aarch64
-    sig12 = (i64, i64) -> i64 apple_aarch64
+    sig6 = (i64, i64) -> i64 tail
+    sig7 = (i64, i64, i64, i64) apple_aarch64
+    sig8 = (i64, i64, i64, i64) -> i64 tail
+    sig9 = (i64, i64) -> i64 tail
+    sig10 = (i64) -> i64 apple_aarch64
+    sig11 = (i64, i64) -> i64 apple_aarch64
     fn0 = u0:0 sig0
-    fn1 = colocated u0:22 sig1
-    fn2 = colocated u0:24 sig2
-    fn3 = colocated u0:26 sig3
-    fn4 = colocated u0:20 sig4
+    fn1 = colocated u0:21 sig1
+    fn2 = colocated u0:23 sig2
+    fn3 = colocated u0:25 sig3
+    fn4 = colocated u0:19 sig4
     fn5 = u0:6 sig5
-    fn6 = u0:7 sig6
-    fn7 = u0:8 sig7
-    fn8 = colocated u0:28 sig8
-    fn9 = u0:13 sig9
-    fn10 = colocated u0:30 sig10
-    fn11 = u0:0 sig11
-    fn12 = u0:1 sig12
+    fn6 = colocated u0:27 sig6
+    fn7 = u0:7 sig7
+    fn8 = u0:12 sig8
+    fn9 = colocated u0:29 sig9
+    fn10 = u0:0 sig10
+    fn11 = u0:1 sig11
 
 block0(v0: i64, v1: i64):
     v2 = global_value.i64 gv0
@@ -52,35 +50,36 @@ block0(v0: i64, v1: i64):
     v17 = symbol_value.i64 gv1
     v18 = iadd_imm v17, 8
     v19 = iadd_imm v18, 3
-    v20 = func_addr.i64 fn8
+    v20 = func_addr.i64 fn6
     v21 = iadd_imm v20, 3
-    call fn7(v15, v19, v21)
-    v22 = load.i64 v15
-    v23 = func_addr.i64 fn10
-    v24 = iconst.i64 1
-    v25 = iadd_imm v23, 3
-    v26 = ishl_imm v1, 1
-    v27 = iconst.i64 3
-    v28 = call fn11(v27)  ; v27 = 3
-    store aligned v25, v28
-    store aligned v24, v28+8  ; v24 = 1
-    store aligned v26, v28+16
-    v29 = iadd_imm v28, 1
+    v22 = iconst.i64 3
+    call fn7(v15, v19, v21, v22)  ; v22 = 3
+    v23 = load.i64 v15
+    v24 = func_addr.i64 fn9
+    v25 = iconst.i64 1
+    v26 = iadd_imm v24, 3
+    v27 = ishl_imm v1, 1
+    v28 = iconst.i64 3
+    v29 = call fn10(v28)  ; v28 = 3
+    store aligned v26, v29
+    store aligned v25, v29+8  ; v25 = 1
+    store aligned v27, v29+16
+    v30 = iadd_imm v29, 1
     stack_store v16, ss0
-    v30 = stack_addr.i64 ss0
-    v31 = call fn12(v29, v30)
-    v32 = stack_load.i64 ss0
-    v33 = isub v16, v32
-    v34 = load.i64 v22+8
-    v35 = ishl_imm v34, 3
-    v36 = iadd v35, v33
-    v37 = ushr_imm v36, 3
-    store v37, v22+8
-    v38 = call fn9(v32, v22, v31, v15)
-    v39 = load.i64 v38
-    v40 = iadd_imm v38, 8
-    v41 = sshr_imm v39, 1
-    return v41
+    v31 = stack_addr.i64 ss0
+    v32 = call fn11(v30, v31)
+    v33 = stack_load.i64 ss0
+    v34 = isub v16, v33
+    v35 = load.i64 v23+8
+    v36 = ishl_imm v35, 3
+    v37 = iadd v36, v34
+    v38 = ushr_imm v37, 3
+    store v38, v23+8
+    v39 = call fn8(v33, v23, v32, v15)
+    v40 = load.i64 v39
+    v41 = iadd_imm v39, 8
+    v42 = sshr_imm v40, 1
+    return v42
 }
 
 
@@ -201,11 +200,11 @@ function u0:0(i64, i64, i64) -> i64 tail {
     sig6 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
     sig7 = (i64, i64) -> i64 tail
     sig8 = (i64, i64, i64) -> i64 tail
-    fn0 = colocated u0:15 sig0
-    fn1 = colocated u0:18 sig1
+    fn0 = colocated u0:14 sig0
+    fn1 = colocated u0:17 sig1
     fn2 = u0:4 sig2
-    fn3 = colocated u0:15 sig4
-    fn4 = colocated u0:18 sig5
+    fn3 = colocated u0:14 sig4
+    fn4 = colocated u0:17 sig5
     fn5 = u0:4 sig6
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -282,7 +281,7 @@ function u0:0(i64, i64) -> i64 tail {
     sig0 = (i64) -> i64 apple_aarch64
     sig1 = (i64, i64, i64) -> i64 tail
     fn0 = u0:0 sig0
-    fn1 = colocated u0:31 sig1
+    fn1 = colocated u0:30 sig1
 
 block0(v0: i64, v1: i64):
     v2 = iconst.i64 48
@@ -299,29 +298,27 @@ block0(v0: i64, v1: i64):
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     gv0 = symbol colocated userextname0
-    gv1 = symbol colocated userextname7
+    gv1 = symbol colocated userextname6
     sig0 = (i64, i64) -> i64 tail
     sig1 = (i64, i64) -> i64 tail
     sig2 = (i64, i64) -> i64 tail
     sig3 = (i64, i64, i64) -> i64 tail
     sig4 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
-    sig5 = (i64, i64, i64) apple_aarch64
-    sig6 = (i64, i64) -> i64 tail
-    sig7 = (i64, i64, i64) apple_aarch64
-    sig8 = (i64, i64, i64, i64) -> i64 tail
-    sig9 = (i64, i64) -> i64 tail
-    sig10 = (i64, i64) -> i64 apple_aarch64
-    fn0 = colocated u0:22 sig0
-    fn1 = colocated u0:24 sig1
-    fn2 = colocated u0:33 sig2
-    fn3 = colocated u0:20 sig3
+    sig5 = (i64, i64) -> i64 tail
+    sig6 = (i64, i64, i64, i64) apple_aarch64
+    sig7 = (i64, i64, i64, i64) -> i64 tail
+    sig8 = (i64, i64) -> i64 tail
+    sig9 = (i64, i64) -> i64 apple_aarch64
+    fn0 = colocated u0:21 sig0
+    fn1 = colocated u0:23 sig1
+    fn2 = colocated u0:32 sig2
+    fn3 = colocated u0:19 sig3
     fn4 = u0:6 sig4
-    fn5 = u0:7 sig5
-    fn6 = colocated u0:35 sig6
-    fn7 = u0:8 sig7
-    fn8 = u0:13 sig8
-    fn9 = colocated u0:37 sig9
-    fn10 = u0:1 sig10
+    fn5 = colocated u0:34 sig5
+    fn6 = u0:7 sig6
+    fn7 = u0:12 sig7
+    fn8 = colocated u0:36 sig8
+    fn9 = u0:1 sig9
 
 block0(v0: i64):
     v1 = global_value.i64 gv0
@@ -342,27 +339,28 @@ block0(v0: i64):
     v15 = symbol_value.i64 gv1
     v16 = iadd_imm v15, 8
     v17 = iadd_imm v16, 3
-    v18 = func_addr.i64 fn6
+    v18 = func_addr.i64 fn5
     v19 = iadd_imm v18, 3
-    call fn5(v13, v17, v19)
-    v20 = load.i64 v13
-    v21 = func_addr.i64 fn9
-    v22 = iadd_imm v21, 3
+    v20 = iconst.i64 2
+    call fn6(v13, v17, v19, v20)  ; v20 = 2
+    v21 = load.i64 v13
+    v22 = func_addr.i64 fn8
+    v23 = iadd_imm v22, 3
     stack_store v14, ss0
-    v23 = stack_addr.i64 ss0
-    v24 = call fn10(v22, v23)
-    v25 = stack_load.i64 ss0
-    v26 = isub v14, v25
-    v27 = load.i64 v20+8
-    v28 = ishl_imm v27, 3
-    v29 = iadd v28, v26
-    v30 = ushr_imm v29, 3
-    store v30, v20+8
-    v31 = call fn8(v25, v20, v24, v13)
-    v32 = load.i64 v31
-    v33 = iadd_imm v31, 8
-    v34 = sshr_imm v32, 1
-    return v34
+    v24 = stack_addr.i64 ss0
+    v25 = call fn9(v23, v24)
+    v26 = stack_load.i64 ss0
+    v27 = isub v14, v26
+    v28 = load.i64 v21+8
+    v29 = ishl_imm v28, 3
+    v30 = iadd v29, v27
+    v31 = ushr_imm v30, 3
+    store v31, v21+8
+    v32 = call fn7(v26, v21, v25, v13)
+    v33 = load.i64 v32
+    v34 = iadd_imm v32, 8
+    v35 = sshr_imm v33, 1
+    return v35
 }
 
 
@@ -464,20 +462,20 @@ function u0:0(i64, i64) -> i64 tail {
     sig17 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
     sig18 = (i64, i64) -> i64 tail
     sig19 = (i64, i64, i64) -> i64 tail
-    fn0 = colocated u0:15 sig0
-    fn1 = colocated u0:18 sig1
+    fn0 = colocated u0:14 sig0
+    fn1 = colocated u0:17 sig1
     fn2 = u0:4 sig2
-    fn3 = colocated u0:21 sig4
-    fn4 = colocated u0:15 sig5
-    fn5 = colocated u0:18 sig6
+    fn3 = colocated u0:20 sig4
+    fn4 = colocated u0:14 sig5
+    fn5 = colocated u0:17 sig6
     fn6 = u0:4 sig7
-    fn7 = colocated u0:21 sig9
-    fn8 = colocated u0:15 sig10
-    fn9 = colocated u0:18 sig11
+    fn7 = colocated u0:20 sig9
+    fn8 = colocated u0:14 sig10
+    fn9 = colocated u0:17 sig11
     fn10 = u0:4 sig12
-    fn11 = colocated u0:21 sig14
-    fn12 = colocated u0:15 sig15
-    fn13 = colocated u0:18 sig16
+    fn11 = colocated u0:20 sig14
+    fn12 = colocated u0:14 sig15
+    fn13 = colocated u0:17 sig16
     fn14 = u0:4 sig17
 
 block0(v0: i64, v1: i64):
@@ -581,7 +579,7 @@ function u0:0() -> i64 fast {
     sig0 = () -> i64 apple_aarch64
     sig1 = (i64) -> i64 tail
     fn0 = u0:2 sig0
-    fn1 = colocated u0:32 sig1
+    fn1 = colocated u0:31 sig1
 
 block0:
     v0 = call fn0()

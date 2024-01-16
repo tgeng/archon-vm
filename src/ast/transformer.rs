@@ -140,19 +140,14 @@ pub trait Transformer {
             parameter_disposer,
             parameter_replicator,
             transform,
-            complex_handlers,
-            simple_handlers,
+            handlers,
             input
         } = c_term else { unreachable!() };
         self.transform_v_term(parameter);
         self.transform_v_term(parameter_disposer);
         self.transform_v_term(parameter_replicator);
         self.transform_v_term(transform);
-        for (eff, handler) in complex_handlers.iter_mut() {
-            self.transform_v_term(eff);
-            self.transform_v_term(handler);
-        }
-        for (eff, handler) in simple_handlers.iter_mut() {
+        for (eff, handler, ..) in handlers.iter_mut() {
             self.transform_v_term(eff);
             self.transform_v_term(handler);
         }

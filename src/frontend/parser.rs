@@ -10,6 +10,7 @@ use nom::multi::{many0, many1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use crate::frontend::f_term::{Def, FTerm};
 use nom_locate::{LocatedSpan};
+use cbpv_runtime::runtime::HandlerType;
 use crate::frontend::parser::Fixity::{*};
 use crate::ast::term::{CType, SpecializedType, PType, VType, Effect};
 
@@ -316,6 +317,14 @@ fn op_effect(input: Input) -> IResult<Input, Effect> {
     alt((
         token("#").map(|_| Effect::Simple),
         token("#!").map(|_| Effect::Complex),
+    ))(input)
+}
+
+fn op_declaration(input: Input) -> IResult<Input, HandlerType> {
+    alt((
+        // TODO: support linear and exceptional handlers
+        token("#").map(|_| HandlerType::Affine),
+        token("#!").map(|_| HandlerType::Complex),
     ))(input)
 }
 
@@ -754,7 +763,7 @@ enum HandlerComponent {
     Disposer(FTerm),
     Replicator(FTerm),
     Transform(FTerm),
-    Handler { eff: FTerm, handler: FTerm, effect: Effect },
+    Handler { eff: FTerm, handler: FTerm, handler_type: HandlerType },
 }
 
 fn handler_component(input: Input) -> IResult<Input, HandlerComponent> {
@@ -765,10 +774,10 @@ fn handler_component(input: Input) -> IResult<Input, HandlerComponent> {
         map(
             tuple((
                 atom,
-                op_effect,
+                op_declaration,
                 preceded(opt(newline), computation),
             )),
-            |(eff, effect, handler, )| HandlerComponent::Handler { eff, handler, effect },
+            |(eff, effect, handler, )| HandlerComponent::Handler { eff, handler, handler_type: effect },
         ),
     ))(input)
 }
@@ -810,8 +819,7 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
                     body: Box::new(FTerm::Identifier { name: "r".to_owned(), effect: Effect::Simple }),
                     effect: Effect::Simple,
                 }),
-                simple_handlers: vec![],
-                complex_handlers: vec![],
+                handlers: vec![],
                 input: Box::new(FTerm::Thunk { computation: Box::new(input), effect }),
             };
             for handler_component in handler_components.into_iter() {
@@ -819,8 +827,7 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
                     box parameter_disposer,
                     box parameter_replicator,
                     box transform,
-                    simple_handlers,
-                    complex_handlers,
+                    handlers,
                     ..
                 } = &mut handler else { unreachable!() };
 
@@ -834,14 +841,8 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
                     HandlerComponent::Transform(t) => {
                         *transform = t;
                     }
-                    HandlerComponent::Handler { eff, handler, effect } => {
-                        if effect == Effect::Complex {
-                            complex_handlers.push((eff, handler));
-                        } else if effect == Effect::Simple {
-                            simple_handlers.push((eff, handler));
-                        } else {
-                            unreachable!()
-                        }
+                    HandlerComponent::Handler { eff, handler, handler_type } => {
+                        handlers.push((eff, handler, handler_type));
                     }
                 }
             }

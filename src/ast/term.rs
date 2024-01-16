@@ -1,3 +1,5 @@
+use cbpv_runtime::runtime::HandlerType;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PType {
     I64,
@@ -128,10 +130,11 @@ pub enum CTerm {
         parameter_replicator: VTerm,
         /// thunk of lambda: (parameter, input) -> output
         transform: VTerm,
-        /// each handler: (effect, thunk of lambda: (parameter index, operation arg indexes...,  continuation index) -> output)
-        complex_handlers: Vec<(VTerm, VTerm)>,
-        /// each handler: (effect, thunk of lambda: (parameter index, operation_arg indexes...) -> output)
-        simple_handlers: Vec<(VTerm, VTerm)>,
+        /// each linear handler: (effect, thunk of lambda: (parameter index, operation_arg indexes...) -> (param, result type))
+        /// each exceptional handler: (effect, thunk of lambda: (parameter index, operation_arg indexes...) -> (param, output type))
+        /// each affine handler: (effect, thunk of lambda: (parameter index, operation_arg indexes...) -> (param, (tag, output type | result type)))
+        /// each compex handler: (effect, thunk of lambda: (parameter index, operation arg indexes...,  continuation index) -> output)
+        handlers: Vec<(VTerm, VTerm, HandlerType)>,
         /// A thunk that returns some value. A thunk is used because this would leverage the thunk
         /// lifting logic to lift this logic to a top level function, which is necessary to tuck in
         /// the transform continuation between this input and the parent term of this handler.

@@ -54,8 +54,7 @@ Handler {
         },
         effect: Simple,
     },
-    simple_handlers: [],
-    complex_handlers: [
+    handlers: [
         (
             Str {
                 value: "get",
@@ -95,6 +94,7 @@ Handler {
                 },
                 effect: Complex,
             },
+            Complex,
         ),
         (
             Str {
@@ -138,6 +138,7 @@ Handler {
                 },
                 effect: Complex,
             },
+            Complex,
         ),
     ],
     input: Thunk {
@@ -195,8 +196,7 @@ Handler {
                 },
                 effect: Simple,
             },
-            simple_handlers: [],
-            complex_handlers: [
+            handlers: [
                 (
                     Str {
                         value: "inc",
@@ -258,6 +258,7 @@ Handler {
                         },
                         effect: Complex,
                     },
+                    Complex,
                 ),
                 (
                     Str {
@@ -320,6 +321,7 @@ Handler {
                         },
                         effect: Complex,
                     },
+                    Complex,
                 ),
             ],
             input: Thunk {
@@ -422,7 +424,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "get",
@@ -437,6 +439,7 @@ Defs
                             },
                             effect: Complex,
                         },
+                        Complex,
                     ),
                     (
                         Str {
@@ -452,9 +455,9 @@ Defs
                             },
                             effect: Complex,
                         },
+                        Complex,
                     ),
                 ],
-                simple_handlers: [],
                 input: Thunk {
                     t: Redex {
                         function: Def {
@@ -626,7 +629,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "inc",
@@ -641,6 +644,7 @@ Defs
                             },
                             effect: Complex,
                         },
+                        Complex,
                     ),
                     (
                         Str {
@@ -656,9 +660,9 @@ Defs
                             },
                             effect: Complex,
                         },
+                        Complex,
                     ),
                 ],
-                simple_handlers: [],
                 input: Thunk {
                     t: Redex {
                         function: Def {

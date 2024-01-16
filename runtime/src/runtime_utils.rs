@@ -1,3 +1,4 @@
+use enum_ordinalize::Ordinalize;
 use std::arch::global_asm;
 use std::cell::RefCell;
 use std::io::Write;
@@ -5,7 +6,7 @@ use std::iter::Peekable;
 use std::ops::{DerefMut};
 use std::slice::IterMut;
 use crate::debug_helper::trace_continuation;
-use crate::runtime::{Continuation, HandlerEntry, Handler, Uniform, ThunkPtr, Eff, Generic, CapturedContinuation, RawFuncPtr, ContImplPtr};
+use crate::runtime::{Continuation, HandlerEntry, Handler, Uniform, ThunkPtr, Eff, Generic, CapturedContinuation, RawFuncPtr, ContImplPtr, HandlerTypeOrdinal, HandlerType};
 use crate::runtime::HandlerEntry::SimpleOperationMarker;
 use crate::types::{UPtr, UniformPtr, UniformType};
 
@@ -143,6 +144,7 @@ pub unsafe fn debug_helper(base: *const usize, last_result_ptr: *const usize, th
     return 1 + 1;
 }
 
+
 /// Returns the following results on the argument stack.
 /// - ptr + 0: the function pointer to the matched handler implementationon
 /// - ptr + 8: the base address used to find the arguments when invoking the handler implementation
@@ -157,9 +159,9 @@ pub unsafe fn runtime_prepare_operation(
     simple_handler_runner_impl_ptr: RawFuncPtr,
     may_be_complex: usize,
 ) -> *const usize {
-    let (handler_index, handler_impl, complex) = find_matching_handler(eff, may_be_complex);
+    let (handler_index, handler_impl, handler_type) = find_matching_handler(eff, may_be_complex);
     let (handler_function_ptr, new_base_address, next_continuation) =
-        if complex {
+        if handler_type == HandlerType::Complex {
             prepare_complex_operation(
                 handler_call_base_address,
                 tip_continuation,
@@ -174,7 +176,9 @@ pub unsafe fn runtime_prepare_operation(
                 tip_continuation,
                 simple_handler_runner_impl_ptr,
                 handler_index,
-                handler_impl)
+                handler_impl,
+                handler_type,
+            )
         };
     let result_ptr = new_base_address.sub(4);
     result_ptr.write(handler_function_ptr as usize);
@@ -290,6 +294,12 @@ unsafe fn create_captured_continuation_thunk(captured_continuation_thunk_impl: R
 #[repr(C, align(8))]
 pub struct SimpleResult<'a> {
     handler_parameter: Uniform,
+    /// Result value could be one of the following:
+    /// 1. an exceptional value
+    /// 2. a result value from the simpler linear operation
+    /// 3. a compound value of either an exception or a result value from an affine operation
+    /// The type used here provides easy access to the third case. But one can also call [UPtr.as_uniform] to get the
+    /// uniform representation for the first two cases.
     result_value: UPtr<&'a SimpleResultValue>,
 }
 
@@ -306,7 +316,9 @@ unsafe fn prepare_simple_operation(
     simple_handler_runner_impl_ptr: RawFuncPtr,
     handler_index: usize,
     handler_impl: ThunkPtr,
+    handler_type: HandlerType,
 ) -> (*const usize, *mut usize, *mut Continuation) {
+    assert!(handler_type != HandlerType::Complex);
     let matching_handler = HANDLERS.with(|handler| match handler.borrow_mut().get_mut(handler_index).unwrap() {
         HandlerEntry::Handler(handler) => handler as *mut Handler<*mut Uniform>,
         _ => panic!("Expect a handler entry")
@@ -318,6 +330,9 @@ unsafe fn prepare_simple_operation(
     tip_address = tip_address.sub(1);
     tip_address.write((*matching_handler).parameter);
     let handler_impl_ptr = runtime_force_thunk(handler_impl, &mut tip_address);
+
+    tip_address = tip_address.sub(1);
+    tip_address.write(handler_type.ordinal() as usize);
 
     tip_address = tip_address.sub(1);
     tip_address.write(handler_index);
@@ -340,6 +355,7 @@ unsafe fn prepare_simple_operation(
 /// all the evicted handlers.
 pub unsafe fn runtime_process_simple_handler_result(
     handler_index: usize,
+    simple_handler_type: HandlerTypeOrdinal,
     simple_result: &SimpleResult,
     simple_exception_continuation_impl: RawFuncPtr,
     runtime_disposer_loader_cps_impl: ContImplPtr,
@@ -359,9 +375,19 @@ pub unsafe fn runtime_process_simple_handler_result(
         handler
     });
 
-    match simple_result.result_value.tag {
+    let (value, tag) = match simple_handler_type {
+        0 => (simple_result.result_value.as_uniform(), 0),
+        1 => (simple_result.result_value.as_uniform(), 1),
+        2 => {
+            let ptr = simple_result.result_value;
+            (ptr.value, ptr.tag >> 1)
+        }
+        _ => unreachable!("bad simple operation type")
+    };
+
+    match tag {
         0 => unsafe {
-            let handler_output_result = simple_result.result_value.value;
+            let handler_output_result = value;
             let next_continuation = (*(*matching_handler).transform_loader_continuation).next;
             let simple_exception_continuation = runtime_alloc(4) as *mut Continuation;
             *simple_exception_continuation = Continuation {
@@ -389,7 +415,7 @@ pub unsafe fn runtime_process_simple_handler_result(
             // the continuation is a disposer loader continuation, which does not care about fp, sp, or lr.
             long_jump(next_base_address, next_continuation, result_ptr, matching_handler);
         }
-        0b10 => simple_result.result_value.value,
+        1 => value,
         _ => unreachable!("bad simple result tag")
     }
 }
@@ -462,7 +488,7 @@ unsafe fn convert_handler_transformers_to_disposers(
     })
 }
 
-fn find_matching_handler(eff: Eff, may_be_complex: usize) -> (usize, ThunkPtr, bool) {
+fn find_matching_handler(eff: Eff, may_be_complex: usize) -> (usize, ThunkPtr, HandlerType) {
     HANDLERS.with(|handlers| {
         let handlers = handlers.borrow();
         let mut i = handlers.len();
@@ -473,13 +499,18 @@ fn find_matching_handler(eff: Eff, may_be_complex: usize) -> (usize, ThunkPtr, b
                     if may_be_complex != 0 {
                         for (e, handler_impl) in &handler.complex_handler {
                             if unsafe { compare_uniform(eff, *e) } {
-                                return (handler_index, *handler_impl, true);
+                                return (handler_index, *handler_impl, HandlerType::Complex);
                             }
                         }
                     }
-                    for (e, handler_impl) in &handler.simple_handler {
+                    for (e, handler_impl, simple_operation_type) in &handler.simple_handler {
                         if unsafe { compare_uniform(eff, *e) } {
-                            return (handler_index, *handler_impl, false);
+                            return (handler_index, *handler_impl, match simple_operation_type {
+                                0 => HandlerType::Exceptional,
+                                1 => HandlerType::Linear,
+                                2 => HandlerType::Affine,
+                                _ => unreachable!("bad simple operation type")
+                            });
                         }
                     }
                     i = handler_index;
@@ -551,12 +582,12 @@ pub unsafe fn runtime_register_handler(
     })
 }
 
-pub fn runtime_add_simple_handler(handler: &mut Handler<*mut Uniform>, eff: Eff, handler_impl: ThunkPtr) {
-    handler.simple_handler.push((eff, handler_impl))
-}
-
-pub fn runtime_add_complex_handler(handler: &mut Handler<*mut Uniform>, eff: Eff, handler_impl: ThunkPtr) {
-    handler.complex_handler.push((eff, handler_impl))
+pub fn runtime_add_handler(handler: &mut Handler<*mut Uniform>, eff: Eff, handler_impl: ThunkPtr, handler_type: HandlerTypeOrdinal) {
+    if handler_type == HandlerType::Complex.ordinal() as usize {
+        handler.complex_handler.push((eff, handler_impl))
+    } else {
+        handler.simple_handler.push((eff, handler_impl, handler_type));
+    }
 }
 
 /// Returns a pointer pointing to the following:

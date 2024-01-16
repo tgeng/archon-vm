@@ -7,6 +7,8 @@ use cranelift::prelude::types::{F32, I32, I64};
 use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
 use crate::ast::term::{CTerm, VTerm, VType, SpecializedType, PType, CType, Effect};
 use enum_map::{EnumMap};
+use enum_ordinalize::Ordinalize;
+use cbpv_runtime::runtime::HandlerType;
 use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
 use crate::backend::common::{BuiltinData, BuiltinFunction, FunctionFlavor, HasType, TypedReturnValue, TypedValue};
@@ -421,8 +423,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             parameter_disposer,
             parameter_replicator,
             transform,
-            complex_handlers,
-            simple_handlers,
+            handlers,
             input
         } = handler_c_term else { unreachable!() };
         let parameter_typed_value = self.translate_v_term(parameter);
@@ -452,14 +453,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         self.load_tip_address_from_stack();
 
         // set up handlers
-        let add_simple_handler_func_ref = self.module.declare_func_in_func(
-            self.builtin_functions[BuiltinFunction::AddSimpleHandler],
-            self.function_builder.func);
-        self.add_handlers(handler, add_simple_handler_func_ref, simple_handlers);
-        let add_complex_handler_func_ref = self.module.declare_func_in_func(
-            self.builtin_functions[BuiltinFunction::AddComplexHandler],
-            self.function_builder.func);
-        self.add_handlers(handler, add_complex_handler_func_ref, complex_handlers);
+        self.add_handlers(handler, handlers);
 
         // The transform loader continuation is the first value inside the handler struct.
         let transform_loader_continuation = self.function_builder.ins().load(I64, MemFlags::new(), handler, 0);
@@ -492,13 +486,14 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         self.function_builder.ins().store(MemFlags::new(), new_continuation_height, continuation, 8);
     }
 
-    fn add_handlers(&mut self, handler: Value, add_handler_func_ref: FuncRef, handler_impls: &Vec<(VTerm, VTerm)>) {
-        for (eff, handler_impl) in handler_impls {
+    fn add_handlers(&mut self, handler: Value, handler_impls: &Vec<(VTerm, VTerm, HandlerType)>) {
+        for (eff, handler_impl, handler_type) in handler_impls {
             let eff_value = self.translate_v_term(eff);
             let eff_value = self.convert_to_uniform(eff_value);
             let handler_impl_value = self.translate_v_term(handler_impl);
             let handler_impl_value = self.convert_to_uniform(handler_impl_value);
-            self.function_builder.ins().call(add_handler_func_ref, &[handler, eff_value, handler_impl_value]);
+            let simple_operation_type_value = self.function_builder.ins().iconst(I64, handler_type.ordinal() as i64);
+            self.call_builtin_func(BuiltinFunction::AddHandler, &[handler, eff_value, handler_impl_value, simple_operation_type_value]);
         }
     }
 

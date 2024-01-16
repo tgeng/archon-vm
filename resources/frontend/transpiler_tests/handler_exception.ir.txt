@@ -54,7 +54,7 @@ Handler {
         },
         effect: Simple,
     },
-    simple_handlers: [
+    handlers: [
         (
             Str {
                 value: "exp",
@@ -86,9 +86,9 @@ Handler {
                 },
                 effect: Simple,
             },
+            Affine,
         ),
     ],
-    complex_handlers: [],
     input: Thunk {
         computation: Let {
             name: "_",
@@ -148,8 +148,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [],
-                simple_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "exp",
@@ -164,6 +163,7 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
                 ],
                 input: Thunk {

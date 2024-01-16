@@ -140,7 +140,7 @@ Defs {
                 },
                 effect: Simple,
             },
-            simple_handlers: [
+            handlers: [
                 (
                     Str {
                         value: "double",
@@ -188,9 +188,9 @@ Defs {
                         },
                         effect: Simple,
                     },
+                    Affine,
                 ),
             ],
-            complex_handlers: [],
             input: Thunk {
                 computation: Redex {
                     function: Identifier {
@@ -357,8 +357,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [],
-                simple_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "double",
@@ -373,6 +372,7 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
                 ],
                 input: Thunk {

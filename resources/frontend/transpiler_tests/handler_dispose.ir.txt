@@ -54,7 +54,7 @@ Handler {
         },
         effect: Simple,
     },
-    simple_handlers: [
+    handlers: [
         (
             Str {
                 value: "get",
@@ -87,6 +87,7 @@ Handler {
                 },
                 effect: Simple,
             },
+            Affine,
         ),
         (
             Str {
@@ -123,9 +124,9 @@ Handler {
                 },
                 effect: Simple,
             },
+            Affine,
         ),
     ],
-    complex_handlers: [],
     input: Thunk {
         computation: Handler {
             parameter: Int {
@@ -190,8 +191,7 @@ Handler {
                 },
                 effect: Simple,
             },
-            simple_handlers: [],
-            complex_handlers: [
+            handlers: [
                 (
                     Str {
                         value: "exp",
@@ -237,6 +237,7 @@ Handler {
                         },
                         effect: Simple,
                     },
+                    Complex,
                 ),
             ],
             input: Thunk {
@@ -301,8 +302,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [],
-                simple_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "get",
@@ -317,6 +317,7 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
                     (
                         Str {
@@ -332,6 +333,7 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
                 ],
                 input: Thunk {
@@ -443,7 +445,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "exp",
@@ -458,9 +460,9 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Complex,
                     ),
                 ],
-                simple_handlers: [],
                 input: Thunk {
                     t: Redex {
                         function: Def {

@@ -122,19 +122,14 @@ pub trait Visitor {
             parameter_disposer,
             parameter_replicator,
             transform,
-            complex_handlers,
-            simple_handlers,
+            handlers,
             input
         } = c_term else { unreachable!() };
         self.visit_v_term(parameter, ctx);
         self.visit_v_term(parameter_disposer, ctx);
         self.visit_v_term(parameter_replicator, ctx);
         self.visit_v_term(transform, ctx);
-        for (eff, handler) in complex_handlers.iter() {
-            self.visit_v_term(eff, ctx);
-            self.visit_v_term(handler, ctx);
-        }
-        for (eff, handler) in simple_handlers.iter() {
+        for (eff, handler, ..) in handlers.iter() {
             self.visit_v_term(eff, ctx);
             self.visit_v_term(handler, ctx);
         }

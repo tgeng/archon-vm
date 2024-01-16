@@ -66,7 +66,7 @@ Handler {
         },
         effect: Simple,
     },
-    simple_handlers: [
+    handlers: [
         (
             Int {
                 value: 11,
@@ -114,9 +114,9 @@ Handler {
                 },
                 effect: Simple,
             },
+            Affine,
         ),
     ],
-    complex_handlers: [],
     input: Thunk {
         computation: OperationCall {
             eff: Int {
@@ -174,8 +174,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [],
-                simple_handlers: [
+                handlers: [
                     (
                         Int {
                             value: 11,
@@ -190,6 +189,7 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
                 ],
                 input: Thunk {

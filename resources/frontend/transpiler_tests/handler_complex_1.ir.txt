@@ -54,8 +54,7 @@ Handler {
         },
         effect: Simple,
     },
-    simple_handlers: [],
-    complex_handlers: [
+    handlers: [
         (
             Int {
                 value: 123,
@@ -111,6 +110,7 @@ Handler {
                 },
                 effect: Complex,
             },
+            Complex,
         ),
     ],
     input: Thunk {
@@ -170,7 +170,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [
+                handlers: [
                     (
                         Int {
                             value: 123,
@@ -185,9 +185,9 @@ Defs
                             },
                             effect: Complex,
                         },
+                        Complex,
                     ),
                 ],
-                simple_handlers: [],
                 input: Thunk {
                     t: Redex {
                         function: Def {

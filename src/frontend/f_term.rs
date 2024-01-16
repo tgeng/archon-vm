@@ -1,3 +1,4 @@
+use cbpv_runtime::runtime::HandlerType;
 use crate::ast::term::{CType, Effect, VType};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -21,8 +22,7 @@ pub enum FTerm {
         parameter_disposer: Box<FTerm>,
         parameter_replicator: Box<FTerm>,
         transform: Box<FTerm>,
-        simple_handlers: Vec<(FTerm, FTerm)>,
-        complex_handlers: Vec<(FTerm, FTerm)>,
+        handlers: Vec<(FTerm, FTerm, HandlerType)>,
         input: Box<FTerm>,
     },
 }

@@ -54,8 +54,7 @@ Handler {
         },
         effect: Simple,
     },
-    simple_handlers: [],
-    complex_handlers: [
+    handlers: [
         (
             Str {
                 value: "getNumber",
@@ -182,6 +181,7 @@ Handler {
                 },
                 effect: Simple,
             },
+            Complex,
         ),
     ],
     input: Thunk {
@@ -263,7 +263,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "getNumber",
@@ -278,9 +278,9 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Complex,
                     ),
                 ],
-                simple_handlers: [],
                 input: Thunk {
                     t: Redex {
                         function: Def {

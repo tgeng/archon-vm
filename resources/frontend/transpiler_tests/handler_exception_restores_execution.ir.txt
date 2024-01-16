@@ -67,7 +67,7 @@ Defs {
                         },
                         effect: Simple,
                     },
-                    simple_handlers: [
+                    handlers: [
                         (
                             Str {
                                 value: "exp",
@@ -104,9 +104,9 @@ Defs {
                                 },
                                 effect: Simple,
                             },
+                            Affine,
                         ),
                     ],
-                    complex_handlers: [],
                     input: Thunk {
                         computation: Let {
                             name: "_",
@@ -229,7 +229,7 @@ Defs {
                 },
                 effect: Simple,
             },
-            simple_handlers: [
+            handlers: [
                 (
                     Str {
                         value: "track",
@@ -277,9 +277,9 @@ Defs {
                         },
                         effect: Simple,
                     },
+                    Affine,
                 ),
             ],
-            complex_handlers: [],
             input: Thunk {
                 computation: Let {
                     name: "_",
@@ -418,8 +418,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [],
-                simple_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "exp",
@@ -434,6 +433,7 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
                 ],
                 input: Thunk {
@@ -664,8 +664,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [],
-                simple_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "track",
@@ -680,6 +679,7 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
                 ],
                 input: Thunk {

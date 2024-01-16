@@ -199,34 +199,27 @@ impl Transpiler {
                 box parameter_disposer,
                 box parameter_replicator,
                 box transform,
-                simple_handlers,
-                complex_handlers,
+                handlers,
                 box input
             } => {
                 self.transpile_value_and_map(parameter, context, |(s, parameter)| {
                     s.transpile_value_and_map(parameter_disposer, context, |(s, parameter_disposer)| {
                         s.transpile_value_and_map(parameter_replicator, context, |(s, parameter_replicator)| {
                             s.transpile_value_and_map(transform, context, |(s, transform)| {
-                                let (simple_effs, simple_handlers): (Vec<_>, Vec<_>) = simple_handlers.into_iter().map(|(a, b)| (a, b)).unzip();
-                                let (simple_effs_v, simple_effs_c) = s.transpile_values(simple_effs, context);
-                                let (simple_handlers_v, simple_handlers_c) = s.transpile_values(simple_handlers, context);
-                                let (complex_effs, complex_handlers): (Vec<_>, Vec<_>) = complex_handlers.into_iter().map(|(a, b)| (a, b)).unzip();
-                                let (complex_effs_v, complex_effs_c) = s.transpile_values(complex_effs, context);
-                                let (complex_handlers_v, complex_handlers_c) = s.transpile_values(complex_handlers, context);
+                                let (simple_effs, simple_handlers, handler_types): (Vec<_>, Vec<_>, Vec<_>) = itertools::multiunzip(handlers);
+                                let (effs_v, simple_effs_c) = s.transpile_values(simple_effs, context);
+                                let (handlers_v, simple_handlers_c) = s.transpile_values(simple_handlers, context);
                                 s.transpile_value_and_map(input, context, |(_s, input)| {
                                     let handler = CTerm::Handler {
                                         parameter,
                                         parameter_disposer,
                                         parameter_replicator,
                                         transform,
-                                        simple_handlers: simple_effs_v.into_iter().zip(simple_handlers_v).collect(),
-                                        complex_handlers: complex_effs_v.into_iter().zip(complex_handlers_v).collect(),
+                                        handlers: itertools::multizip((effs_v, handlers_v, handler_types)).collect(),
                                         input,
                                     };
                                     let handler = Self::squash_computations(handler, simple_effs_c);
-                                    let handler = Self::squash_computations(handler, simple_handlers_c);
-                                    let handler = Self::squash_computations(handler, complex_effs_c);
-                                    Self::squash_computations(handler, complex_handlers_c)
+                                    Self::squash_computations(handler, simple_handlers_c)
                                 })
                             })
                         })
@@ -391,19 +384,14 @@ impl Transpiler {
                 box parameter_disposer,
                 box parameter_replicator,
                 box transform,
-                complex_handlers,
-                simple_handlers,
+                handlers: simple_handlers,
                 box input
             } => {
                 Self::get_free_vars(parameter, bound_names, free_vars);
                 Self::get_free_vars(parameter_disposer, bound_names, free_vars);
                 Self::get_free_vars(parameter_replicator, bound_names, free_vars);
                 Self::get_free_vars(transform, bound_names, free_vars);
-                complex_handlers.iter().for_each(|(eff, handler)| {
-                    Self::get_free_vars(eff, bound_names, free_vars);
-                    Self::get_free_vars(handler, bound_names, free_vars);
-                });
-                simple_handlers.iter().for_each(|(eff, handler)| {
+                simple_handlers.iter().for_each(|(eff, handler, ..)| {
                     Self::get_free_vars(eff, bound_names, free_vars);
                     Self::get_free_vars(handler, bound_names, free_vars);
                 });

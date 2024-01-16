@@ -54,7 +54,7 @@ Handler {
         },
         effect: Simple,
     },
-    simple_handlers: [
+    handlers: [
         (
             Str {
                 value: "accumulate",
@@ -110,6 +110,7 @@ Handler {
                 },
                 effect: Simple,
             },
+            Affine,
         ),
         (
             Str {
@@ -166,6 +167,7 @@ Handler {
                 },
                 effect: Simple,
             },
+            Affine,
         ),
         (
             Str {
@@ -217,9 +219,9 @@ Handler {
                 },
                 effect: Simple,
             },
+            Affine,
         ),
     ],
-    complex_handlers: [],
     input: Thunk {
         computation: Let {
             name: "_",
@@ -315,8 +317,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [],
-                simple_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "accumulate",
@@ -331,6 +332,7 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
                     (
                         Str {
@@ -346,6 +348,7 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
                     (
                         Str {
@@ -361,6 +364,7 @@ Defs
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
                 ],
                 input: Thunk {

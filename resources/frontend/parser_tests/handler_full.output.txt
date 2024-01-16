@@ -97,42 +97,7 @@ Handler {
         },
         effect: Simple,
     },
-    simple_handlers: [
-        (
-            Str {
-                value: "bar",
-            },
-            Lambda {
-                arg_names: [
-                    (
-                        "p",
-                        Uniform,
-                    ),
-                    (
-                        "x",
-                        Uniform,
-                    ),
-                ],
-                body: Redex {
-                    function: Identifier {
-                        name: "_int_add",
-                        effect: Simple,
-                    },
-                    args: [
-                        Identifier {
-                            name: "x",
-                            effect: Simple,
-                        },
-                        Int {
-                            value: 2,
-                        },
-                    ],
-                },
-                effect: Simple,
-            },
-        ),
-    ],
-    complex_handlers: [
+    handlers: [
         (
             Str {
                 value: "foo",
@@ -184,6 +149,41 @@ Handler {
                 },
                 effect: Complex,
             },
+            Complex,
+        ),
+        (
+            Str {
+                value: "bar",
+            },
+            Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                    (
+                        "x",
+                        Uniform,
+                    ),
+                ],
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                        effect: Simple,
+                    },
+                    args: [
+                        Identifier {
+                            name: "x",
+                            effect: Simple,
+                        },
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+                effect: Simple,
+            },
+            Affine,
         ),
     ],
     input: Thunk {

@@ -60,8 +60,7 @@ pub enum BuiltinFunction {
     PrepareOperation,
     PopHandler,
     RegisterHandler,
-    AddSimpleHandler,
-    AddComplexHandler,
+    AddHandler,
     PrepareResumeContinuation,
     PrepareDisposeContinuation,
     ReplicateContinuation,
@@ -120,8 +119,7 @@ impl BuiltinFunction {
             BuiltinFunction::PrepareOperation => "__runtime_prepare_complex_operation",
             BuiltinFunction::PopHandler => "__runtime_pop_handler",
             BuiltinFunction::RegisterHandler => "__runtime_register_handler",
-            BuiltinFunction::AddSimpleHandler => "__runtime_add_simple_handler",
-            BuiltinFunction::AddComplexHandler => "__runtime_add_complex_handler",
+            BuiltinFunction::AddHandler => "__runtime_add_simple_handler",
             BuiltinFunction::PrepareResumeContinuation => "__runtime_prepare_resume_continuation",
             BuiltinFunction::PrepareDisposeContinuation => "__runtime_prepare_dispose_continuation",
             BuiltinFunction::ReplicateContinuation => "__runtime_replicate_continuation",
@@ -147,8 +145,7 @@ impl BuiltinFunction {
             BuiltinFunction::PrepareOperation => runtime_prepare_operation as *const u8,
             BuiltinFunction::PopHandler => runtime_pop_handler as *const u8,
             BuiltinFunction::RegisterHandler => runtime_register_handler as *const u8,
-            BuiltinFunction::AddSimpleHandler => runtime_add_simple_handler as *const u8,
-            BuiltinFunction::AddComplexHandler => runtime_add_complex_handler as *const u8,
+            BuiltinFunction::AddHandler => runtime_add_handler as *const u8,
             BuiltinFunction::PrepareResumeContinuation => runtime_prepare_resume_continuation as *const u8,
             BuiltinFunction::PrepareDisposeContinuation => runtime_prepare_dispose_continuation as *const u8,
             BuiltinFunction::ReplicateContinuation => runtime_replicate_continuation as *const u8,
@@ -192,12 +189,11 @@ impl BuiltinFunction {
             BuiltinFunction::PrepareOperation => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::PopHandler => declare_func(0, 1, Linkage::Import),
             BuiltinFunction::RegisterHandler => declare_func(7, 1, Linkage::Import),
-            BuiltinFunction::AddSimpleHandler => declare_func(3, 0, Linkage::Import),
-            BuiltinFunction::AddComplexHandler => declare_func(3, 0, Linkage::Import),
+            BuiltinFunction::AddHandler => declare_func(4, 0, Linkage::Import),
             BuiltinFunction::PrepareResumeContinuation => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::PrepareDisposeContinuation => declare_func(7, 1, Linkage::Import),
             BuiltinFunction::ReplicateContinuation => declare_func(8, 1, Linkage::Import),
-            BuiltinFunction::ProcessSimpleHandlerResult => declare_func(4, 1, Linkage::Import),
+            BuiltinFunction::ProcessSimpleHandlerResult => declare_func(5, 1, Linkage::Import),
             BuiltinFunction::MarkHandler => declare_func_with_call_conv(m, 4, 1, Linkage::Import, CallConv::Tail),
 
             BuiltinFunction::TrivialContinuationImpl => declare_func_with_call_conv(m, 3, 1, Linkage::Local, CallConv::Tail),
@@ -373,10 +369,11 @@ impl BuiltinFunction {
 
         let handler_function_ptr = builder.ins().load(I64, MemFlags::new(), base_address, 0);
         let handler_index = builder.ins().load(I64, MemFlags::new(), base_address, 8);
+        let simple_handler_type = builder.ins().load(I64, MemFlags::new(), base_address, 16);
 
         let trivial_continuation = Self::get_built_in_data(m, builder, BuiltinData::TrivialContinuation);
 
-        let new_base_address = builder.ins().iadd_imm(base_address, 16);
+        let new_base_address = builder.ins().iadd_imm(base_address, 24);
         let sig = create_cps_signature(m);
         let sig_ref = builder.import_signature(sig);
 
@@ -387,7 +384,7 @@ impl BuiltinFunction {
 
         let simple_exception_continuation_impl = Self::get_built_in_func_ptr(m, builder, BuiltinFunction::SimpleExceptionContinuationImpl);
         let disposer_loader_cps_impl = Self::get_built_in_func_ptr(m, builder, BuiltinFunction::DisposerLoaderCpsImpl);
-        let inst = Self::call_built_in(m, builder, BuiltinFunction::ProcessSimpleHandlerResult, &[handler_index, simple_handler_result_ptr, simple_exception_continuation_impl, disposer_loader_cps_impl]);
+        let inst = Self::call_built_in(m, builder, BuiltinFunction::ProcessSimpleHandlerResult, &[handler_index, simple_handler_type, simple_handler_result_ptr, simple_exception_continuation_impl, disposer_loader_cps_impl]);
         let result = builder.inst_results(inst)[0];
 
         let new_base_address = builder.ins().iadd_imm(result_ptr, 8);

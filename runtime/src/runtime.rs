@@ -1,3 +1,5 @@
+use enum_ordinalize::Ordinalize;
+
 /// Data of unknown representation. This could be a primitive or pointer.
 pub type Generic = usize;
 /// Data in uniform representation. This is a tagged primitive or pointer.
@@ -13,6 +15,16 @@ pub type ContImplPtr = *const usize;
 /// A value in uniform representation.
 pub type Eff = usize;
 
+/// 0 is exceptional, 1 is linear, 2 is affine
+pub type HandlerTypeOrdinal = usize;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy, Ordinalize)]
+pub enum HandlerType {
+    Exceptional,
+    Linear,
+    Affine,
+    Complex,
+}
 
 /// A state object of a function. This also points to the caller state so it effectively represents
 /// a continuation. Hence the name.
@@ -40,7 +52,7 @@ pub struct Handler<T> {
     pub frame_pointer: *const u8,
     pub stack_pointer: *const u8,
     pub return_address: *const u8,
-    pub simple_handler: Vec<(Eff, ThunkPtr)>,
+    pub simple_handler: Vec<(Eff, ThunkPtr, HandlerTypeOrdinal)>,
     pub complex_handler: Vec<(Eff, ThunkPtr)>,
 }
 

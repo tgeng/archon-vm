@@ -54,8 +54,7 @@ Handler {
         },
         effect: Simple,
     },
-    simple_handlers: [],
-    complex_handlers: [
+    handlers: [
         (
             Str {
                 value: "accumulate",
@@ -118,6 +117,7 @@ Handler {
                 },
                 effect: Complex,
             },
+            Complex,
         ),
         (
             Str {
@@ -181,6 +181,7 @@ Handler {
                 },
                 effect: Complex,
             },
+            Complex,
         ),
         (
             Str {
@@ -239,6 +240,7 @@ Handler {
                 },
                 effect: Complex,
             },
+            Complex,
         ),
     ],
     input: Thunk {
@@ -336,7 +338,7 @@ Defs
                     },
                     effect: Simple,
                 },
-                complex_handlers: [
+                handlers: [
                     (
                         Str {
                             value: "accumulate",
@@ -351,6 +353,7 @@ Defs
                             },
                             effect: Complex,
                         },
+                        Complex,
                     ),
                     (
                         Str {
@@ -366,6 +369,7 @@ Defs
                             },
                             effect: Complex,
                         },
+                        Complex,
                     ),
                     (
                         Str {
@@ -381,9 +385,9 @@ Defs
                             },
                             effect: Complex,
                         },
+                        Complex,
                     ),
                 ],
-                simple_handlers: [],
                 input: Thunk {
                     t: Redex {
                         function: Def {
