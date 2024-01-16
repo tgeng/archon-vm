@@ -1,10 +1,10 @@
 handler 2
   # \p r => p + r
-  "get" # \p => {p, {1, p}}
-  "set" # \p x => {x, {1, {}}}
+  "get" ## \p => {p, {1, p}}
+  "set" ## \p x => {x, {1, {}}}
 handler 5
   disposer \p => "set" # {p}
-  "exp" #
+  "exp" ##
     \p => {p * 2, {0, 3}}
 "exp" # {}
 1

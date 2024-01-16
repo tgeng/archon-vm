@@ -1,9 +1,7 @@
 def interruptAndRecover x: int -> int =>
   handler
-    "exp" #! \p x cont =>
-                force cont 1 p
-                x
-  "exp" #! {x}
+    "exp" #^ \p x => {p, x}
+  "exp" # {x}
   "track" # {31}
   31
 

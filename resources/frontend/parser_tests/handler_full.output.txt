@@ -185,6 +185,74 @@ Handler {
             },
             Affine,
         ),
+        (
+            Str {
+                value: "baz",
+            },
+            Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                    (
+                        "x",
+                        Uniform,
+                    ),
+                ],
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                        effect: Simple,
+                    },
+                    args: [
+                        Identifier {
+                            name: "x",
+                            effect: Simple,
+                        },
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+                effect: Simple,
+            },
+            Linear,
+        ),
+        (
+            Str {
+                value: "quux",
+            },
+            Lambda {
+                arg_names: [
+                    (
+                        "p",
+                        Uniform,
+                    ),
+                    (
+                        "x",
+                        Uniform,
+                    ),
+                ],
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                        effect: Simple,
+                    },
+                    args: [
+                        Identifier {
+                            name: "x",
+                            effect: Simple,
+                        },
+                        Int {
+                            value: 2,
+                        },
+                    ],
+                },
+                effect: Simple,
+            },
+            Exceptional,
+        ),
     ],
     input: Thunk {
         computation: OperationCall {

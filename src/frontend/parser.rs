@@ -39,7 +39,7 @@ static PRECEDENCE: &[(&[OperatorAndName], Fixity)] = &[
 
 // keywords
 static KEYWORDS: &[&str] = &[
-    "let", "def", "case", "force", "thunk", "handler", "=>", "=>!", "=", "(", ")", ",", "\\", "{", "}", "@", "_", ":", "->", "!", "#", "#!", "disposer", "replicator"
+    "let", "def", "case", "force", "thunk", "handler", "=>", "=>!", "=", "(", ")", ",", "\\", "{", "}", "@", "_", ":", "->", "!", "#", "#!", "#^", "##", "disposer", "replicator"
 ];
 
 // tokenizer
@@ -322,8 +322,9 @@ fn op_effect(input: Input) -> IResult<Input, Effect> {
 
 fn op_declaration(input: Input) -> IResult<Input, HandlerType> {
     alt((
-        // TODO: support linear and exceptional handlers
-        token("#").map(|_| HandlerType::Affine),
+        token("#").map(|_| HandlerType::Linear),
+        token("#^").map(|_| HandlerType::Exceptional),
+        token("##").map(|_| HandlerType::Affine),
         token("#!").map(|_| HandlerType::Complex),
     ))(input)
 }

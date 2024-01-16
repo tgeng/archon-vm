@@ -1,16 +1,16 @@
 handler 0
-  "accumulate" ##
+  "accumulate" #
     \p x =>
       let r = p + x
-      {r, {1, r}}
-  "dissipate" ##
+      {r, r}
+  "dissipate" #
     \p x =>
       let r = p - x
-      {r, {1, r}}
-  "proliferate" ##
+      {r, r}
+  "proliferate" #
     \p =>
       let r = p * 2
-      {r, {1, r}}
+      {r, r}
 
 "accumulate" # {2}
 "accumulate" # {4}
