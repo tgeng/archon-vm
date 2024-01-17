@@ -1,0 +1,11 @@
+handler
+  "getBit" #!
+    \p cont =>
+      let pair = force cont 2 p
+      let cont1 = pair@0
+      let cont2 = pair@1
+      let a = force! cont1 0 p 0
+      let b = force! cont2 0 p 1
+      a + b
+
+"getBit" #! {} + "getBit" #! {} * 2 + "getBit" #! {} * 4
