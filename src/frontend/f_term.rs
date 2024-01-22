@@ -1,4 +1,4 @@
-use cbpv_runtime::runtime::HandlerType;
+use archon_vm_runtime::runtime::HandlerType;
 use crate::ast::term::{CType, Effect, VType};
 
 #[derive(Debug, Clone, PartialEq)]

@@ -10,7 +10,7 @@ use nom::multi::{many0, many1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use crate::frontend::f_term::{Def, FTerm};
 use nom_locate::{LocatedSpan};
-use cbpv_runtime::runtime::HandlerType;
+use archon_vm_runtime::runtime::HandlerType;
 use crate::frontend::parser::Fixity::{*};
 use crate::ast::term::{CType, SpecializedType, PType, VType, Effect};
 

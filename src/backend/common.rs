@@ -1,7 +1,7 @@
 use cranelift::codegen::ir::{Endianness, Inst};
 use cranelift::codegen::isa::CallConv;
 use cranelift::frontend::Switch;
-use cbpv_runtime::runtime_utils::*;
+use archon_vm_runtime::runtime_utils::*;
 use cranelift::prelude::*;
 use cranelift::prelude::types::{F32, F64, I32, I64};
 use cranelift_jit::{JITBuilder};

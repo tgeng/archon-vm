@@ -8,7 +8,7 @@ use cranelift_module::{DataDescription, DataId, FuncId, Linkage, Module};
 use crate::ast::term::{CTerm, VTerm, VType, SpecializedType, PType, CType, Effect};
 use enum_map::{EnumMap};
 use enum_ordinalize::Ordinalize;
-use cbpv_runtime::runtime::HandlerType;
+use archon_vm_runtime::runtime::HandlerType;
 use VType::{Specialized, Uniform};
 use SpecializedType::{Integer, PrimitivePtr, StructPtr};
 use crate::backend::common::{BuiltinData, BuiltinFunction, FunctionFlavor, HasType, TypedReturnValue, TypedValue};

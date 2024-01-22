@@ -1,4 +1,4 @@
-use cbpv_runtime::runtime::HandlerType;
+use archon_vm_runtime::runtime::HandlerType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PType {
@@ -8,7 +8,7 @@ pub enum PType {
     F32,
 }
 
-/// See [[cbpv_runtime::types::UniformType]] for how these are represented in uniform representation.
+/// See [[archon_vm_runtime::types::UniformType]] for how these are represented in uniform representation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SpecializedType {
     /// 61-bit integer
@@ -28,7 +28,7 @@ pub enum SpecializedType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VType {
-    /// Uniform representation of values. See [[cbpv_runtime::types::UniformType]] for details.
+    /// Uniform representation of values. See [[archon_vm_runtime::types::UniformType]] for details.
     /// Uniform representation is used across function boundaries (call args and return values)
     /// unless the call is specialized (aka a [CTerm::PrimitiveCall] or [CTerm::FunctionCall]).
     ///
