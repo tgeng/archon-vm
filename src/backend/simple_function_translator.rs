@@ -192,7 +192,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
 
         // Allocate slot for storing the tip address so that a pointer to the tip address can be
         // passed to built-in force call helper function in order to have the tip address updated.
-        let tip_address_slot = function_builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8));
+        let tip_address_slot = function_builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8, 0));
         function_builder.append_block_params_for_function_params(entry_block);
         function_builder.switch_to_block(entry_block);
         function_builder.seal_block(entry_block);

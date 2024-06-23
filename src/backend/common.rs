@@ -397,7 +397,7 @@ impl BuiltinFunction {
 
     fn transform_loader_cps_impl<M: Module>(m: &mut M, builder: &mut FunctionBuilder) {
         let entry_block = builder.create_block();
-        let tip_address_slot = builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8));
+        let tip_address_slot = builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8, 0));
         builder.append_block_params_for_function_params(entry_block);
         builder.switch_to_block(entry_block);
         builder.seal_block(entry_block);
@@ -448,7 +448,7 @@ impl BuiltinFunction {
 
     fn disposer_loader_cps_impl<M: Module>(m: &mut M, builder: &mut FunctionBuilder) {
         let entry_block = builder.create_block();
-        let tip_address_slot = builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8));
+        let tip_address_slot = builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, 8, 0));
         builder.append_block_params_for_function_params(entry_block);
         builder.switch_to_block(entry_block);
         builder.seal_block(entry_block);
