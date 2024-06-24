@@ -269,7 +269,10 @@ impl Transpiler {
         f_terms.into_iter().map(|v| self.transpile_value(v, context)).unzip()
     }
 
-    fn transpile_option_value_and_map<F>(&mut self, f_term: Option<Box<FTerm>>, context: &Context, f: F) -> CTerm where F: FnOnce((&mut Self, Option<VTerm>)) -> CTerm {
+    fn transpile_option_value_and_map<F>(&mut self, f_term: Option<Box<FTerm>>, context: &Context, f: F) -> CTerm
+    where
+        F: FnOnce((&mut Self, Option<VTerm>)) -> CTerm,
+    {
         match f_term {
             Some(box f_term) => {
                 let (v_term, computation) = self.transpile_value(f_term, context);
@@ -283,7 +286,10 @@ impl Transpiler {
         }
     }
 
-    fn transpile_value_and_map<F>(&mut self, f_term: FTerm, context: &Context, f: F) -> CTerm where F: FnOnce((&mut Self, VTerm)) -> CTerm {
+    fn transpile_value_and_map<F>(&mut self, f_term: FTerm, context: &Context, f: F) -> CTerm
+    where
+        F: FnOnce((&mut Self, VTerm)) -> CTerm,
+    {
         let (v_term, computation) = self.transpile_value(f_term, context);
         if let Some((name, computation)) = computation {
             CTerm::Let { t: Box::new(computation), bound_index: name, body: Box::new(f((self, v_term))) }

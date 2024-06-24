@@ -1,11 +1,9 @@
 use enum_ordinalize::Ordinalize;
 use std::arch::global_asm;
 use std::cell::RefCell;
-use std::io::Write;
 use std::iter::Peekable;
 use std::ops::{DerefMut};
 use std::slice::IterMut;
-use crate::debug_helper::trace_continuation;
 use crate::runtime::{Continuation, HandlerEntry, Handler, Uniform, ThunkPtr, Eff, Generic, CapturedContinuation, RawFuncPtr, ContImplPtr, HandlerTypeOrdinal, HandlerType};
 use crate::runtime::HandlerEntry::SimpleOperationMarker;
 use crate::types::{UPtr, UniformPtr, UniformType};
@@ -76,16 +74,17 @@ extern "C" {
 }
 
 
-static mut EMPTY_STRUCT: usize = 0;
+static EMPTY_STRUCT: usize = 0;
 const TRANSFORM_LOADER_NUM_ARGS: usize = 1;
 
-unsafe fn empty_struct_ptr() -> *mut usize {
-    (&mut EMPTY_STRUCT as *mut usize).add(1)
+unsafe fn empty_struct_ptr() -> *const usize {
+    (&EMPTY_STRUCT as *const usize).offset(1)
 }
 
-pub unsafe fn runtime_alloc(num_words: usize) -> *mut usize {
+#[no_mangle]
+pub unsafe extern "C" fn runtime_alloc(num_words: usize) -> *mut usize {
     if num_words == 0 {
-        return empty_struct_ptr();
+        return empty_struct_ptr() as *mut usize;
     }
     let mut vec = Vec::with_capacity(num_words + 1);
     let ptr: *mut usize = vec.as_mut_ptr();
@@ -95,7 +94,8 @@ pub unsafe fn runtime_alloc(num_words: usize) -> *mut usize {
     ptr.add(1)
 }
 
-pub unsafe fn runtime_word_box() -> *mut usize {
+#[no_mangle]
+pub unsafe extern "C" fn runtime_word_box() -> *mut usize {
     let mut vec = Vec::with_capacity(1);
     let ptr = vec.as_mut_ptr();
     std::mem::forget(vec);
@@ -105,7 +105,8 @@ pub unsafe fn runtime_word_box() -> *mut usize {
 
 /// Takes a pointer to a function or thunk, push any arguments to the tip of the stack, and return
 /// a pointer to the underlying raw function.
-pub unsafe fn runtime_force_thunk(thunk: ThunkPtr, tip_address_ptr: *mut *mut usize) -> RawFuncPtr {
+#[no_mangle]
+pub unsafe extern "C" fn runtime_force_thunk(thunk: ThunkPtr, tip_address_ptr: *mut *mut usize) -> RawFuncPtr {
     let thunk_ptr = thunk.to_normal_ptr();
     match UniformType::from_bits(thunk as usize) {
         UniformType::PPtr => thunk_ptr,
@@ -126,7 +127,8 @@ pub unsafe fn runtime_force_thunk(thunk: ThunkPtr, tip_address_ptr: *mut *mut us
 }
 
 /// Alocate
-pub unsafe fn runtime_alloc_stack() -> *mut usize {
+#[no_mangle]
+pub unsafe extern "C" fn runtime_alloc_stack() -> *mut usize {
     // Allocate a 1M words for the stack, which is 8MB of space
     let stack_size = 1 << 20;
     let mut vec: Vec<usize> = Vec::with_capacity(stack_size);
@@ -150,7 +152,8 @@ pub unsafe fn debug_helper(base: *const usize, last_result_ptr: *const usize, th
 /// - ptr + 8: the base address used to find the arguments when invoking the handler implementation
 /// - ptr + 16: the next continuation after handler finishes execution
 ///
-pub unsafe fn runtime_prepare_operation(
+#[no_mangle]
+pub unsafe extern "C" fn runtime_prepare_operation(
     eff: Uniform,
     handler_call_base_address: *mut usize,
     tip_continuation: &mut Continuation,
@@ -353,7 +356,8 @@ unsafe fn prepare_simple_operation(
 /// Special function that may do long jump instead of normal return if the result is exceptional. If
 /// the result is exceptional. This function also takes care of disposing the handler parameters of
 /// all the evicted handlers.
-pub unsafe fn runtime_process_simple_handler_result(
+#[no_mangle]
+pub unsafe extern "C" fn runtime_process_simple_handler_result(
     handler_index: usize,
     simple_handler_type: HandlerTypeOrdinal,
     simple_result: &SimpleResult,
@@ -418,7 +422,8 @@ pub unsafe fn runtime_process_simple_handler_result(
     }
 }
 
-pub unsafe fn runtime_pop_handler() -> Uniform {
+#[no_mangle]
+pub unsafe extern "C" fn runtime_pop_handler() -> Uniform {
     HANDLERS.with(|handlers| {
         let handler = handlers.borrow_mut().pop().unwrap();
         match handler {
@@ -524,7 +529,8 @@ fn find_matching_handler(eff: Eff, may_be_complex: usize) -> (usize, ThunkPtr, H
 }
 
 
-pub unsafe fn runtime_register_handler(
+#[no_mangle]
+pub unsafe extern "C" fn runtime_register_handler(
     tip_address_ptr: *mut *mut usize,
     next_continuation: &mut Continuation,
     parameter: Uniform,
@@ -581,7 +587,8 @@ pub unsafe fn runtime_register_handler(
     })
 }
 
-pub fn runtime_add_handler(handler: &mut Handler<*mut Uniform>, eff: Eff, handler_impl: ThunkPtr, handler_type: HandlerTypeOrdinal) {
+#[no_mangle]
+pub extern "C" fn runtime_add_handler(handler: &mut Handler<*mut Uniform>, eff: Eff, handler_impl: ThunkPtr, handler_type: HandlerTypeOrdinal) {
     if handler_type == HandlerType::Complex.ordinal() as usize {
         handler.complex_handler.push((eff, handler_impl))
     } else {
@@ -593,7 +600,8 @@ pub fn runtime_add_handler(handler: &mut Handler<*mut Uniform>, eff: Eff, handle
 /// - ptr + 0: the function pointer to the resumed continuation
 /// - ptr + 8: the base address for the resumed continuation to find its arguments
 /// - ptr + 16: the pointer to the "last result" that should be passed to the resumed continuation
-pub unsafe fn runtime_prepare_resume_continuation(
+#[no_mangle]
+pub unsafe extern "C" fn runtime_prepare_resume_continuation(
     base_address: *mut usize,
     next_continuation: &mut Continuation,
     captured_continuation: *mut CapturedContinuation,
@@ -630,7 +638,8 @@ pub unsafe fn runtime_prepare_resume_continuation(
 /// - ptr + 0: the function pointer to the resumed continuation
 /// - ptr + 8: the base address for the resumed continuation to find its arguments
 /// - ptr + 16: the pointer to the "last result" that should be passed to the resumed continuation
-pub unsafe fn runtime_prepare_dispose_continuation(
+#[no_mangle]
+pub unsafe extern "C" fn runtime_prepare_dispose_continuation(
     base_address: *mut usize,
     next_continuation: &mut Continuation,
     captured_continuation: *mut CapturedContinuation,
@@ -732,14 +741,15 @@ unsafe fn unpack_captured_continuation(
 }
 
 /// Returns the pointer to the result of disposer.
-pub unsafe fn runtime_replicate_continuation(
+#[no_mangle]
+pub unsafe extern "C" fn runtime_replicate_continuation(
     base_address: *mut usize,
     next_continuation: &mut Continuation,
     captured_continuation: &mut CapturedContinuation,
     parameter: Uniform,
     frame_pointer: *const u8,
     stack_pointer: *const u8,
-    runtime_invoke_cps_function_with_trivial_continuation: fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
+    runtime_invoke_cps_function_with_trivial_continuation: extern fn(RawFuncPtr, *mut Uniform) -> *mut Uniform,
     captured_continuation_thunk_impl: RawFuncPtr,
 ) -> *const Uniform {
     let matching_handler_index = HANDLERS.with(|handlers| handlers.borrow().len());

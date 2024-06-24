@@ -1,4 +1,3 @@
-use std::io::Write;
 use crate::runtime::Continuation;
 
 pub unsafe fn trace_continuation(continuation: *mut Continuation) {
