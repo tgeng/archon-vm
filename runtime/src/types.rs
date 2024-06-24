@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
 // TODO: I need to figure out a way to force function pointers to be 4-byte aligned. This is true
@@ -79,11 +80,12 @@ impl UniformPtr<*const usize> for usize {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct UPtr<T> (T);
+#[repr(C, align(8))]
+pub struct UPtr<T> (*const u8, PhantomData<T>);
 
 impl<'a, T> UPtr<&'a T> {
     pub fn as_uniform(&self) -> usize {
-        self.0 as *const T as usize
+        self.0 as usize
     }
 }
 
@@ -92,7 +94,7 @@ impl<'a, T> Deref for UPtr<&'a T> {
 
     fn deref(&self) -> &Self::Target {
         unsafe {
-            let ptr = self.0 as *const T as usize;
+            let ptr = self.0 as usize;
             let ptr = ptr & POINTER_MASK;
             &*(ptr as *const T)
         }
@@ -104,7 +106,7 @@ impl<'a, T> Deref for UPtr<&'a mut T> {
 
     fn deref(&self) -> &Self::Target {
         unsafe {
-            let ptr = self.0 as *const T as usize;
+            let ptr = self.0 as usize;
             let ptr = ptr & POINTER_MASK;
             &*(ptr as *const T)
         }
@@ -114,7 +116,7 @@ impl<'a, T> Deref for UPtr<&'a mut T> {
 impl<'a, T> DerefMut for UPtr<&'a mut T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe {
-            let ptr = self.0 as *mut T as usize;
+            let ptr = self.0 as usize;
             let ptr = ptr & POINTER_MASK;
             &mut *(ptr as *mut T)
         }
