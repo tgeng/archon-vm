@@ -410,7 +410,6 @@ impl BuiltinFunction {
         // transform thunk is set on the argument stack by `runtime_register_handler` when it
         // creates the transform loader continuation.
         let transform_thunk = builder.ins().load(I64, MemFlags::new(), base_address, 0);
-        Self::call_built_in(m, builder, BuiltinFunction::DebugHelper, &[base_address, last_result_ptr, transform_thunk]);
 
         let inst = Self::call_built_in(m, builder, BuiltinFunction::PopHandler, &[]);
         let handler_parameter = builder.inst_results(inst)[0];
@@ -456,7 +455,7 @@ impl BuiltinFunction {
         let base_address = builder.block_params(entry_block)[0];
         let current_continuation = builder.block_params(entry_block)[1];
 
-        // transform thunk is set on the argument stack by `runtime_register_handler` when it
+        // disposer thunk is set on the argument stack by `runtime_register_handler` when it
         // creates the transform loader continuation.
         let disposer_thunk = builder.ins().load(I64, MemFlags::new(), base_address, 0);
 

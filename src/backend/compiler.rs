@@ -1,3 +1,4 @@
+use std::arch::global_asm;
 use std::collections::HashMap;
 use cranelift::codegen::isa::CallConv;
 use cranelift::prelude::*;
@@ -61,13 +62,48 @@ impl Default for Compiler<JITModule> {
     }
 }
 
+#[cfg(target_arch = "aarch64")]
+global_asm!(r#"
+    .global _invoke_compiled_function
+
+    _invoke_compiled_function:
+        // Store all callee-saved registers on the stack
+        stp x19, x20, [sp, #-16]!
+        stp x21, x22, [sp, #-16]!
+        stp x23, x24, [sp, #-16]!
+        stp x25, x26, [sp, #-16]!
+        stp x27, x28, [sp, #-16]!
+        stp x29, x30, [sp, #-16]!
+
+        // x0 is the first argument, which is the function pointer
+        blr x0 // Call the function
+
+        // Restore all callee-saved registers from the stack
+        ldp x29, x30, [sp], #16
+        ldp x27, x28, [sp], #16
+        ldp x25, x26, [sp], #16
+        ldp x23, x24, [sp], #16
+        ldp x21, x22, [sp], #16
+        ldp x19, x20, [sp], #16
+
+        ret
+"#);
+
+extern "C" {
+    /// compiled function are often invoked with cranelift's tail call convention , which doesn't
+    /// respect callee-saved registers (callee-saved registers are simply not used). But rust
+    /// functions expects callee-saved registers to be preserved. So we need to wrap the compiled
+    /// function and save & restore the callee-saved registers when invoking the compiled function.
+    fn invoke_compiled_function(f: fn() -> usize) -> usize;
+}
+
 impl Compiler<JITModule> {
-    pub fn finalize_and_get_main(&mut self) -> fn() -> usize {
+    pub fn finalize_and_get_main(&mut self) -> impl Fn() -> usize {
         self.module.finalize_definitions().unwrap();
         let main_func_id = self.local_functions.get(MAIN_WRAPPER_NAME).unwrap();
-        unsafe {
-            let func_ptr = self.module.get_finalized_function(*main_func_id);
-            std::mem::transmute::<_, fn() -> usize>(func_ptr)
+        let func_ptr = self.module.get_finalized_function(*main_func_id);
+        move || unsafe {
+            invoke_compiled_function(std::mem::transmute::<_, fn() -> usize>(func_ptr))
         }
     }
 }

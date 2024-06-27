@@ -410,7 +410,6 @@ pub unsafe extern "C" fn runtime_process_simple_handler_result(
             // Actually the result is not needed since the continuation is a disposer loader continuation, which always
             // ignores the last result.
             let result_ptr = next_base_address.sub(1);
-            // plus 1 to tag the pointer a an SPtr.
             result_ptr.write(UniformType::to_uniform_sptr(empty_struct_ptr()));
             // Here we use the matching handler because the jump needs to restore execution to the state at the matching
             // handler. This mismatch between fp, sp, and lr with the continuation and argument stack is fine because
