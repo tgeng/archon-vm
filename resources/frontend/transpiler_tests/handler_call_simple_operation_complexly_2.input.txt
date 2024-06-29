@@ -1,16 +1,10 @@
-def call_complex i =>
-  "op" #! {i} + "op" #! {i}
-
 def simple_linear =>
-  handler
-    "op" ## \p x => {p, {1, x}}
-
-  call_complex! 2
+  2
 
 def simple_exp =>
   handler
-    "op" ## \p x => {p, {0, x}}
+    "op" ## \p => {p, {0, 5}}
 
-  call_complex! 3
+  "op" #! {}
 
-simple_linear + simple_exp
+simple_exp + simple_linear
