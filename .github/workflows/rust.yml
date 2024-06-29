@@ -23,5 +23,7 @@ jobs:
         override: true
     - name: Build
       run: cargo build --verbose
-    - name: Run tests
+    - name: Run tests (dev)
       run: cargo test --verbose
+    - name: Run tests (release)
+      run: cargo test --release --verbose
