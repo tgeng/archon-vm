@@ -49,9 +49,13 @@ pub struct Handler<T> {
     pub parameter_disposer: ThunkPtr,
     pub parameter_replicator: ThunkPtr,
     // The following three fields are set by runtime_mark_handler and used by runtime_jump
-    pub frame_pointer: *const u8,
     pub stack_pointer: *const u8,
+    pub frame_pointer: *const u8,
     pub return_address: *const u8,
+    // There are 10 general purpose callee saved registers on ARM64
+    pub general_callee_saved_registers: [usize; 10],
+    // There are 8 vector callee saved registers on ARM64
+    pub vector_callee_saved_registers: [u128; 8],
     pub simple_handler: Vec<(Eff, ThunkPtr, HandlerTypeOrdinal)>,
     pub complex_handler: Vec<(Eff, ThunkPtr)>,
 }

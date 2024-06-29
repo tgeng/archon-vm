@@ -217,7 +217,7 @@ impl BuiltinFunction {
         let mut builder_ctx = FunctionBuilderContext::new();
         let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_ctx);
         match self {
-            BuiltinFunction::TrivialContinuationImpl => Self::trivial_continuation_impl(&mut builder),
+            BuiltinFunction::TrivialContinuationImpl => Self::trivial_continuation_impl(m, &mut builder),
             BuiltinFunction::CapturedContinuationRecordImpl => Self::captured_continuation_record_impl(m, &mut builder),
             BuiltinFunction::SimpleHandlerRunnerImpl => Self::simple_handler_runner_impl(m, &mut builder),
             BuiltinFunction::TransformLoaderCpsImpl => Self::transform_loader_cps_impl(m, &mut builder),
@@ -232,7 +232,7 @@ impl BuiltinFunction {
     }
 
 
-    fn trivial_continuation_impl(builder: &mut FunctionBuilder) {
+    fn trivial_continuation_impl<M: Module>(m: &mut M, builder: &mut FunctionBuilder) {
         let entry_block = builder.create_block();
         builder.append_block_params_for_function_params(entry_block);
         builder.switch_to_block(entry_block);
@@ -243,6 +243,13 @@ impl BuiltinFunction {
         // continuation, it will place the result right below the base address, which is where this
         // trivial continuation should be placing the result.
         let last_result_ptr = builder.block_params(entry_block)[2];
+        Self::call_built_in(
+            m, builder, BuiltinFunction::DebugHelper,
+            &[
+                builder.block_params(entry_block)[0],
+                builder.block_params(entry_block)[1],
+                builder.block_params(entry_block)[2]
+            ]);
         builder.ins().return_(&[last_result_ptr]);
     }
 

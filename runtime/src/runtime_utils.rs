@@ -19,28 +19,48 @@ global_asm!(r#"
     .global _long_jump
 
     _runtime_mark_handler:
-        add x16, x5, #40 ; get fp address in the handler
-        str x29, [x16] ; store fp to the handler
-
-        add x16, x5, #48 ; get sp address in the handler
+        add x16, x5, #40 ; get sp address in the handler
         mov x17, sp
-        str x17, [x16] ; store sp to the handler
+        str x17, [x16], #8 ; store sp to the handler and bump the address
 
-        add x16, x5, #56 ; get lr address in the handler
-        str x30, [x16] ; store lr to the handler
+        ; store fp (x29) and lr (x30) to the handler
+        stp x29, x30, [x16], #16
+
+        ; store the general purpose callee-saved registers
+        stp x19, x20, [x16], #16
+        stp x21, x22, [x16], #16
+        stp x23, x24, [x16], #16
+        stp x25, x26, [x16], #16
+        stp x27, x28, [x16], #16
+
+        ; store the float/simd callee-saved registers
+        stp q8,  q9,  [x16], #32
+        stp q10, q11, [x16], #32
+        stp q12, q13, [x16], #32
+        stp q14, q15, [x16], #32
 
         br  x4
 
     _long_jump:
-        add x16, x3, #40 ; get fp address in the handler
-        ldr x29, [x16] ; restore fp from the handler
-
-        add x16, x3, #48 ; get sp address in the handler
-        ldr x17, [x16] ; restore sp from the handler
+        add x16, x3, #40 ; get sp address in the handler
+        ldr x17, [x16], #8 ; restore sp from the handler
         mov sp, x17
 
-        add x16, x3, #56 ; get lr address in the handler
-        ldr x30, [x16] ; store lr to the handler
+        ; restore fp and lr from the handler
+        ldp x29, x30, [x16], #16
+
+        ; restore the general purpose callee-saved registers
+        ldp x19, x20, [x16], #16
+        ldp x21, x22, [x16], #16
+        ldp x23, x24, [x16], #16
+        ldp x25, x26, [x16], #16
+        ldp x27, x28, [x16], #16
+
+        ; restore the vector callee-saved registers
+        ldp q8,  q9,  [x16], #32
+        ldp q10, q11, [x16], #32
+        ldp q12, q13, [x16], #32
+        ldp q14, q15, [x16], #32
 
         ldr x16, [x1] ; get the function pointer to the next continuation
 
@@ -574,9 +594,11 @@ pub unsafe extern "C" fn runtime_register_handler(
             simple_handler: Vec::new(),
             complex_handler: Vec::new(),
             // These are updated by runtime_mark_handler
-            frame_pointer: std::ptr::null(),
             stack_pointer: std::ptr::null(),
+            frame_pointer: std::ptr::null(),
             return_address: std::ptr::null(),
+            general_callee_saved_registers: [0; 10],
+            vector_callee_saved_registers: [0; 8],
         }));
         match handlers.borrow().last().unwrap()
         {
@@ -730,9 +752,11 @@ unsafe fn unpack_captured_continuation(
                 complex_handler: handler.complex_handler,
                 // Captured continuation must be CPS transformed, which means all calls must be tail-optimized, and
                 // hence the frame pointer and stack pointer are all the same across all handler entries.
-                frame_pointer,
                 stack_pointer,
+                frame_pointer,
                 return_address: handler.return_address,
+                general_callee_saved_registers: handler.general_callee_saved_registers,
+                vector_callee_saved_registers: handler.vector_callee_saved_registers,
             }));
         }
     });
@@ -802,6 +826,8 @@ pub unsafe extern "C" fn runtime_replicate_continuation(
             return_address: handler.return_address,
             simple_handler: handler.simple_handler.clone(),
             complex_handler: handler.complex_handler.clone(),
+            general_callee_saved_registers: handler.general_callee_saved_registers,
+            vector_callee_saved_registers: handler.vector_callee_saved_registers,
         };
         cloned_handler_fragment.push(cloned_handler);
     }

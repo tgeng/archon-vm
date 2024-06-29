@@ -3,11 +3,45 @@ FTerm
 Defs {
     defs: [
         (
-            "simple_linear",
+            "call_complex",
             Def {
-                args: [],
-                body: Int {
-                    value: 2,
+                args: [
+                    (
+                        "i",
+                        Uniform,
+                    ),
+                ],
+                body: Redex {
+                    function: Identifier {
+                        name: "_int_add",
+                        effect: Simple,
+                    },
+                    args: [
+                        OperationCall {
+                            eff: Str {
+                                value: "op",
+                            },
+                            args: [
+                                Identifier {
+                                    name: "i",
+                                    effect: Simple,
+                                },
+                            ],
+                            effect: Complex,
+                        },
+                        OperationCall {
+                            eff: Str {
+                                value: "op",
+                            },
+                            args: [
+                                Identifier {
+                                    name: "i",
+                                    effect: Simple,
+                                },
+                            ],
+                            effect: Complex,
+                        },
+                    ],
                 },
                 c_type: Default,
             },
@@ -17,7 +51,7 @@ Defs {
         Defs {
             defs: [
                 (
-                    "simple_exp",
+                    "simple_linear",
                     Def {
                         args: [],
                         body: Handler {
@@ -54,6 +88,10 @@ Defs {
                                                 "p",
                                                 Uniform,
                                             ),
+                                            (
+                                                "x",
+                                                Uniform,
+                                            ),
                                         ],
                                         body: Struct {
                                             values: [
@@ -64,10 +102,11 @@ Defs {
                                                 Struct {
                                                     values: [
                                                         Int {
-                                                            value: 0,
+                                                            value: 1,
                                                         },
-                                                        Int {
-                                                            value: 5,
+                                                        Identifier {
+                                                            name: "x",
+                                                            effect: Simple,
                                                         },
                                                     ],
                                                 },
@@ -79,12 +118,16 @@ Defs {
                                 ),
                             ],
                             input: Thunk {
-                                computation: OperationCall {
-                                    eff: Str {
-                                        value: "op",
+                                computation: Redex {
+                                    function: Identifier {
+                                        name: "call_complex",
+                                        effect: Complex,
                                     },
-                                    args: [],
-                                    effect: Complex,
+                                    args: [
+                                        Int {
+                                            value: 2,
+                                        },
+                                    ],
                                 },
                                 effect: Simple,
                             },
@@ -94,21 +137,112 @@ Defs {
                 ),
             ],
             body: Some(
-                Redex {
-                    function: Identifier {
-                        name: "_int_add",
-                        effect: Simple,
-                    },
-                    args: [
-                        Identifier {
-                            name: "simple_exp",
-                            effect: Simple,
-                        },
-                        Identifier {
-                            name: "simple_linear",
-                            effect: Simple,
-                        },
+                Defs {
+                    defs: [
+                        (
+                            "simple_exp",
+                            Def {
+                                args: [],
+                                body: Handler {
+                                    parameter: Struct {
+                                        values: [],
+                                    },
+                                    parameter_disposer: None,
+                                    parameter_replicator: None,
+                                    transform: Lambda {
+                                        arg_names: [
+                                            (
+                                                "p",
+                                                Uniform,
+                                            ),
+                                            (
+                                                "r",
+                                                Uniform,
+                                            ),
+                                        ],
+                                        body: Identifier {
+                                            name: "r",
+                                            effect: Simple,
+                                        },
+                                        effect: Simple,
+                                    },
+                                    handlers: [
+                                        (
+                                            Str {
+                                                value: "op",
+                                            },
+                                            Lambda {
+                                                arg_names: [
+                                                    (
+                                                        "p",
+                                                        Uniform,
+                                                    ),
+                                                    (
+                                                        "x",
+                                                        Uniform,
+                                                    ),
+                                                ],
+                                                body: Struct {
+                                                    values: [
+                                                        Identifier {
+                                                            name: "p",
+                                                            effect: Simple,
+                                                        },
+                                                        Struct {
+                                                            values: [
+                                                                Int {
+                                                                    value: 0,
+                                                                },
+                                                                Identifier {
+                                                                    name: "x",
+                                                                    effect: Simple,
+                                                                },
+                                                            ],
+                                                        },
+                                                    ],
+                                                },
+                                                effect: Simple,
+                                            },
+                                            Affine,
+                                        ),
+                                    ],
+                                    input: Thunk {
+                                        computation: Redex {
+                                            function: Identifier {
+                                                name: "call_complex",
+                                                effect: Complex,
+                                            },
+                                            args: [
+                                                Int {
+                                                    value: 3,
+                                                },
+                                            ],
+                                        },
+                                        effect: Simple,
+                                    },
+                                },
+                                c_type: Default,
+                            },
+                        ),
                     ],
+                    body: Some(
+                        Redex {
+                            function: Identifier {
+                                name: "_int_add",
+                                effect: Simple,
+                            },
+                            args: [
+                                Identifier {
+                                    name: "simple_linear",
+                                    effect: Simple,
+                                },
+                                Identifier {
+                                    name: "simple_exp",
+                                    effect: Simple,
+                                },
+                            ],
+                        },
+                    ),
                 },
             ),
         },
@@ -119,18 +253,73 @@ Defs
 ========
 [
     (
+        "call_complex",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
+            body: Let {
+                t: OperationCall {
+                    eff: Str {
+                        value: "op",
+                    },
+                    args: [
+                        Var {
+                            index: 0,
+                        },
+                    ],
+                    effect: Complex,
+                },
+                bound_index: 1,
+                body: Let {
+                    t: OperationCall {
+                        eff: Str {
+                            value: "op",
+                        },
+                        args: [
+                            Var {
+                                index: 0,
+                            },
+                        ],
+                        effect: Complex,
+                    },
+                    bound_index: 2,
+                    body: PrimitiveCall {
+                        name: "_int_add",
+                        args: [
+                            Var {
+                                index: 1,
+                            },
+                            Var {
+                                index: 2,
+                            },
+                        ],
+                    },
+                },
+            },
+            c_type: Default,
+            var_bound: 3,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
+        },
+    ),
+    (
         "main",
         FunctionDefinition {
             args: [],
             body: Let {
                 t: Def {
-                    name: "simple_exp",
+                    name: "simple_linear",
                     effect: Simple,
                 },
                 bound_index: 0,
                 body: Let {
                     t: Def {
-                        name: "simple_linear",
+                        name: "simple_exp",
                         effect: Simple,
                     },
                     bound_index: 1,
@@ -199,10 +388,14 @@ Defs
                 input: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "simple_exp$__lambda_2",
-                            effect: Simple,
+                            name: "call_complex",
+                            effect: Complex,
                         },
-                        args: [],
+                        args: [
+                            Int {
+                                value: 3,
+                            },
+                        ],
                     },
                     effect: Simple,
                 },
@@ -247,6 +440,10 @@ Defs
                     0,
                     Uniform,
                 ),
+                (
+                    1,
+                    Uniform,
+                ),
             ],
             body: Return {
                 value: Struct {
@@ -259,8 +456,8 @@ Defs
                                 Int {
                                     value: 0,
                                 },
-                                Int {
-                                    value: 5,
+                                Var {
+                                    index: 1,
                                 },
                             ],
                         },
@@ -268,25 +465,7 @@ Defs
                 },
             },
             c_type: Default,
-            var_bound: 1,
-            need_simple: false,
-            need_cps: true,
-            need_specialized: false,
-        },
-    ),
-    (
-        "simple_exp$__lambda_2",
-        FunctionDefinition {
-            args: [],
-            body: OperationCall {
-                eff: Str {
-                    value: "op",
-                },
-                args: [],
-                effect: Complex,
-            },
-            c_type: Default,
-            var_bound: 0,
+            var_bound: 2,
             need_simple: false,
             need_cps: true,
             need_specialized: false,
@@ -296,15 +475,98 @@ Defs
         "simple_linear",
         FunctionDefinition {
             args: [],
-            body: Return {
-                value: Int {
-                    value: 2,
+            body: Handler {
+                parameter: Struct {
+                    values: [],
+                },
+                parameter_disposer: None,
+                parameter_replicator: None,
+                transform: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "simple_exp$__lambda_0",
+                            effect: Simple,
+                        },
+                        args: [],
+                    },
+                    effect: Simple,
+                },
+                handlers: [
+                    (
+                        Str {
+                            value: "op",
+                        },
+                        Thunk {
+                            t: Redex {
+                                function: Def {
+                                    name: "simple_linear$__lambda_1",
+                                    effect: Simple,
+                                },
+                                args: [],
+                            },
+                            effect: Simple,
+                        },
+                        Affine,
+                    ),
+                ],
+                input: Thunk {
+                    t: Redex {
+                        function: Def {
+                            name: "call_complex",
+                            effect: Complex,
+                        },
+                        args: [
+                            Int {
+                                value: 2,
+                            },
+                        ],
+                    },
+                    effect: Simple,
                 },
             },
             c_type: Default,
             var_bound: 0,
             need_simple: true,
             need_cps: false,
+            need_specialized: false,
+        },
+    ),
+    (
+        "simple_linear$__lambda_1",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+            ],
+            body: Return {
+                value: Struct {
+                    values: [
+                        Var {
+                            index: 0,
+                        },
+                        Struct {
+                            values: [
+                                Int {
+                                    value: 1,
+                                },
+                                Var {
+                                    index: 1,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+            c_type: Default,
+            var_bound: 2,
+            need_simple: false,
+            need_cps: true,
             need_specialized: false,
         },
     ),
