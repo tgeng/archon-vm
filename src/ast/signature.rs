@@ -1,11 +1,11 @@
-use std::cmp::{min, Ordering};
-use std::collections::{HashMap};
-use itertools::Itertools;
 use crate::ast::free_var::HasFreeVar;
-use crate::ast::primitive_functions::{PRIMITIVE_FUNCTIONS, PrimitiveFunction};
+use crate::ast::primitive_functions::{PrimitiveFunction, PRIMITIVE_FUNCTIONS};
 use crate::ast::term::{CTerm, CType, Effect, VTerm, VType};
 use crate::ast::transformer::Transformer;
 use crate::ast::visitor::Visitor;
+use itertools::Itertools;
+use std::cmp::{min, Ordering};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct FunctionDefinition {
@@ -103,107 +103,186 @@ impl Signature {
 
     fn reduce_redundancy(&mut self) {
         let mut normalizer = RedundancyRemover {};
-        self.defs.iter_mut().for_each(|(_, FunctionDefinition { body, .. })| {
-            normalizer.transform_c_term(body);
-        });
+        self.defs
+            .iter_mut()
+            .for_each(|(_, FunctionDefinition { body, .. })| {
+                normalizer.transform_c_term(body);
+            });
     }
-
 
     fn specialize_calls(&mut self) {
         let mut new_defs: Vec<(String, FunctionDefinition)> = Vec::new();
-        let specializable_functions: HashMap<_, _> = self.defs.iter()
-            .filter_map(|(name, FunctionDefinition { args, c_type, need_simple: may_be_simple, .. })| {
-                if let CType::SpecializedF(_) = c_type && *may_be_simple {
-                    Some((name.clone(), args.len()))
-                } else {
-                    None
-                }
-            }).collect();
+        let specializable_functions: HashMap<_, _> = self
+            .defs
+            .iter()
+            .filter_map(
+                |(
+                    name,
+                    FunctionDefinition {
+                        args,
+                        c_type,
+                        need_simple: may_be_simple,
+                        ..
+                    },
+                )| {
+                    if let CType::SpecializedF(_) = c_type
+                        && *may_be_simple
+                    {
+                        Some((name.clone(), args.len()))
+                    } else {
+                        None
+                    }
+                },
+            )
+            .collect();
 
-        self.defs.iter_mut().for_each(|(name, FunctionDefinition { body, .. })| {
-            let mut specializer = CallSpecializer { def_name: name, new_defs: &mut new_defs, primitive_wrapper_counter: 0, specializable_functions: &specializable_functions };
-            specializer.transform_c_term(body);
-        });
+        self.defs
+            .iter_mut()
+            .for_each(|(name, FunctionDefinition { body, .. })| {
+                let mut specializer = CallSpecializer {
+                    def_name: name,
+                    new_defs: &mut new_defs,
+                    primitive_wrapper_counter: 0,
+                    specializable_functions: &specializable_functions,
+                };
+                specializer.transform_c_term(body);
+            });
         self.insert_new_defs(new_defs);
     }
 
     /// Assume all local variables are distinct. Also this transformation preserves this property.
     fn reduce_immediate_redexes(&mut self) {
         let mut reducer = RedexReducer {};
-        self.defs.iter_mut().for_each(|(_, FunctionDefinition { body, .. })| {
-            reducer.transform_c_term(body);
-        });
+        self.defs
+            .iter_mut()
+            .for_each(|(_, FunctionDefinition { body, .. })| {
+                reducer.transform_c_term(body);
+            });
     }
 
     /// Assume all local variables are distinct. Also this transformation preserves this property.
     fn lift_lambdas(&mut self) {
         let mut new_defs: Vec<(String, FunctionDefinition)> = Vec::new();
-        self.defs.iter_mut().for_each(|(name, FunctionDefinition { args, body, var_bound, .. })| {
-            let local_var_types = &mut vec![VType::Uniform; *var_bound];
-            for (i, ty) in args {
-                local_var_types[*i] = *ty;
-            }
-            let lifter = LambdaLifter { def_name: name, counter: 0, new_defs: &mut new_defs, local_var_types };
-            let mut thunk_lifter = lifter;
-            thunk_lifter.transform_c_term(body);
-        });
+        self.defs.iter_mut().for_each(
+            |(
+                name,
+                FunctionDefinition {
+                    args,
+                    body,
+                    var_bound,
+                    ..
+                },
+            )| {
+                let local_var_types = &mut vec![VType::Uniform; *var_bound];
+                for (i, ty) in args {
+                    local_var_types[*i] = *ty;
+                }
+                let lifter = LambdaLifter {
+                    def_name: name,
+                    counter: 0,
+                    new_defs: &mut new_defs,
+                    local_var_types,
+                };
+                let mut thunk_lifter = lifter;
+                thunk_lifter.transform_c_term(body);
+            },
+        );
         self.insert_new_defs(new_defs);
     }
 
     fn insert_new_defs(&mut self, new_defs: Vec<(String, FunctionDefinition)>) {
-        for (name, FunctionDefinition {
-            mut args,
-            mut body,
-            c_type,
-            mut var_bound,
-            need_simple: may_be_simple,
-            need_cps: may_be_complex,
-            need_specialized: may_be_specialized,
-        }) in new_defs.into_iter() {
-            Self::rename_local_vars_in_def(&mut args, &mut body, &mut var_bound);
-            self.insert(name, FunctionDefinition {
-                args,
-                body,
+        for (
+            name,
+            FunctionDefinition {
+                mut args,
+                mut body,
                 c_type,
-                var_bound,
+                mut var_bound,
                 need_simple: may_be_simple,
                 need_cps: may_be_complex,
                 need_specialized: may_be_specialized,
-            })
+            },
+        ) in new_defs.into_iter()
+        {
+            Self::rename_local_vars_in_def(&mut args, &mut body, &mut var_bound);
+            self.insert(
+                name,
+                FunctionDefinition {
+                    args,
+                    body,
+                    c_type,
+                    var_bound,
+                    need_simple: may_be_simple,
+                    need_cps: may_be_complex,
+                    need_specialized: may_be_specialized,
+                },
+            )
         }
     }
 
     fn rename_local_vars(&mut self) {
-        self.defs.iter_mut().for_each(|(_, FunctionDefinition { args, body, var_bound: max_arg_size, .. })| {
-            Self::rename_local_vars_in_def(args, body, max_arg_size);
-        });
+        self.defs.iter_mut().for_each(
+            |(
+                _,
+                FunctionDefinition {
+                    args,
+                    body,
+                    var_bound: max_arg_size,
+                    ..
+                },
+            )| {
+                Self::rename_local_vars_in_def(args, body, max_arg_size);
+            },
+        );
     }
 
     fn remove_duplicate_defs(&mut self) {
         let mut def_replacement: HashMap<String, String> = HashMap::new();
         let mut def_content_map = HashMap::new();
-        for (name, FunctionDefinition { args, body, c_type, .. }) in self.defs.iter().sorted_by_key(|(name, _)| *name) {
-            let chosen_name = def_content_map.entry((args, body, c_type)).or_insert_with(|| name);
+        for (
+            name,
+            FunctionDefinition {
+                args, body, c_type, ..
+            },
+        ) in self.defs.iter().sorted_by_key(|(name, _)| *name)
+        {
+            let chosen_name = def_content_map
+                .entry((args, body, c_type))
+                .or_insert_with(|| name);
             if *chosen_name != name {
                 def_replacement.insert(name.clone(), chosen_name.clone());
             }
         }
         for (name, replacement) in def_replacement.iter() {
             let function_definition = self.defs.remove(name).unwrap();
-            let FunctionDefinition { need_simple, need_cps, need_specialized, .. } = function_definition;
+            let FunctionDefinition {
+                need_simple,
+                need_cps,
+                need_specialized,
+                ..
+            } = function_definition;
             let replacement_function_definition = self.defs.get_mut(replacement).unwrap();
             replacement_function_definition.need_simple |= need_simple;
             replacement_function_definition.need_cps |= need_cps;
             replacement_function_definition.need_specialized |= need_specialized;
         }
         let mut def_replacer = DefReplacer { def_replacement };
-        self.defs.iter_mut().for_each(|(_, FunctionDefinition { body, .. })| {
-            def_replacer.transform_c_term(body);
-        });
+        self.defs
+            .iter_mut()
+            .for_each(|(_, FunctionDefinition { body, .. })| {
+                def_replacer.transform_c_term(body);
+            });
     }
 
-    fn rename_local_vars_in_def(args: &mut [(usize, VType)], body: &mut CTerm, var_bound: &mut usize) {
-        let mut renamer = DistinctVarRenamer { bindings: HashMap::new(), counter: 0 };
+    fn rename_local_vars_in_def(
+        args: &mut [(usize, VType)],
+        body: &mut CTerm,
+        var_bound: &mut usize,
+    ) {
+        let mut renamer = DistinctVarRenamer {
+            bindings: HashMap::new(),
+            counter: 0,
+        };
         for (i, _) in args.iter_mut() {
             *i = renamer.add_binding(*i);
         }
@@ -218,20 +297,29 @@ impl Visitor for Signature {
     type Ctx = Effect;
 
     fn visit_thunk(&mut self, v_term: &VTerm, context_effect: Effect) {
-        let VTerm::Thunk { box t, .. } = v_term else { unreachable!() };
+        let VTerm::Thunk { box t, .. } = v_term else {
+            unreachable!()
+        };
         let empty_vec = vec![];
         let (name, args) = match t {
-            CTerm::Redex { function: box CTerm::Def { name, .. }, args, } => (name, args),
+            CTerm::Redex {
+                function: box CTerm::Def { name, .. },
+                args,
+            } => (name, args),
             CTerm::Def { name, .. } => (name, &empty_vec),
             _ => panic!("all thunks should have been lifted at this point"),
         };
-        args.iter().for_each(|arg| self.visit_v_term(arg, context_effect));
+        args.iter()
+            .for_each(|arg| self.visit_v_term(arg, context_effect));
         self.enable(name, FunctionEnablement::Cps);
     }
 
     fn visit_redex(&mut self, c_term: &CTerm, context_effect: Effect) {
-        let CTerm::Redex { box function, args } = c_term else { unreachable!() };
-        args.iter().for_each(|arg| self.visit_v_term(arg, context_effect));
+        let CTerm::Redex { box function, args } = c_term else {
+            unreachable!()
+        };
+        args.iter()
+            .for_each(|arg| self.visit_v_term(arg, context_effect));
         let CTerm::Def { name, effect } = function else {
             self.visit_c_term(function, context_effect);
             return;
@@ -249,9 +337,10 @@ impl Visitor for Signature {
         }
     }
 
-
     fn visit_def(&mut self, c_term: &CTerm, context_effect: Effect) {
-        let CTerm::Def { name, effect } = c_term else { unreachable!() };
+        let CTerm::Def { name, effect } = c_term else {
+            unreachable!()
+        };
         let effect = effect.intersect(context_effect);
         if effect == Effect::Complex {
             self.enable(name, FunctionEnablement::Cps);
@@ -308,23 +397,31 @@ impl Transformer for RedundancyRemover {
         match c_term {
             CTerm::Redex { function, args } => {
                 if args.is_empty() {
-                    let mut placeholder = CTerm::Return { value: VTerm::Int { value: 1 } };
+                    let mut placeholder = CTerm::Return {
+                        value: VTerm::Int { value: 1 },
+                    };
                     std::mem::swap(&mut placeholder, function);
                     *c_term = placeholder;
                 } else {
                     let is_nested_redex = matches!(function.as_ref(), CTerm::Redex { .. });
                     if is_nested_redex {
-                        let mut placeholder = CTerm::Return { value: VTerm::Int { value: 1 } };
+                        let mut placeholder = CTerm::Return {
+                            value: VTerm::Int { value: 1 },
+                        };
                         std::mem::swap(&mut placeholder, c_term);
                         match placeholder {
-                            CTerm::Redex { function, args } => {
-                                match *function {
-                                    CTerm::Redex { function: sub_function, args: sub_args } => {
-                                        *c_term = CTerm::Redex { function: sub_function, args: sub_args.into_iter().chain(args).collect() };
-                                    }
-                                    _ => unreachable!(),
+                            CTerm::Redex { function, args } => match *function {
+                                CTerm::Redex {
+                                    function: sub_function,
+                                    args: sub_args,
+                                } => {
+                                    *c_term = CTerm::Redex {
+                                        function: sub_function,
+                                        args: sub_args.into_iter().chain(args).collect(),
+                                    };
                                 }
-                            }
+                                _ => unreachable!(),
+                            },
                             _ => unreachable!(),
                         }
                     }
@@ -336,16 +433,32 @@ impl Transformer for RedundancyRemover {
 
     fn transform_lambda(&mut self, c_term: &mut CTerm) {
         self.transform_lambda_default(c_term);
-        let CTerm::Lambda { args, box body, effect } = c_term else { unreachable!() };
-        if let CTerm::Lambda { args: sub_args, body: box sub_body, effect: sub_effect } = body {
+        let CTerm::Lambda {
+            args,
+            box body,
+            effect,
+        } = c_term
+        else {
+            unreachable!()
+        };
+        if let CTerm::Lambda {
+            args: sub_args,
+            body: box sub_body,
+            effect: sub_effect,
+        } = body
+        {
             *effect = effect.union(*sub_effect);
             args.extend(sub_args.iter().copied());
-            let mut placeholder = CTerm::Return { value: VTerm::Int { value: 0 } };
+            let mut placeholder = CTerm::Return {
+                value: VTerm::Int { value: 0 },
+            };
             std::mem::swap(&mut placeholder, sub_body);
             *body = placeholder
         }
         if args.is_empty() {
-            let mut placeholder = CTerm::Return { value: VTerm::Int { value: 0 } };
+            let mut placeholder = CTerm::Return {
+                value: VTerm::Int { value: 0 },
+            };
             std::mem::swap(&mut placeholder, body);
             *c_term = placeholder;
         }
@@ -362,34 +475,60 @@ struct CallSpecializer<'a> {
 impl<'a> Transformer for CallSpecializer<'a> {
     fn transform_redex(&mut self, c_term: &mut CTerm) {
         self.transform_redex_default(c_term);
-        let CTerm::Redex { box function, args } = c_term else { unreachable!() };
-        let CTerm::Def { name, effect } = function else { return; };
-        if let Some((name, PrimitiveFunction { arg_types, return_type, .. })) = PRIMITIVE_FUNCTIONS.get_entry(name) {
+        let CTerm::Redex { box function, args } = c_term else {
+            unreachable!()
+        };
+        let CTerm::Def { name, effect } = function else {
+            return;
+        };
+        if let Some((
+            name,
+            PrimitiveFunction {
+                arg_types,
+                return_type,
+                ..
+            },
+        )) = PRIMITIVE_FUNCTIONS.get_entry(name)
+        {
             match arg_types.len().cmp(&args.len()) {
                 Ordering::Greater => {
-                    let primitive_wrapper_name = format!("{}$__primitive_wrapper_{}", self.def_name, self.primitive_wrapper_counter);
+                    let primitive_wrapper_name = format!(
+                        "{}$__primitive_wrapper_{}",
+                        self.def_name, self.primitive_wrapper_counter
+                    );
                     // Primitive calls cannot be effectful.
                     assert_eq!(*effect, Effect::Simple);
-                    *function = CTerm::Def { name: primitive_wrapper_name.clone(), effect: Effect::Simple };
-                    self.new_defs.push((primitive_wrapper_name, FunctionDefinition {
-                        args: arg_types.iter().enumerate().map(|(i, t)| (i, *t)).collect(),
-                        body: CTerm::PrimitiveCall {
-                            name,
-                            args: (0..arg_types.len()).map(|index| VTerm::Var { index }).collect(),
+                    *function = CTerm::Def {
+                        name: primitive_wrapper_name.clone(),
+                        effect: Effect::Simple,
+                    };
+                    self.new_defs.push((
+                        primitive_wrapper_name,
+                        FunctionDefinition {
+                            args: arg_types.iter().enumerate().map(|(i, t)| (i, *t)).collect(),
+                            body: CTerm::PrimitiveCall {
+                                name,
+                                args: (0..arg_types.len())
+                                    .map(|index| VTerm::Var { index })
+                                    .collect(),
+                            },
+                            c_type: CType::SpecializedF(*return_type),
+                            var_bound: arg_types.len(),
+                            need_simple: false,
+                            need_cps: false,
+                            need_specialized: false,
                         },
-                        c_type: CType::SpecializedF(*return_type),
-                        var_bound: arg_types.len(),
-                        need_simple: false,
-                        need_cps: false,
-                        need_specialized: false,
-                    }))
+                    ))
                 }
                 Ordering::Equal => {
-                    let CTerm::Redex { args, .. } = std::mem::replace(
-                        c_term,
-                        CTerm::PrimitiveCall { name, args: vec![] },
-                    ) else { unreachable!() };
-                    let CTerm::PrimitiveCall { args: new_args, .. } = c_term else { unreachable!() };
+                    let CTerm::Redex { args, .. } =
+                        std::mem::replace(c_term, CTerm::PrimitiveCall { name, args: vec![] })
+                    else {
+                        unreachable!()
+                    };
+                    let CTerm::PrimitiveCall { args: new_args, .. } = c_term else {
+                        unreachable!()
+                    };
                     *new_args = args;
                 }
                 Ordering::Less => {
@@ -412,18 +551,30 @@ impl<'a> LambdaLifter<'a> {
         let thunk_def_name = format!("{}$__lambda_{}", self.def_name, self.counter);
         self.counter += 1;
 
-        let redex =
-            CTerm::Redex {
-                function: Box::new(CTerm::Def { name: thunk_def_name.clone(), effect }),
-                args: free_vars.iter().map(|i| VTerm::Var { index: *i }).collect(),
-            };
+        let redex = CTerm::Redex {
+            function: Box::new(CTerm::Def {
+                name: thunk_def_name.clone(),
+                effect,
+            }),
+            args: free_vars.iter().map(|i| VTerm::Var { index: *i }).collect(),
+        };
         (thunk_def_name, redex)
     }
 
-    fn create_new_def(&mut self, name: String, free_vars: Vec<usize>, args: &[(usize, VType)], body: CTerm) {
+    fn create_new_def(
+        &mut self,
+        name: String,
+        free_vars: Vec<usize>,
+        args: &[(usize, VType)],
+        body: CTerm,
+    ) {
         let var_bound = *free_vars.iter().max().unwrap_or(&0);
         let function_definition = FunctionDefinition {
-            args: free_vars.into_iter().map(|v| (v, self.local_var_types[v])).chain(args.iter().copied()).collect(),
+            args: free_vars
+                .into_iter()
+                .map(|v| (v, self.local_var_types[v]))
+                .chain(args.iter().copied())
+                .collect(),
             body,
             c_type: CType::Default,
             var_bound,
@@ -437,10 +588,21 @@ impl<'a> LambdaLifter<'a> {
 
 impl<'a> Transformer for LambdaLifter<'a> {
     fn transform_thunk(&mut self, v_term: &mut VTerm) {
-        let VTerm::Thunk { t: box c_term, effect } = v_term else { unreachable!() };
+        let VTerm::Thunk {
+            t: box c_term,
+            effect,
+        } = v_term
+        else {
+            unreachable!()
+        };
         self.transform_c_term(c_term);
 
-        if let CTerm::Redex { function: box CTerm::Def { .. }, .. } | CTerm::Def { .. } = c_term {
+        if let CTerm::Redex {
+            function: box CTerm::Def { .. },
+            ..
+        }
+        | CTerm::Def { .. } = c_term
+        {
             // There is no need to lift the thunk if it's already a simple function call.
             return;
         }
@@ -458,13 +620,17 @@ impl<'a> Transformer for LambdaLifter<'a> {
         let mut free_vars: Vec<_> = c_term.free_vars().iter().copied().collect();
         free_vars.sort();
 
-        let CTerm::Lambda { args, effect, .. } = c_term else { unreachable!() };
+        let CTerm::Lambda { args, effect, .. } = c_term else {
+            unreachable!()
+        };
 
         let (thunk_def_name, mut redex) = self.create_new_redex(&free_vars, *effect);
         let args = args.clone();
         std::mem::swap(c_term, &mut redex);
 
-        let CTerm::Lambda { box body, .. } = redex else { unreachable!() };
+        let CTerm::Lambda { box body, .. } = redex else {
+            unreachable!()
+        };
 
         self.create_new_def(thunk_def_name, free_vars, &args, body);
     }
@@ -475,12 +641,26 @@ struct RedexReducer {}
 impl Transformer for RedexReducer {
     fn transform_redex(&mut self, c_term: &mut CTerm) {
         self.transform_redex_default(c_term);
-        let CTerm::Redex { box function, args } = c_term else { unreachable!() };
-        let CTerm::Lambda { args: lambda_args, body: box lambda_body, .. } = function else { return; };
+        let CTerm::Redex { box function, args } = c_term else {
+            unreachable!()
+        };
+        let CTerm::Lambda {
+            args: lambda_args,
+            body: box lambda_body,
+            ..
+        } = function
+        else {
+            return;
+        };
         let num_args = min(args.len(), lambda_args.len());
         let matching_args = args.drain(..num_args).collect::<Vec<_>>();
-        let matching_lambda_args = lambda_args.drain(..num_args).map(|(index, _)| index).collect::<Vec<_>>();
-        let mut substitutor = Substitutor { bindings: HashMap::from_iter(matching_lambda_args.into_iter().zip(matching_args)) };
+        let matching_lambda_args = lambda_args
+            .drain(..num_args)
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        let mut substitutor = Substitutor {
+            bindings: HashMap::from_iter(matching_lambda_args.into_iter().zip(matching_args)),
+        };
         substitutor.transform_c_term(lambda_body);
         RedundancyRemover {}.transform_c_term(c_term);
         // Call the reducer again to reduce the new redex. This is terminating because any loops
@@ -490,10 +670,16 @@ impl Transformer for RedexReducer {
 
     fn transform_force(&mut self, c_term: &mut CTerm) {
         self.transform_force_default(c_term);
-        let CTerm::Force { thunk, .. } = c_term else { unreachable!() };
-        let VTerm::Thunk { box t, .. } = thunk else { return; };
+        let CTerm::Force { thunk, .. } = c_term else {
+            unreachable!()
+        };
+        let VTerm::Thunk { box t, .. } = thunk else {
+            return;
+        };
         // The content of placeholder does not matter here
-        let mut placeholder = CTerm::Return { value: VTerm::Var { index: 0 } };
+        let mut placeholder = CTerm::Return {
+            value: VTerm::Var { index: 0 },
+        };
         std::mem::swap(t, &mut placeholder);
         *c_term = placeholder;
         // Call the reducer again to reduce the new redex. This is terminating because any loops
@@ -508,7 +694,9 @@ struct Substitutor {
 
 impl Transformer for Substitutor {
     fn transform_var(&mut self, v_term: &mut VTerm) {
-        let VTerm::Var { index } = v_term else { unreachable!() };
+        let VTerm::Var { index } = v_term else {
+            unreachable!()
+        };
         if let Some(replacement) = self.bindings.get(index) {
             *v_term = replacement.clone();
         }
@@ -521,7 +709,9 @@ struct DefReplacer {
 
 impl Transformer for DefReplacer {
     fn transform_def(&mut self, c_term: &mut CTerm) {
-        let CTerm::Def { name, .. } = c_term else { unreachable!() };
+        let CTerm::Def { name, .. } = c_term else {
+            unreachable!()
+        };
         if let Some(replacement) = self.def_replacement.get(name.as_str()) {
             *name = replacement.clone()
         }

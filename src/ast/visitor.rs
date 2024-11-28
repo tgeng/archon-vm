@@ -19,13 +19,17 @@ pub trait Visitor {
 
     fn visit_var(&mut self, _v_term: &VTerm, _ctx: Self::Ctx) {}
     fn visit_thunk(&mut self, v_term: &VTerm, ctx: Self::Ctx) {
-        let VTerm::Thunk { t, .. } = v_term else { unreachable!() };
+        let VTerm::Thunk { t, .. } = v_term else {
+            unreachable!()
+        };
         self.visit_c_term(t, ctx);
     }
     fn visit_int(&mut self, _v_term: &VTerm, _ctx: Self::Ctx) {}
     fn visit_str(&mut self, _v_term: &VTerm, _ctx: Self::Ctx) {}
     fn visit_tuple(&mut self, v_term: &VTerm, ctx: Self::Ctx) {
-        let VTerm::Struct { values } = v_term else { unreachable!() };
+        let VTerm::Struct { values } = v_term else {
+            unreachable!()
+        };
         for v in values {
             self.visit_v_term(v, ctx);
         }
@@ -49,23 +53,36 @@ pub trait Visitor {
     }
 
     fn visit_redex(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
-        let CTerm::Redex { function, args } = c_term else { unreachable!() };
+        let CTerm::Redex { function, args } = c_term else {
+            unreachable!()
+        };
         self.visit_c_term(function, ctx);
         args.iter().for_each(|arg| self.visit_v_term(arg, ctx));
     }
 
     fn visit_return(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
-        let CTerm::Return { value } = c_term else { unreachable!() };
+        let CTerm::Return { value } = c_term else {
+            unreachable!()
+        };
         self.visit_v_term(value, ctx);
     }
 
     fn visit_force(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
-        let CTerm::Force { thunk, .. } = c_term else { unreachable!() };
+        let CTerm::Force { thunk, .. } = c_term else {
+            unreachable!()
+        };
         self.visit_v_term(thunk, ctx);
     }
 
     fn visit_let(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
-        let CTerm::Let { t, body, bound_index: bound_name } = c_term else { unreachable!() };
+        let CTerm::Let {
+            t,
+            body,
+            bound_index: bound_name,
+        } = c_term
+        else {
+            unreachable!()
+        };
         self.visit_c_term(t, ctx);
         self.add_binding(*bound_name, ctx);
         self.visit_c_term(body, ctx);
@@ -75,7 +92,15 @@ pub trait Visitor {
     fn visit_def(&mut self, _c_term: &CTerm, _ctx: Self::Ctx) {}
 
     fn visit_case_int(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
-        let CTerm::CaseInt { t, branches, default_branch, .. } = c_term else { unreachable!() };
+        let CTerm::CaseInt {
+            t,
+            branches,
+            default_branch,
+            ..
+        } = c_term
+        else {
+            unreachable!()
+        };
         self.visit_v_term(t, ctx);
         for (_, branch) in branches.iter() {
             self.visit_c_term(branch, ctx);
@@ -86,32 +111,48 @@ pub trait Visitor {
     }
 
     fn visit_lambda(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
-        let CTerm::Lambda { args, body, .. } = c_term else { unreachable!() };
+        let CTerm::Lambda { args, body, .. } = c_term else {
+            unreachable!()
+        };
         args.iter().for_each(|(arg, _)| self.add_binding(*arg, ctx));
         self.visit_c_term(body, ctx);
-        args.iter().for_each(|(arg, _)| self.remove_binding(*arg, ctx));
+        args.iter()
+            .for_each(|(arg, _)| self.remove_binding(*arg, ctx));
     }
 
     fn visit_mem_get(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
-        let CTerm::MemGet { base, offset } = c_term else { unreachable!() };
+        let CTerm::MemGet { base, offset } = c_term else {
+            unreachable!()
+        };
         self.visit_v_term(base, ctx);
         self.visit_v_term(offset, ctx);
     }
 
     fn visit_mem_set(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
-        let CTerm::MemSet { base, offset, value } = c_term else { unreachable!() };
+        let CTerm::MemSet {
+            base,
+            offset,
+            value,
+        } = c_term
+        else {
+            unreachable!()
+        };
         self.visit_v_term(base, ctx);
         self.visit_v_term(offset, ctx);
         self.visit_v_term(value, ctx);
     }
 
     fn visit_primitive_call(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
-        let CTerm::PrimitiveCall { args, .. } = c_term else { unreachable!() };
+        let CTerm::PrimitiveCall { args, .. } = c_term else {
+            unreachable!()
+        };
         args.iter().for_each(|arg| self.visit_v_term(arg, ctx));
     }
 
     fn visit_operation_call(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
-        let CTerm::OperationCall { eff, args, .. } = c_term else { unreachable!() };
+        let CTerm::OperationCall { eff, args, .. } = c_term else {
+            unreachable!()
+        };
         self.visit_v_term(eff, ctx);
         args.iter().for_each(|arg| self.visit_v_term(arg, ctx));
     }
@@ -123,11 +164,18 @@ pub trait Visitor {
             parameter_replicator,
             transform,
             handlers,
-            input
-        } = c_term else { unreachable!() };
+            input,
+        } = c_term
+        else {
+            unreachable!()
+        };
         self.visit_v_term(parameter, ctx);
-        parameter_disposer.iter().for_each(|disposer| self.visit_v_term(disposer, ctx));
-        parameter_replicator.iter().for_each(|replicator| self.visit_v_term(replicator, ctx));
+        parameter_disposer
+            .iter()
+            .for_each(|disposer| self.visit_v_term(disposer, ctx));
+        parameter_replicator
+            .iter()
+            .for_each(|replicator| self.visit_v_term(replicator, ctx));
         self.visit_v_term(transform, ctx);
         for (eff, handler, ..) in handlers.iter() {
             self.visit_v_term(eff, ctx);

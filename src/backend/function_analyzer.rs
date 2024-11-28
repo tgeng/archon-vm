@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::ast::term::{CTerm, Effect};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct FunctionAnalyzer {
@@ -21,7 +21,10 @@ impl FunctionAnalyzer {
     pub(crate) fn analyze(&mut self, c_term: &CTerm, is_tail: bool) {
         match c_term {
             CTerm::Redex { function, .. } => self.analyze(function, is_tail),
-            CTerm::Force { effect: Effect::Complex, .. } if !is_tail => {
+            CTerm::Force {
+                effect: Effect::Complex,
+                ..
+            } if !is_tail => {
                 self.count += 1;
                 self.has_non_tail_complex_effects = true;
             }
@@ -29,11 +32,18 @@ impl FunctionAnalyzer {
                 self.analyze(t, false);
                 self.analyze(body, is_tail);
             }
-            CTerm::Def { effect: Effect::Complex, .. } if !is_tail => {
+            CTerm::Def {
+                effect: Effect::Complex,
+                ..
+            } if !is_tail => {
                 self.count += 1;
                 self.has_non_tail_complex_effects = true;
             }
-            CTerm::CaseInt { branches, default_branch, .. } => {
+            CTerm::CaseInt {
+                branches,
+                default_branch,
+                ..
+            } => {
                 let current_block_id = self.count - 1;
                 let mut branch_block_ids = Vec::new();
                 for (_, branch) in branches {
@@ -49,9 +59,15 @@ impl FunctionAnalyzer {
                 }
                 let joining_block_id = self.count;
                 self.count += 1;
-                self.case_blocks.insert(current_block_id, (branch_block_ids, default_block_id, joining_block_id));
+                self.case_blocks.insert(
+                    current_block_id,
+                    (branch_block_ids, default_block_id, joining_block_id),
+                );
             }
-            CTerm::OperationCall { effect: Effect::Complex, .. } if !is_tail => {
+            CTerm::OperationCall {
+                effect: Effect::Complex,
+                ..
+            } if !is_tail => {
                 self.count += 1;
                 self.has_non_tail_complex_effects = true;
             }

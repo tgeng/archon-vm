@@ -1,13 +1,13 @@
-use std::fs::File;
-use std::io::{BufWriter};
 use cranelift::codegen;
 use cranelift::codegen::isa::CallConv;
 use cranelift::codegen::settings;
 use cranelift::frontend::{FunctionBuilder, FunctionBuilderContext};
-use cranelift::prelude::{AbiParam, Block, Configurable, InstBuilder, MemFlags, Signature};
 use cranelift::prelude::types::I64;
+use cranelift::prelude::{AbiParam, Block, Configurable, InstBuilder, MemFlags, Signature};
 use cranelift_module::{FuncId, Module};
 use cranelift_object::{ObjectBuilder, ObjectModule, ObjectProduct};
+use std::fs::File;
+use std::io::BufWriter;
 
 struct Compiler {
     builder_context: FunctionBuilderContext,
@@ -35,7 +35,9 @@ impl Default for Compiler {
             .finish(settings::Flags::new(flag_builder))
             .unwrap();
 
-        let builder = ObjectBuilder::new(isa, "playground", cranelift_module::default_libcall_names()).unwrap();
+        let builder =
+            ObjectBuilder::new(isa, "playground", cranelift_module::default_libcall_names())
+                .unwrap();
         let module = ObjectModule::new(builder);
         Self {
             builder_context: FunctionBuilderContext::new(),
@@ -48,11 +50,19 @@ impl Default for Compiler {
 
 impl Compiler {
     fn declare_function(&mut self, name: &str, sig: &Signature) -> FuncId {
-        self.module.declare_function(name, cranelift_module::Linkage::Local, sig).unwrap()
+        self.module
+            .declare_function(name, cranelift_module::Linkage::Local, sig)
+            .unwrap()
     }
 
-    fn define_function<F>(&mut self, name: &str, sig: &Signature, f: F) -> FuncId where F: FnOnce(&mut ObjectModule, &mut FunctionBuilder, Block) {
-        let func_id = self.module.declare_function(name, cranelift_module::Linkage::Local, sig).unwrap();
+    fn define_function<F>(&mut self, name: &str, sig: &Signature, f: F) -> FuncId
+    where
+        F: FnOnce(&mut ObjectModule, &mut FunctionBuilder, Block),
+    {
+        let func_id = self
+            .module
+            .declare_function(name, cranelift_module::Linkage::Local, sig)
+            .unwrap();
         self.ctx.func.signature = sig.clone();
         let mut builder = FunctionBuilder::new(&mut self.ctx.func, &mut self.builder_context);
         let entry_block = builder.create_block();
@@ -97,5 +107,8 @@ fn main() {
     let object_product = compiler.finish();
     let output_path = home::home_dir().unwrap().join("tmp/playground.o");
     let temp_output_writer = BufWriter::new(File::create(output_path).unwrap());
-    object_product.object.write_stream(temp_output_writer).unwrap();
+    object_product
+        .object
+        .write_stream(temp_output_writer)
+        .unwrap();
 }

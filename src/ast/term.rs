@@ -82,12 +82,23 @@ impl Effect {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum VTerm {
-    Var { index: usize },
-    Thunk { t: Box<CTerm>, effect: Effect },
+    Var {
+        index: usize,
+    },
+    Thunk {
+        t: Box<CTerm>,
+        effect: Effect,
+    },
     /// 51 bit integer represented as a machine word with highest bits sign-extended
-    Int { value: i64 },
-    Str { value: String },
-    Struct { values: Vec<VTerm> },
+    Int {
+        value: i64,
+    },
+    Str {
+        value: String,
+    },
+    Struct {
+        values: Vec<VTerm>,
+    },
     // TODO: the following types are not yet implemented in the AST yet
     // PrimitiveArray { values: Vec<VTerm> },
     // F64 { value: f64 },
@@ -98,30 +109,68 @@ pub enum VTerm {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CTerm {
-    Redex { function: Box<CTerm>, args: Vec<VTerm> },
-    Return { value: VTerm },
-    Force { thunk: VTerm, effect: Effect },
-    Let { t: Box<CTerm>, bound_index: usize, body: Box<CTerm> },
+    Redex {
+        function: Box<CTerm>,
+        args: Vec<VTerm>,
+    },
+    Return {
+        value: VTerm,
+    },
+    Force {
+        thunk: VTerm,
+        effect: Effect,
+    },
+    Let {
+        t: Box<CTerm>,
+        bound_index: usize,
+        body: Box<CTerm>,
+    },
     /// Note: the flag means whether the function has complex effects that need to be handled by
     /// some handlers. System effects like IO do not count because they appear to be a simple call.
     /// This value should be conservatively set to true if side effects are unknown. For example,
     /// the containing redex may not have enough arguments to determine the effects of this
     /// computation.
-    Def { name: String, effect: Effect },
+    Def {
+        name: String,
+        effect: Effect,
+    },
     /// Note on result type, different branches can have different computation types. For example,
     /// for record instance or function with large elimination, one branch may return a value while
     /// another consumes more arguments (aka tail call). In this case the result type is
     /// [CType::Default].
-    CaseInt { t: VTerm, result_type: CType, branches: Vec<(i64, CTerm)>, default_branch: Option<Box<CTerm>> },
-    Lambda { args: Vec<(usize, VType)>, body: Box<CTerm>, effect: Effect },
-    MemGet { base: VTerm, offset: VTerm },
-    MemSet { base: VTerm, offset: VTerm, value: VTerm },
+    CaseInt {
+        t: VTerm,
+        result_type: CType,
+        branches: Vec<(i64, CTerm)>,
+        default_branch: Option<Box<CTerm>>,
+    },
+    Lambda {
+        args: Vec<(usize, VType)>,
+        body: Box<CTerm>,
+        effect: Effect,
+    },
+    MemGet {
+        base: VTerm,
+        offset: VTerm,
+    },
+    MemSet {
+        base: VTerm,
+        offset: VTerm,
+        value: VTerm,
+    },
     // TODO: implement the following for setting and getting primitive values
     // PMemGet { base: VTerm, offset: VTerm, p_type: PType },
     // PMemSet { base: VTerm, offset: VTerm, value: VTerm, p_type: PType },
-    PrimitiveCall { name: &'static str, args: Vec<VTerm> },
+    PrimitiveCall {
+        name: &'static str,
+        args: Vec<VTerm>,
+    },
     /// Note: effect cannot be pure for operation calls.
-    OperationCall { eff: VTerm, args: Vec<VTerm>, effect: Effect },
+    OperationCall {
+        eff: VTerm,
+        args: Vec<VTerm>,
+        effect: Effect,
+    },
     Handler {
         parameter: VTerm,
         /// thunk of lambda: parameter -> 0

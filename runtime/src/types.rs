@@ -81,7 +81,7 @@ impl UniformPtr<*const usize> for usize {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(C, align(8))]
-pub struct UPtr<T> (*const u8, PhantomData<T>);
+pub struct UPtr<T>(*const u8, PhantomData<T>);
 
 impl<'a, T> UPtr<&'a T> {
     pub fn as_uniform(&self) -> usize {

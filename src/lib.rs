@@ -5,7 +5,7 @@
 
 extern crate core;
 
-mod frontend;
 mod ast;
 mod backend;
+mod frontend;
 mod test_utils;

@@ -1,7 +1,7 @@
-use cranelift::prelude::{FunctionBuilder, InstBuilder, Value};
-use phf::phf_map;
 use crate::ast::term::SpecializedType;
 use crate::ast::term::VType;
+use cranelift::prelude::{FunctionBuilder, InstBuilder, Value};
+use phf::phf_map;
 use SpecializedType::*;
 use VType::*;
 
@@ -137,4 +137,3 @@ pub static PRIMITIVE_FUNCTIONS: phf::Map<&'static str, &'static PrimitiveFunctio
         }
     },
 };
-

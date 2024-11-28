@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
 use crate::ast::term::{CTerm, VTerm};
 use crate::ast::visitor::Visitor;
+use std::collections::{HashMap, HashSet};
 
 pub trait HasFreeVar {
     fn free_vars(&mut self) -> HashSet<usize>;
@@ -8,7 +8,10 @@ pub trait HasFreeVar {
 
 impl HasFreeVar for CTerm {
     fn free_vars(&mut self) -> HashSet<usize> {
-        let mut visitor = FreeVarVisitor { free_vars: HashSet::new(), binding_count: HashMap::new() };
+        let mut visitor = FreeVarVisitor {
+            free_vars: HashSet::new(),
+            binding_count: HashMap::new(),
+        };
         visitor.visit_c_term(self, ());
         visitor.free_vars
     }
@@ -16,7 +19,10 @@ impl HasFreeVar for CTerm {
 
 impl HasFreeVar for VTerm {
     fn free_vars(&mut self) -> HashSet<usize> {
-        let mut visitor = FreeVarVisitor { free_vars: HashSet::new(), binding_count: HashMap::new() };
+        let mut visitor = FreeVarVisitor {
+            free_vars: HashSet::new(),
+            binding_count: HashMap::new(),
+        };
         visitor.visit_v_term(self, ());
         visitor.free_vars
     }
@@ -31,11 +37,17 @@ impl Visitor for FreeVarVisitor {
     type Ctx = ();
 
     fn add_binding(&mut self, name: usize, _: ()) {
-        self.binding_count.insert(name, self.binding_count.get(&name).cloned().unwrap_or(0) + 1);
+        self.binding_count.insert(
+            name,
+            self.binding_count.get(&name).cloned().unwrap_or(0) + 1,
+        );
     }
 
     fn remove_binding(&mut self, name: usize, _: ()) {
-        self.binding_count.insert(name, self.binding_count.get(&name).cloned().unwrap_or(0) - 1);
+        self.binding_count.insert(
+            name,
+            self.binding_count.get(&name).cloned().unwrap_or(0) - 1,
+        );
     }
 
     fn visit_var(&mut self, _v_term: &VTerm, _: ()) {
