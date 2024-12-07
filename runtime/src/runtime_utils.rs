@@ -1,19 +1,16 @@
-use crate::runtime::HandlerEntry::SimpleOperationMarker;
 use crate::runtime::{
-    CapturedContinuation, ContImplPtr, Continuation, Eff, Generic, Handler, HandlerEntry,
-    HandlerType, HandlerTypeOrdinal, RawFuncPtr, ThunkPtr, Uniform,
+    CapturedContinuation, ContImplPtr, Continuation, EffIns, Generic, Handler, HandlerType,
+    HandlerTypeOrdinal, RawFuncPtr, ThunkPtr, Uniform,
 };
 use crate::types::{UPtr, UniformPtr, UniformType};
 use enum_ordinalize::Ordinalize;
 use std::arch::global_asm;
 use std::cell::RefCell;
-use std::iter::Peekable;
-use std::ops::DerefMut;
-use std::slice::IterMut;
+use std::ptr::{null, null_mut};
+use std::rc::Rc;
 
-// TODO: use custom allocator that allocates through Boehm GC for vecs
 thread_local!(
-    static HANDLERS: RefCell<Vec<HandlerEntry>> = RefCell::new(Vec::new());
+    static TIP_HANDLER: RefCell<Option<Rc<RefCell<Handler<*mut Uniform>>>>> = RefCell::new(None);
 );
 
 #[cfg(target_arch = "aarch64")]
@@ -169,11 +166,11 @@ pub unsafe extern "C" fn runtime_alloc_stack() -> *mut usize {
 
 /// Returns the result of the operation in uniform representation
 pub unsafe fn debug_helper(
-    base: *const usize,
-    last_result_ptr: *const usize,
-    thunk: *const usize,
+    _base: *const usize,
+    _last_result_ptr: *const usize,
+    _thunk: *const usize,
 ) -> usize {
-    return 1 + 1;
+    1 + 1
 }
 
 /// Returns the following results on the argument stack.
@@ -183,15 +180,14 @@ pub unsafe fn debug_helper(
 ///
 #[no_mangle]
 pub unsafe extern "C" fn runtime_prepare_operation(
-    eff: Uniform,
+    eff_ins: *const EffIns,
     handler_call_base_address: *mut usize,
     tip_continuation: &mut Continuation,
     handler_num_args: usize,
     captured_continuation_thunk_impl: RawFuncPtr,
     simple_handler_runner_impl_ptr: RawFuncPtr,
-    may_be_complex: usize,
 ) -> *const usize {
-    let (handler_index, handler_impl, handler_type) = find_matching_handler(eff, may_be_complex);
+    let (handler_ptr, handler_impl, handler_type) = get_operation(eff_ins);
     let (handler_function_ptr, new_base_address, next_continuation) =
         if handler_type == HandlerType::Complex {
             prepare_complex_operation(
@@ -199,7 +195,7 @@ pub unsafe extern "C" fn runtime_prepare_operation(
                 tip_continuation,
                 handler_num_args,
                 captured_continuation_thunk_impl,
-                handler_index,
+                handler_ptr,
                 handler_impl,
             )
         } else {
@@ -207,7 +203,7 @@ pub unsafe extern "C" fn runtime_prepare_operation(
                 handler_call_base_address,
                 tip_continuation,
                 simple_handler_runner_impl_ptr,
-                handler_index,
+                handler_ptr,
                 handler_impl,
                 handler_type,
             )
@@ -224,15 +220,10 @@ unsafe fn prepare_complex_operation(
     tip_continuation: &mut Continuation,
     handler_num_args: usize,
     captured_continuation_thunk_impl: RawFuncPtr,
-    handler_index: usize,
+    handler_ptr: *mut Handler<*mut Uniform>,
     handler_impl: ThunkPtr,
 ) -> (*const usize, *mut usize, *mut Continuation) {
-    let handler_entry_fragment =
-        HANDLERS.with(|handler| handler.borrow_mut().split_off(handler_index));
-    let matching_handler = match handler_entry_fragment.first().unwrap() {
-        HandlerEntry::Handler(handler) => handler,
-        _ => panic!("Expect a handler entry"),
-    };
+    let matching_handler = handler_ptr.read();
 
     // Update the tip continuation so that its height no longer includes the arguments passed to
     // the handler because the captured continuation won't include them in the stack fragment. Later
@@ -245,7 +236,7 @@ unsafe fn prepare_complex_operation(
     let base_continuation = matching_handler.transform_loader_continuation;
     let next_continuation = (*base_continuation).next;
     // Tie up the captured continuation end.
-    (*base_continuation).next = std::ptr::null_mut::<Continuation>();
+    (*base_continuation).next = null_mut::<Continuation>();
 
     // Update the next continuation to make it ready for calling the handler implementation
     // Plus 2 for handler parameter and reified continuation
@@ -261,27 +252,17 @@ unsafe fn prepare_complex_operation(
     let stack_fragment: Vec<Generic> =
         std::slice::from_raw_parts(stack_fragment_start, stack_fragment_length as usize).to_vec();
 
-    // Copy the handler fragment.
-    let matching_base_address = matching_handler.transform_loader_base_address;
-    let handler_fragment: Vec<Handler<usize>> = handler_entry_fragment
-        .into_iter()
-        .map(|handler_entry| match handler_entry {
-            HandlerEntry::Handler(handler) => {
-                let transform_base_address = handler.transform_loader_base_address;
-                let mut handler: Handler<usize> = std::mem::transmute(handler);
-                handler.transform_loader_base_address =
-                    matching_base_address.offset_from(transform_base_address) as usize;
-                handler
-            }
-            _ => panic!("Expect a handler entry"),
-        })
-        .collect();
+    let new_tip_handler = matching_handler.parent_handler;
 
     let captured_continuation_thunk = create_captured_continuation(
         captured_continuation_thunk_impl,
-        tip_continuation,
-        stack_fragment,
-        handler_fragment,
+        CapturedContinuation {
+            tip_continuation,
+            stack_fragment,
+            tip_handler: TIP_HANDLER.with(|h| h.replace(new_tip_handler).unwrap()),
+            base_handler: handler_ptr,
+            overwrites: None,
+        },
     );
 
     let mut new_tip_address = stack_fragment_end;
@@ -312,18 +293,12 @@ unsafe fn prepare_complex_operation(
 
 unsafe fn create_captured_continuation(
     captured_continuation_thunk_impl: RawFuncPtr,
-    tip_continuation: *mut Continuation,
-    stack_fragment: Vec<Generic>,
-    handler_fragment: Vec<Handler<usize>>,
+    captured_continuation_info: CapturedContinuation,
 ) -> *mut usize {
-    let captured_continuation = runtime_alloc((std::mem::size_of::<CapturedContinuation>()) / 8)
-        as *mut CapturedContinuation;
+    let captured_continuation =
+        runtime_alloc((size_of::<CapturedContinuation>()) / 8) as *mut CapturedContinuation;
 
-    *captured_continuation = CapturedContinuation {
-        tip_continuation,
-        handler_fragment,
-        stack_fragment,
-    };
+    *captured_continuation = captured_continuation_info;
 
     create_captured_continuation_thunk(captured_continuation_thunk_impl, captured_continuation)
 }
@@ -366,35 +341,23 @@ unsafe fn prepare_simple_operation(
     handler_call_base_address: *mut usize,
     next_continuation: &mut Continuation,
     simple_handler_runner_impl_ptr: RawFuncPtr,
-    handler_index: usize,
+    handler_ptr: *mut Handler<*mut Uniform>,
     handler_impl: ThunkPtr,
     handler_type: HandlerType,
 ) -> (*const usize, *mut usize, *mut Continuation) {
-    assert!(handler_type != HandlerType::Complex);
-    let matching_handler =
-        HANDLERS.with(
-            |handler| match handler.borrow_mut().get_mut(handler_index).unwrap() {
-                HandlerEntry::Handler(handler) => handler as *mut Handler<*mut Uniform>,
-                _ => panic!("Expect a handler entry"),
-            },
-        );
-
-    HANDLERS.with(|handler| {
-        handler
-            .borrow_mut()
-            .push(SimpleOperationMarker { handler_index })
-    });
+    assert_ne!(handler_type, HandlerType::Complex);
+    let matching_handler = handler_ptr.read();
 
     let mut tip_address = handler_call_base_address;
     tip_address = tip_address.sub(1);
-    tip_address.write((*matching_handler).parameter);
+    tip_address.write(matching_handler.parameter);
     let handler_impl_ptr = runtime_force_thunk(handler_impl, &mut tip_address);
 
     tip_address = tip_address.sub(1);
     tip_address.write(handler_type.ordinal() as usize);
 
     tip_address = tip_address.sub(1);
-    tip_address.write(handler_index);
+    tip_address.write(handler_ptr as usize);
 
     tip_address = tip_address.sub(1);
     tip_address.write(handler_impl_ptr as usize);
@@ -418,26 +381,13 @@ unsafe fn prepare_simple_operation(
 /// all the evicted handlers.
 #[no_mangle]
 pub unsafe extern "C" fn runtime_process_simple_handler_result(
-    handler_index: usize,
+    handler_ptr: *mut Handler<*mut Uniform>,
     simple_handler_type: HandlerTypeOrdinal,
     simple_result: &SimpleResult,
     simple_exception_continuation_impl: RawFuncPtr,
     runtime_disposer_loader_cps_impl: ContImplPtr,
 ) -> Uniform {
-    let matching_handler = HANDLERS.with(|handlers| {
-        let mut handlers = handlers.borrow_mut();
-        let handler = match handlers.get_mut(handler_index).unwrap() {
-            HandlerEntry::Handler(handler) => {
-                handler.parameter = simple_result.handler_parameter;
-                handler as *mut Handler<*mut Uniform>
-            }
-            _ => panic!("Expect a handler entry"),
-        };
-        // pop the simple handler entry marker
-        let last_entry = handlers.pop().unwrap();
-        assert!(matches!(last_entry, SimpleOperationMarker { .. }));
-        handler
-    });
+    let matching_handler = handler_ptr.read();
 
     let (value, tag) = match simple_handler_type {
         0 => (simple_result.result_value.as_uniform(), 0),
@@ -452,7 +402,7 @@ pub unsafe extern "C" fn runtime_process_simple_handler_result(
     match tag {
         0 => unsafe {
             let handler_output_result = value;
-            let next_continuation = (*(*matching_handler).transform_loader_continuation).next;
+            let next_continuation = matching_handler.transform_loader_continuation.read().next;
             let simple_exception_continuation = runtime_alloc(4) as *mut Continuation;
             *simple_exception_continuation = Continuation {
                 func: simple_exception_continuation_impl,
@@ -462,8 +412,8 @@ pub unsafe extern "C" fn runtime_process_simple_handler_result(
                 state: handler_output_result,
             };
             let (next_continuation, next_base_address) = convert_handler_transformers_to_disposers(
-                (*matching_handler).transform_loader_base_address,
-                handler_index,
+                matching_handler.transform_loader_base_address,
+                handler_ptr,
                 simple_exception_continuation,
                 runtime_disposer_loader_cps_impl,
             );
@@ -478,7 +428,7 @@ pub unsafe extern "C" fn runtime_process_simple_handler_result(
                 next_base_address,
                 next_continuation,
                 result_ptr,
-                matching_handler,
+                handler_ptr,
             );
         },
         1 => value,
@@ -487,13 +437,12 @@ pub unsafe extern "C" fn runtime_process_simple_handler_result(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn runtime_pop_handler() -> Uniform {
-    HANDLERS.with(|handlers| {
-        let handler = handlers.borrow_mut().pop().unwrap();
-        match handler {
-            HandlerEntry::Handler(handler) => handler.parameter,
-            _ => panic!("Expect a handler entry"),
-        }
+pub extern "C" fn runtime_pop_handler() -> Uniform {
+    TIP_HANDLER.with(|h| {
+        let binding = h.take().unwrap();
+        let handler = binding.borrow();
+        *h.borrow_mut() = handler.parent_handler.clone();
+        handler.parameter
     })
 }
 
@@ -504,7 +453,7 @@ pub unsafe extern "C" fn runtime_pop_handler() -> Uniform {
 /// implementation will be useful.
 unsafe fn convert_handler_transformers_to_disposers(
     base_address: *mut Uniform,
-    matching_handler_index: usize,
+    parent_handler_ptr: *const Handler<*mut Uniform>,
     mut next_continuation: *mut Continuation,
     runtime_disposer_loader_cps_impl: ContImplPtr,
 ) -> (*mut Continuation, *mut Uniform) {
@@ -519,89 +468,65 @@ unsafe fn convert_handler_transformers_to_disposers(
         base_address.add((*next_continuation).arg_stack_frame_height)
     };
 
-    HANDLERS.with(|handlers| {
-        let mut ref_mut = handlers.borrow_mut();
-        let handlers = ref_mut.deref_mut();
-        let mut index = 0;
-        handlers.retain(|entry| {
-            if index < matching_handler_index {
-                index += 1;
-                true
-            } else {
-                index += 1;
-                matches!(entry, HandlerEntry::Handler { .. })
-            }
-        });
-        let mut last_handler = std::ptr::null();
-        for entry in handlers[matching_handler_index..].iter_mut() {
-            let HandlerEntry::Handler(handler) = entry else {
-                unreachable!()
-            };
-            let parameter_disposer = handler.parameter_disposer as Uniform;
-            (*handler.transform_loader_continuation).next = next_continuation;
-            (*handler.transform_loader_continuation).func = runtime_disposer_loader_cps_impl;
+    TIP_HANDLER.with(|h| {
+        let binding = h.borrow();
+        let mut current_handler_ptr = binding.as_ref().unwrap().as_ptr();
+        while current_handler_ptr as *const _ != parent_handler_ptr {
+            let parameter_disposer = (*current_handler_ptr).parameter_disposer as Uniform;
+            (*(*current_handler_ptr).transform_loader_continuation).next = next_continuation;
+            (*(*current_handler_ptr).transform_loader_continuation).func =
+                runtime_disposer_loader_cps_impl;
             if (*next_continuation).state != usize::MAX {
                 // trivial continuation has state equal to 0xffffffffffffffff and we don't want to
                 // update the frame height of trivial continuations because this field is not
                 // supposed to be consumed. And for debug build, it's set to a very large value so
                 // that it can allow arbitrary increment and decrement without overflow or
                 // underflow.
-                (*next_continuation).arg_stack_frame_height =
-                    next_base_address.offset_from(handler.transform_loader_base_address) as usize;
+                (*next_continuation).arg_stack_frame_height = next_base_address
+                    .offset_from((*current_handler_ptr).transform_loader_base_address)
+                    as usize;
             }
 
-            next_continuation = handler.transform_loader_continuation;
-            next_base_address = handler.transform_loader_base_address;
-            handler
+            next_continuation = (*current_handler_ptr).transform_loader_continuation;
+            next_base_address = (*current_handler_ptr).transform_loader_base_address;
+            (*current_handler_ptr)
                 .transform_loader_base_address
                 .write(parameter_disposer);
-            last_handler = handler;
+            current_handler_ptr = (*current_handler_ptr)
+                .parent_handler
+                .as_ref()
+                .unwrap()
+                .as_ptr();
         }
+    });
+
+    TIP_HANDLER.with(|h| {
+        let binding = h.borrow();
+        let handler = binding.as_ref().unwrap().borrow_mut();
         (
-            (*last_handler).transform_loader_continuation,
-            (*last_handler).transform_loader_base_address,
+            handler.transform_loader_continuation,
+            handler.transform_loader_base_address,
         )
     })
 }
 
-fn find_matching_handler(eff: Eff, may_be_complex: usize) -> (usize, ThunkPtr, HandlerType) {
-    HANDLERS.with(|handlers| {
-        let handlers = handlers.borrow();
-        let mut i = handlers.len();
-        while i > 0 {
-            let handler_index = i - 1;
-            match handlers.get(handler_index).unwrap() {
-                HandlerEntry::Handler(handler) => {
-                    if may_be_complex != 0 {
-                        for (e, handler_impl) in &handler.complex_handler {
-                            if unsafe { compare_uniform(eff, *e) } {
-                                return (handler_index, *handler_impl, HandlerType::Complex);
-                            }
-                        }
-                    }
-                    for (e, handler_impl, simple_operation_type) in &handler.simple_handler {
-                        if unsafe { compare_uniform(eff, *e) } {
-                            return (
-                                handler_index,
-                                *handler_impl,
-                                match simple_operation_type {
-                                    0 => HandlerType::Exceptional,
-                                    1 => HandlerType::Linear,
-                                    2 => HandlerType::Affine,
-                                    _ => unreachable!("bad simple operation type"),
-                                },
-                            );
-                        }
-                    }
-                    i = handler_index;
-                }
-                HandlerEntry::SimpleOperationMarker { handler_index } => {
-                    i = *handler_index;
-                }
-            }
-        }
-        panic!("No matching handler found")
-    })
+unsafe fn get_operation(
+    eff_ins: *const EffIns,
+) -> (*mut Handler<*mut Uniform>, ThunkPtr, HandlerType) {
+    let EffIns {
+        handler,
+        ops_offset,
+    } = *eff_ins;
+    let (thunk_ptr, handler_type_ordinal) = (*handler).handlers.get(ops_offset).unwrap();
+
+    let handler_type = match handler_type_ordinal {
+        0 => HandlerType::Exceptional,
+        1 => HandlerType::Linear,
+        2 => HandlerType::Affine,
+        3 => HandlerType::Complex,
+        _ => unreachable!("bad simple operation type"),
+    };
+    (handler, thunk_ptr.to_owned(), handler_type)
 }
 
 #[no_mangle]
@@ -639,44 +564,33 @@ pub unsafe extern "C" fn runtime_register_handler(
     new_tip_address.write(transform as usize);
     tip_address_ptr.write(new_tip_address);
 
-    HANDLERS.with(|handlers| {
-        handlers.borrow_mut().push(HandlerEntry::Handler(Handler {
+    TIP_HANDLER.with_borrow_mut(|h| {
+        *h = Some(Rc::new(RefCell::new(Handler {
+            parent_handler: h.take(),
             transform_loader_continuation,
             transform_loader_base_address: new_tip_address,
             parameter,
             parameter_disposer,
             parameter_replicator,
-            // TODO: use custom allocator that allocates through Boehm GC for vecs
-            simple_handler: Vec::new(),
-            complex_handler: Vec::new(),
+            handlers: Vec::new(),
             // These are updated by runtime_mark_handler
-            stack_pointer: std::ptr::null(),
-            frame_pointer: std::ptr::null(),
-            return_address: std::ptr::null(),
+            stack_pointer: null(),
+            frame_pointer: null(),
+            return_address: null(),
             general_callee_saved_registers: [0; 10],
             vector_callee_saved_registers: [0; 8],
-        }));
-        match handlers.borrow().last().unwrap() {
-            HandlerEntry::Handler(handler) => handler as *const Handler<*mut Uniform>,
-            _ => panic!("Expect a handler entry"),
-        }
-    })
+        })));
+    });
+    TIP_HANDLER.with(|h| h.borrow().as_ref().unwrap().as_ptr() as *const _)
 }
 
 #[no_mangle]
 pub extern "C" fn runtime_add_handler(
     handler: &mut Handler<*mut Uniform>,
-    eff: Eff,
     handler_impl: ThunkPtr,
     handler_type: HandlerTypeOrdinal,
 ) {
-    if handler_type == HandlerType::Complex.ordinal() as usize {
-        handler.complex_handler.push((eff, handler_impl))
-    } else {
-        handler
-            .simple_handler
-            .push((eff, handler_impl, handler_type));
-    }
+    handler.handlers.push((handler_impl, handler_type));
 }
 
 /// Returns a pointer pointing to the following:
@@ -730,7 +644,8 @@ pub unsafe extern "C" fn runtime_prepare_dispose_continuation(
     stack_pointer: *const u8,
     runtime_disposer_loader_cps_impl: ContImplPtr,
 ) -> *const Uniform {
-    let matching_handler_index = HANDLERS.with(|handlers| handlers.borrow().len());
+    let parent_handler_ptr =
+        TIP_HANDLER.with(|h| h.borrow().as_ref().unwrap().as_ptr() as *const _);
 
     // 3 arguments passed to captured continuation: captured continuation object, field, and handler parameter.
     let dispose_num_args = 3;
@@ -746,7 +661,7 @@ pub unsafe extern "C" fn runtime_prepare_dispose_continuation(
 
     let (next_continuation, next_base_address) = convert_handler_transformers_to_disposers(
         base_address,
-        matching_handler_index,
+        parent_handler_ptr,
         next_continuation,
         runtime_disposer_loader_cps_impl,
     );
@@ -769,15 +684,15 @@ pub unsafe extern "C" fn runtime_prepare_dispose_continuation(
 unsafe fn unpack_captured_continuation(
     base_address: *mut usize,
     next_continuation: &mut Continuation,
-    mut captured_continuation: CapturedContinuation,
+    captured_continuation: CapturedContinuation,
     parameter: Uniform,
     frame_pointer: *const u8,
     stack_pointer: *const u8,
     captured_continuation_record_num_args: usize,
 ) -> (*mut Uniform, *mut Continuation) {
-    let base_handler = captured_continuation.handler_fragment.first_mut().unwrap();
-    base_handler.parameter = parameter;
-    (*base_handler.transform_loader_continuation).next = next_continuation;
+    let base_handler = captured_continuation.base_handler;
+    (*base_handler).parameter = parameter;
+    (*(*base_handler).transform_loader_continuation).next = next_continuation;
     // Chain the base of the captured continuation to the next continuation, where we need to add
     // all the arguments for the handler transform function to the argument stack. Hence we need to
     // update the stack frame height of the next continuation.
@@ -800,28 +715,39 @@ unsafe fn unpack_captured_continuation(
     let tip_continuation_height = (*tip_continuation).arg_stack_frame_height;
     let tip_base_address = base_address.add(tip_continuation_height);
 
-    HANDLERS.with(|handlers| {
-        let mut handlers = handlers.borrow_mut();
-        for handler in captured_continuation.handler_fragment.into_iter() {
-            handlers.push(HandlerEntry::Handler(Handler {
-                transform_loader_base_address: transform_loader_base_address
-                    .sub(handler.transform_loader_base_address),
-                transform_loader_continuation: handler.transform_loader_continuation,
-                parameter: handler.parameter,
-                parameter_disposer: handler.parameter_disposer,
-                parameter_replicator: handler.parameter_replicator,
-                simple_handler: handler.simple_handler,
-                complex_handler: handler.complex_handler,
-                // Captured continuation must be CPS transformed, which means all calls must be tail-optimized, and
-                // hence the frame pointer and stack pointer are all the same across all handler entries.
-                stack_pointer,
-                frame_pointer,
-                return_address: handler.return_address,
-                general_callee_saved_registers: handler.general_callee_saved_registers,
-                vector_callee_saved_registers: handler.vector_callee_saved_registers,
-            }));
+    let base_address_offset = transform_loader_base_address
+        .offset_from((*captured_continuation.base_handler).transform_loader_base_address);
+
+    TIP_HANDLER.with(|h| {
+        let previous_handler = h.take();
+        (*captured_continuation.base_handler).parent_handler = previous_handler;
+        (*captured_continuation.base_handler).transform_loader_base_address =
+            transform_loader_base_address;
+        (*captured_continuation.base_handler).frame_pointer = frame_pointer;
+        (*captured_continuation.base_handler).stack_pointer = stack_pointer;
+        let mut current_handler = captured_continuation.tip_handler.as_ptr();
+        let mut i = 0;
+        while current_handler != captured_continuation.base_handler {
+            (*current_handler).transform_loader_base_address = (*current_handler)
+                .transform_loader_base_address
+                .offset(base_address_offset);
+            // Overwrite the handler parameter if they are available.
+            match captured_continuation.overwrites {
+                None => {}
+                Some(ref overwrites) => {
+                    let (parameter, transform_loader_continuation) =
+                        overwrites.get(i).unwrap().to_owned();
+                    (*current_handler).parameter = parameter;
+                    (*current_handler).transform_loader_continuation =
+                        transform_loader_continuation;
+                }
+            }
+            current_handler = (*current_handler).parent_handler.as_ref().unwrap().as_ptr();
+            i = i + 1;
         }
+        *h.borrow_mut() = Some(captured_continuation.tip_handler);
     });
+
     (tip_base_address, tip_continuation)
 }
 
@@ -840,7 +766,7 @@ pub unsafe extern "C" fn runtime_replicate_continuation(
     ) -> *mut Uniform,
     captured_continuation_thunk_impl: RawFuncPtr,
 ) -> *const Uniform {
-    let matching_handler_index = HANDLERS.with(|handlers| handlers.borrow().len());
+    let parent_handler = TIP_HANDLER.with(|h| h.borrow().clone());
 
     // 3 arguments passed to captured continuation: captured continuation object, field, and handler parameter.
     let dispose_num_args = 3;
@@ -854,82 +780,92 @@ pub unsafe extern "C" fn runtime_replicate_continuation(
         dispose_num_args,
     );
 
-    let mut parameters = Vec::new();
-    HANDLERS.with(|handlers| {
-        let mut handlers = handlers.borrow_mut();
-        while handlers.len() > matching_handler_index {
-            let handler = match handlers.pop().unwrap() {
-                HandlerEntry::Handler(handler) => handler,
-                _ => panic!("Expect a handler entry"),
-            };
+    let mut parameters: Vec<(Uniform, Uniform)> = Vec::new();
+    TIP_HANDLER.with(|h| {
+        while h.borrow().clone().as_ref().map(|r| r.as_ptr())
+            != parent_handler.as_ref().map(|r| r.as_ptr())
+        {
+            let binding = h.borrow();
+            let handler = binding.as_ref().unwrap().borrow();
             let parameter_replicator = handler.parameter_replicator;
             if parameter_replicator as Uniform == 0b11 {
                 // if parameter replicator is null, then we just shallow copy the parameter (that's fine since
                 // everything on the heap is immutable)
                 parameters.push((handler.parameter, handler.parameter));
-                continue;
+            } else {
+                let mut tip_address = base_address.sub(1);
+                tip_address.write(handler.parameter);
+                let replicator_func_ptr =
+                    runtime_force_thunk(parameter_replicator, &mut tip_address);
+                let parameter_pair = runtime_invoke_cps_function_with_trivial_continuation(
+                    replicator_func_ptr,
+                    tip_address,
+                );
+                parameters.push((parameter_pair.read(), parameter_pair.add(1).read()));
             }
-            let mut tip_address = base_address.sub(1);
-            tip_address.write(handler.parameter);
-            let replicator_func_ptr = runtime_force_thunk(parameter_replicator, &mut tip_address);
-            let parameter_pair = runtime_invoke_cps_function_with_trivial_continuation(
-                replicator_func_ptr,
-                tip_address,
-            );
-            parameters.push((parameter_pair.read(), parameter_pair.add(1).read()));
+            *h.borrow_mut() = handler.parent_handler.clone();
         }
     });
 
-    let mut cloned_handler_fragment = Vec::new();
-    for ((parameter1, parameter2), handler) in parameters
-        .into_iter()
-        .zip(captured_continuation.handler_fragment.iter_mut())
-    {
-        handler.parameter = parameter1;
-        let cloned_handler = Handler {
-            transform_loader_continuation: handler.transform_loader_continuation,
-            transform_loader_base_address: handler.transform_loader_base_address,
-            parameter: parameter2,
-            parameter_disposer: handler.parameter_disposer,
-            parameter_replicator: handler.parameter_replicator,
-            frame_pointer: handler.frame_pointer,
-            stack_pointer: handler.stack_pointer,
-            return_address: handler.return_address,
-            simple_handler: handler.simple_handler.clone(),
-            complex_handler: handler.complex_handler.clone(),
-            general_callee_saved_registers: handler.general_callee_saved_registers,
-            vector_callee_saved_registers: handler.vector_callee_saved_registers,
-        };
-        cloned_handler_fragment.push(cloned_handler);
-    }
+    let mut transform_loader_continuations: Vec<(*mut Continuation, *mut Continuation)> =
+        Vec::new();
 
-    let mut cloned_continuation = std::ptr::null_mut();
+    let mut cloned_continuation = null_mut();
     clone_continuation(
         captured_continuation.tip_continuation,
         &mut cloned_continuation,
-        cloned_handler_fragment.iter_mut().peekable(),
+        captured_continuation.tip_handler.as_ptr(),
+        &mut transform_loader_continuations,
     );
 
-    let captured_continuation_thunk1 =
-        create_captured_continuation_thunk(captured_continuation_thunk_impl, captured_continuation);
+    let (parameters1, parameters2): (Vec<Uniform>, Vec<Uniform>) = parameters.into_iter().unzip();
+    let (transform_loader_continuations1, transform_loader_continuations2): (
+        Vec<*mut Continuation>,
+        Vec<*mut Continuation>,
+    ) = transform_loader_continuations.into_iter().unzip();
+
+    let captured_continuation_thunk1 = create_captured_continuation(
+        captured_continuation_thunk_impl,
+        CapturedContinuation {
+            tip_continuation: captured_continuation.tip_continuation,
+            base_handler: captured_continuation.base_handler,
+            tip_handler: captured_continuation.tip_handler.clone(),
+            stack_fragment: captured_continuation.stack_fragment.clone(),
+            overwrites: Some(
+                parameters1
+                    .into_iter()
+                    .zip(transform_loader_continuations1.into_iter())
+                    .collect(),
+            ),
+        },
+    );
     let captured_continuation_thunk2 = create_captured_continuation(
         captured_continuation_thunk_impl,
-        cloned_continuation,
-        captured_continuation.stack_fragment.clone(),
-        cloned_handler_fragment,
+        CapturedContinuation {
+            tip_continuation: captured_continuation.tip_continuation,
+            base_handler: captured_continuation.base_handler,
+            tip_handler: captured_continuation.tip_handler.clone(),
+            stack_fragment: captured_continuation.stack_fragment.clone(),
+            overwrites: Some(
+                parameters2
+                    .into_iter()
+                    .zip(transform_loader_continuations2.into_iter())
+                    .collect(),
+            ),
+        },
     );
 
     // Write the last result
     let last_result_address = base_address.sub(1);
-    let pair_of_captured_continuation_thuns = runtime_alloc(2);
-    pair_of_captured_continuation_thuns
+    let pair_of_captured_continuation_thunks = runtime_alloc(2);
+    pair_of_captured_continuation_thunks
         .write(UniformType::to_uniform_sptr(captured_continuation_thunk1));
-    pair_of_captured_continuation_thuns
+    pair_of_captured_continuation_thunks
         .add(1)
         .write(UniformType::to_uniform_sptr(captured_continuation_thunk2));
 
     last_result_address.write(UniformType::to_uniform_sptr(
-        pair_of_captured_continuation_thuns,
+        pair_of_captured_continuation_thunks,
     ));
 
     // Write the return values of this helper function.
@@ -946,7 +882,8 @@ pub unsafe extern "C" fn runtime_replicate_continuation(
 unsafe fn clone_continuation(
     continuation: *mut Continuation,
     cloned_continuation_ptr: &mut *mut Continuation,
-    mut iter_mut: Peekable<IterMut<Handler<usize>>>,
+    mut current_handler: *mut Handler<*mut Uniform>,
+    transform_loader_continuations: &mut Vec<(*mut Continuation, *mut Continuation)>,
 ) {
     let continuation_addr = continuation as *const usize;
     let length = (continuation_addr).sub(1).read();
@@ -955,66 +892,23 @@ unsafe fn clone_continuation(
     // local variables that are allocated right after the continuation object.
     std::ptr::copy_nonoverlapping(continuation_addr, cloned_continuation_addr, length);
     let cloned_continuation = cloned_continuation_addr as *mut Continuation;
-    if let Some(handler) = iter_mut.peek_mut() {
-        if handler.transform_loader_continuation == continuation {
-            handler.transform_loader_continuation = cloned_continuation;
-            iter_mut.next();
-        }
+    if (*current_handler).transform_loader_continuation == continuation {
+        transform_loader_continuations.push((continuation, cloned_continuation));
+        current_handler = (*current_handler).parent_handler.as_ref().unwrap().as_ptr();
     }
     *cloned_continuation_ptr = cloned_continuation;
     let next_continuation = (*continuation).next;
+    // When the continuation is captured, the next continuation of the base handler transform loader
+    // is set to null to signify the end of the captured chain of continuation objects.
     if next_continuation.is_null() {
         return;
     }
     clone_continuation(
         next_continuation,
         &mut (*cloned_continuation).next,
-        iter_mut,
+        current_handler,
+        transform_loader_continuations,
     )
-}
-
-unsafe fn compare_uniform(a: Uniform, b: Uniform) -> bool {
-    if a == b {
-        return true;
-    }
-    let a_type = UniformType::from_bits(a);
-    let b_type = UniformType::from_bits(b);
-    if a_type != b_type {
-        return false;
-    }
-    match a_type {
-        UniformType::Raw => false,
-        UniformType::SPtr => {
-            let a_ptr = a.to_normal_ptr();
-            let b_ptr = b.to_normal_ptr();
-            let a_size = a_ptr.sub(1).read();
-            let b_size = b_ptr.sub(1).read();
-            if a_size != b_size {
-                return false;
-            }
-            for i in 0..a_size {
-                if !compare_uniform(a_ptr.add(i).read(), b_ptr.add(i).read()) {
-                    return false;
-                }
-            }
-            true
-        }
-        UniformType::PPtr => {
-            let a_ptr = a.to_normal_ptr();
-            let b_ptr = b.to_normal_ptr();
-            let a_size = a_ptr.sub(1).read();
-            let b_size = b_ptr.sub(1).read();
-            if a_size != b_size {
-                return false;
-            }
-            for i in 0..a_size {
-                if a_ptr.add(i).read() != b_ptr.add(i).read() {
-                    return false;
-                }
-            }
-            true
-        }
-    }
 }
 
 #[cfg(test)]

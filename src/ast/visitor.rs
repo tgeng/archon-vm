@@ -14,6 +14,7 @@ pub trait Visitor {
             VTerm::Int { .. } => self.visit_int(v_term, ctx),
             VTerm::Str { .. } => self.visit_str(v_term, ctx),
             VTerm::Struct { .. } => self.visit_tuple(v_term, ctx),
+            VTerm::EffCast { .. } => self.visit_eff_cast(v_term, ctx),
         }
     }
 
@@ -33,6 +34,12 @@ pub trait Visitor {
         for v in values {
             self.visit_v_term(v, ctx);
         }
+    }
+    fn visit_eff_cast(&mut self, v_term: &VTerm, ctx: Self::Ctx) {
+        let VTerm::EffCast { box operand, .. } = v_term else {
+            unreachable!()
+        };
+        self.visit_v_term(operand, ctx);
     }
 
     fn visit_c_term(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
@@ -150,10 +157,10 @@ pub trait Visitor {
     }
 
     fn visit_operation_call(&mut self, c_term: &CTerm, ctx: Self::Ctx) {
-        let CTerm::OperationCall { eff, args, .. } = c_term else {
+        let CTerm::OperationCall { eff_ins, args, .. } = c_term else {
             unreachable!()
         };
-        self.visit_v_term(eff, ctx);
+        self.visit_v_term(eff_ins, ctx);
         args.iter().for_each(|arg| self.visit_v_term(arg, ctx));
     }
 

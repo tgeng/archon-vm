@@ -367,18 +367,17 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                     (primitive_function.code_gen)(&mut self.function_builder, &arg_values);
                 Some((return_value, primitive_function.return_type))
             }
-            CTerm::OperationCall { eff, args, .. } => {
-                let eff_value = self.translate_v_term(eff);
-                let eff_value = self.convert_to_uniform(eff_value);
+            CTerm::OperationCall { eff_ins, args, .. } => {
+                let eff_ins_value = self.translate_v_term(eff_ins);
+                let eff_ins_value = self.convert_to_uniform(eff_ins_value);
                 let trivial_continuation = self.get_builtin_data(BuiltinData::TrivialContinuation);
                 self.push_arg_v_terms(args);
                 let use_tail_call = is_tail && !self.is_specialized;
                 self.update_tip_address(use_tail_call);
                 let inst = self.handle_operation_call(
-                    eff_value,
+                    eff_ins_value,
                     trivial_continuation,
                     args.len(),
-                    false,
                     use_tail_call,
                 );
                 if use_tail_call {
@@ -649,9 +648,8 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
     }
 
     fn add_handlers(&mut self, handler: Value, handler_impls: &Vec<(VTerm, VTerm, HandlerType)>) {
+        // TODO: update this
         for (eff, handler_impl, handler_type) in handler_impls {
-            let eff_value = self.translate_v_term(eff);
-            let eff_value = self.convert_to_uniform(eff_value);
             let handler_impl_value = self.translate_v_term(handler_impl);
             let handler_impl_value = self.convert_to_uniform(handler_impl_value);
             let simple_operation_type_value = self
@@ -660,12 +658,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 .iconst(I64, handler_type.ordinal() as i64);
             self.call_builtin_func(
                 BuiltinFunction::AddHandler,
-                &[
-                    handler,
-                    eff_value,
-                    handler_impl_value,
-                    simple_operation_type_value,
-                ],
+                &[handler, handler_impl_value, simple_operation_type_value],
             );
         }
     }
@@ -1102,10 +1095,9 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
 
     pub fn handle_operation_call(
         &mut self,
-        eff_value: Value,
+        eff_ins_value: Value,
         continuation: Value,
         num_args: usize,
-        may_be_complex: bool,
         use_return_call: bool,
     ) -> Inst {
         let num_args_value = self.function_builder.ins().iconst(I64, num_args as i64);
@@ -1125,20 +1117,15 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             .function_builder
             .ins()
             .func_addr(I64, simple_handler_runner_impl_ref);
-        let may_be_complex_value = self
-            .function_builder
-            .ins()
-            .iconst(I64, may_be_complex as i64);
         let inst = self.call_builtin_func(
             BuiltinFunction::PrepareOperation,
             &[
-                eff_value,
+                eff_ins_value,
                 self.tip_address,
                 continuation,
                 num_args_value,
                 captured_continuation_record_impl_ptr,
                 simple_handler_runner_impl_ptr,
-                may_be_complex_value,
             ],
         );
         let result_ptr = self.function_builder.inst_results(inst)[0];

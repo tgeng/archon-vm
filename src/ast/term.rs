@@ -99,12 +99,19 @@ pub enum VTerm {
     Struct {
         values: Vec<VTerm>,
     },
-    // TODO: the following types are not yet implemented in the AST yet
-    // PrimitiveArray { values: Vec<VTerm> },
-    // F64 { value: f64 },
-    // F32 { value: f32 },
-    // I64 { value: i64 },
-    // I32 { value: i32 },
+    // Effect instance needs to be cast in order to have the operation offset pointing to the
+    // starting index of the operation of matching the desired effect. The ops_offset is simply
+    // added to an existing offset. Note that negative numbers are not allowed here since there is
+    // never any downcasting: only upcasting is allowed.
+    EffCast {
+        operand: Box<VTerm>,
+        ops_offset: usize,
+    }, // TODO: the following types are not yet implemented in the AST yet
+       // PrimitiveArray { values: Vec<VTerm> },
+       // F64 { value: f64 },
+       // F32 { value: f32 },
+       // I64 { value: i64 },
+       // I32 { value: i32 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -167,7 +174,8 @@ pub enum CTerm {
     },
     /// Note: effect cannot be pure for operation calls.
     OperationCall {
-        eff: VTerm,
+        eff_ins: VTerm,
+        op_idx: usize,
         args: Vec<VTerm>,
         effect: Effect,
     },

@@ -245,7 +245,7 @@ impl<'a, M: Module> SimpleCpsFunctionTranslator<'a, M> {
                 self.push_arg_v_terms(args);
                 let next_continuation = self.next_continuation;
                 compute_cps_tail_call_base_address(self, next_continuation);
-                self.handle_operation_call(eff_value, next_continuation, args.len(), true, true);
+                self.handle_operation_call(eff_value, next_continuation, args.len(), true);
                 None
             }
             (CTerm::Redex { .. }, _) => {
@@ -761,14 +761,15 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
             }
             (
                 CTerm::OperationCall {
-                    eff,
+                    eff_ins,
+                    op_idx,
                     args,
                     effect: Effect::Complex,
                 },
                 _,
             ) => {
-                let eff_value = self.translate_v_term(eff);
-                let eff_value = self.convert_to_uniform(eff_value);
+                let eff_ins_value = self.translate_v_term(eff_ins);
+                let eff_ins_value = self.convert_to_uniform(eff_ins_value);
                 self.push_arg_v_terms(args);
                 let continuation = if is_tail {
                     self.adjust_next_continuation_frame_height(self.continuation)
@@ -777,7 +778,7 @@ impl<'a, M: Module> ComplexCpsFunctionTranslator<'a, M> {
                     self.continuation
                 };
 
-                self.handle_operation_call(eff_value, continuation, args.len(), true, true);
+                self.handle_operation_call(eff_ins_value, continuation, args.len(), true);
                 if is_tail {
                     None
                 } else {

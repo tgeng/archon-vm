@@ -285,7 +285,7 @@ impl Transpiler {
             } => self.transpile_value_and_map(eff, context, |(s, eff)| {
                 let (transpiled_args, transpiled_computations) = s.transpile_values(args, context);
                 let operation_call = CTerm::OperationCall {
-                    eff,
+                    eff_ins,
                     args: transpiled_args,
                     effect,
                 };
