@@ -17,8 +17,8 @@ pub type ContImplPtr = *const usize;
 /// A value in uniform representation.
 #[repr(C, align(8))]
 pub struct EffIns {
-    pub handler: *mut Handler<*mut Uniform>,
-    pub ops_offset: usize,
+    pub handler: *mut Handler,
+    pub ops_offset: i64,
 }
 
 /// 0 is exceptional, 1 is linear, 2 is affine, 3 is complex
@@ -48,8 +48,8 @@ pub struct Continuation {
 // TODO: use custom allocator that allocates through Boehm GC for vecs
 #[repr(C, align(8))]
 #[derive(Clone)]
-pub struct Handler<T> {
-    pub parent_handler: Option<Rc<RefCell<Handler<T>>>>,
+pub struct Handler {
+    pub parent_handler: Option<Rc<RefCell<Handler>>>,
     pub transform_loader_continuation: *mut Continuation,
     /// An alternative is to use a Vec<Uniform> to store the argument stack inside the handler
     /// instead of having a per-thread argument stack. That way, the per-handler stack would store
@@ -58,7 +58,7 @@ pub struct Handler<T> {
     /// and all argument access needs to be done indirectly through vector access. Pointers directly
     /// to the element in the vector must be prohibited because they become invalid after the vector
     /// extends its capacity.
-    pub transform_loader_base_address: T,
+    pub transform_loader_base_address: *mut Uniform,
     pub parameter: Uniform,
     pub parameter_disposer: ThunkPtr,
     pub parameter_replicator: ThunkPtr,
@@ -70,14 +70,15 @@ pub struct Handler<T> {
     pub general_callee_saved_registers: [usize; 10],
     // There are 8 vector callee saved registers on ARM64
     pub vector_callee_saved_registers: [u128; 8],
-    pub handlers: Vec<(ThunkPtr, HandlerTypeOrdinal)>,
+    /// Option is used here because during register registration there can be empty slots
+    pub handlers: Vec<Option<(ThunkPtr, HandlerTypeOrdinal)>>,
 }
 
 #[derive(Clone)]
 pub struct CapturedContinuation {
     pub tip_continuation: *mut Continuation,
-    pub base_handler: *mut Handler<*mut Uniform>,
-    pub tip_handler: Rc<RefCell<Handler<*mut Uniform>>>,
+    pub base_handler: *mut Handler,
+    pub tip_handler: Rc<RefCell<Handler>>,
     /// This contains all the arguments passed to the matching handler's transform component. But
     /// it does NOT contain any arguments passed to the handler implementation. That is,
     pub stack_fragment: Vec<Uniform>,

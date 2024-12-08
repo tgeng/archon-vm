@@ -58,18 +58,21 @@ pub enum FTerm {
         body: Option<Box<FTerm>>,
     },
     OperationCall {
-        eff: Box<FTerm>,
+        eff_ins: Box<FTerm>,
+        op_idx: i64,
         args: Vec<FTerm>,
         effect: Effect,
     },
+    // TODO: add eff_ins binding and use it for input
     Handler {
         parameter: Box<FTerm>,
         parameter_disposer: Option<Box<FTerm>>,
         parameter_replicator: Option<Box<FTerm>>,
         transform: Box<FTerm>,
-        handlers: Vec<(FTerm, FTerm, HandlerType)>,
+        handlers: Vec<(Vec<i64>, FTerm, HandlerType)>,
         input: Box<FTerm>,
     },
+    // TODO: add EffCast
 }
 
 #[derive(Debug, Clone, PartialEq)]

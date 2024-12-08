@@ -105,7 +105,7 @@ pub enum VTerm {
     // never any downcasting: only upcasting is allowed.
     EffCast {
         operand: Box<VTerm>,
-        ops_offset: usize,
+        ops_offset: i64,
     }, // TODO: the following types are not yet implemented in the AST yet
        // PrimitiveArray { values: Vec<VTerm> },
        // F64 { value: f64 },
@@ -175,7 +175,7 @@ pub enum CTerm {
     /// Note: effect cannot be pure for operation calls.
     OperationCall {
         eff_ins: VTerm,
-        op_idx: usize,
+        op_idx: i64,
         args: Vec<VTerm>,
         effect: Effect,
     },
@@ -187,11 +187,17 @@ pub enum CTerm {
         parameter_replicator: Option<VTerm>,
         /// thunk of lambda: (parameter, input) -> output
         transform: VTerm,
-        /// each linear handler: (effect, thunk of lambda: (parameter index, operation_arg indexes...) -> (param, result type))
-        /// each exceptional handler: (effect, thunk of lambda: (parameter index, operation_arg indexes...) -> (param, output type))
-        /// each affine handler: (effect, thunk of lambda: (parameter index, operation_arg indexes...) -> (param, (tag, output type | result type)))
-        /// each compex handler: (effect, thunk of lambda: (parameter index, operation arg indexes...,  continuation index) -> output)
-        handlers: Vec<(VTerm, VTerm, HandlerType)>,
+        /// each linear handler: (operation indexes, thunk of lambda: (parameter index, operation_arg indexes...) -> (param, result type))
+        /// each exceptional handler: (operation indexes, thunk of lambda: (parameter index, operation_arg indexes...) -> (param, output type))
+        /// each affine handler: (operation indexes, thunk of lambda: (parameter index, operation_arg indexes...) -> (param, (tag, output type | result type)))
+        /// each compex handler: (operation indexes, thunk of lambda: (parameter index, operation arg indexes...,  continuation index) -> output)
+        ///
+        /// where operation indexes indicate what indexes this handler implementation should
+        /// be registered against. For simple cases this would just be a single index. For effect
+        /// with inheritance, a given handler implementation may be registered multiple times for
+        /// all the operation slots using this implementation. Conflicting or missing operation
+        /// indexes are errors. But this implementation doesn't enforce any checks.
+        handlers: Vec<(Vec<i64>, VTerm, HandlerType)>,
         /// A thunk that returns some value. A thunk is used because this would leverage the thunk
         /// lifting logic to lift this logic to a top level function, which is necessary to tuck in
         /// the transform continuation between this input and the parent term of this handler.

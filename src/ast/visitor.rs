@@ -184,8 +184,7 @@ pub trait Visitor {
             .iter()
             .for_each(|replicator| self.visit_v_term(replicator, ctx));
         self.visit_v_term(transform, ctx);
-        for (eff, handler, ..) in handlers.iter() {
-            self.visit_v_term(eff, ctx);
+        for (_, handler, ..) in handlers.iter() {
             self.visit_v_term(handler, ctx);
         }
         self.visit_v_term(input, ctx);

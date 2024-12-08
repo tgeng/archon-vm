@@ -367,7 +367,12 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                     (primitive_function.code_gen)(&mut self.function_builder, &arg_values);
                 Some((return_value, primitive_function.return_type))
             }
-            CTerm::OperationCall { eff_ins, args, .. } => {
+            CTerm::OperationCall {
+                eff_ins,
+                op_idx,
+                args,
+                ..
+            } => {
                 let eff_ins_value = self.translate_v_term(eff_ins);
                 let eff_ins_value = self.convert_to_uniform(eff_ins_value);
                 let trivial_continuation = self.get_builtin_data(BuiltinData::TrivialContinuation);
@@ -376,6 +381,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 self.update_tip_address(use_tail_call);
                 let inst = self.handle_operation_call(
                     eff_ins_value,
+                    *op_idx,
                     trivial_continuation,
                     args.len(),
                     use_tail_call,
@@ -584,8 +590,14 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 transform_loader_cps_impl_func_ptr,
             ],
         );
-        let handler = self.function_builder.inst_results(inst)[0];
+        let eff_ins = self.function_builder.inst_results(inst)[0];
         self.load_tip_address_from_stack();
+
+        // The handler is the first value inside the handler ref struct.
+        let handler = self
+            .function_builder
+            .ins()
+            .load(I64, MemFlags::new(), eff_ins, 0);
 
         // set up handlers
         self.add_handlers(handler, handlers);
@@ -595,6 +607,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             self.function_builder
                 .ins()
                 .load(I64, MemFlags::new(), handler, 0);
+
         let mark_handler_ref = self.module.declare_func_in_func(
             self.builtin_functions[BuiltinFunction::MarkHandler],
             self.function_builder.func,
@@ -604,7 +617,8 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
 
         // Bind the effect instance (aka handler) to the input thunk. This is the key of lexical
         // algebraic handler.
-        let input_thunk_with_handler = self.create_struct(vec![input_thunk_func_ptr, handler]);
+        let eff_ins = self.convert_to_uniform(Some((eff_ins, Specialized(StructPtr))));
+        let input_thunk_with_handler = self.create_struct(vec![input_thunk_func_ptr, eff_ins]);
         let input_thunk_with_handler_ptr =
             self.convert_to_uniform(Some((input_thunk_with_handler, Specialized(StructPtr))));
 
@@ -654,19 +668,30 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         );
     }
 
-    fn add_handlers(&mut self, handler: Value, handler_impls: &Vec<(VTerm, VTerm, HandlerType)>) {
-        // TODO: update this
-        for (eff, handler_impl, handler_type) in handler_impls {
+    fn add_handlers(
+        &mut self,
+        handler: Value,
+        handler_impls: &Vec<(Vec<i64>, VTerm, HandlerType)>,
+    ) {
+        for (op_idxes, handler_impl, handler_type) in handler_impls {
             let handler_impl_value = self.translate_v_term(handler_impl);
             let handler_impl_value = self.convert_to_uniform(handler_impl_value);
             let simple_operation_type_value = self
                 .function_builder
                 .ins()
                 .iconst(I64, handler_type.ordinal() as i64);
-            self.call_builtin_func(
-                BuiltinFunction::AddHandler,
-                &[handler, handler_impl_value, simple_operation_type_value],
-            );
+            for op_idx in op_idxes {
+                let op_idx = self.function_builder.ins().iconst(I64, *op_idx);
+                self.call_builtin_func(
+                    BuiltinFunction::AddHandler,
+                    &[
+                        handler,
+                        handler_impl_value,
+                        simple_operation_type_value,
+                        op_idx,
+                    ],
+                );
+            }
         }
     }
 
@@ -914,6 +939,30 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                     .collect::<Vec<_>>();
                 Some((self.create_struct(translated), Specialized(StructPtr)))
             }
+            VTerm::EffCast {
+                operand,
+                ops_offset,
+            } => {
+                // operand must be a EffIns
+                let operand = self.translate_v_term(operand);
+                let operand = self.adapt_type(operand, &Specialized(StructPtr));
+                let current_offset =
+                    self.function_builder
+                        .ins()
+                        .load(I64, MemFlags::new(), operand, 8);
+                let new_offset = self
+                    .function_builder
+                    .ins()
+                    .iadd_imm(current_offset, *ops_offset);
+                let handler = self
+                    .function_builder
+                    .ins()
+                    .load(I64, MemFlags::new(), operand, 0);
+                Some((
+                    self.create_struct(vec![handler, new_offset]),
+                    Specialized(StructPtr),
+                ))
+            }
         }
     }
 
@@ -1103,6 +1152,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
     pub fn handle_operation_call(
         &mut self,
         eff_ins_value: Value,
+        op_idx: i64,
         continuation: Value,
         num_args: usize,
         use_return_call: bool,
@@ -1124,10 +1174,12 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             .function_builder
             .ins()
             .func_addr(I64, simple_handler_runner_impl_ref);
+        let op_idx = self.function_builder.ins().iconst(I64, op_idx);
         let inst = self.call_builtin_func(
             BuiltinFunction::PrepareOperation,
             &[
                 eff_ins_value,
+                op_idx,
                 self.tip_address,
                 continuation,
                 num_args_value,

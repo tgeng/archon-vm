@@ -279,13 +279,15 @@ impl Transpiler {
                 }
             }
             FTerm::OperationCall {
-                box eff,
+                box eff_ins,
+                op_idx,
                 args,
                 effect,
-            } => self.transpile_value_and_map(eff, context, |(s, eff)| {
+            } => self.transpile_value_and_map(eff_ins, context, |(s, eff_ins)| {
                 let (transpiled_args, transpiled_computations) = s.transpile_values(args, context);
                 let operation_call = CTerm::OperationCall {
                     eff_ins,
+                    op_idx,
                     args: transpiled_args,
                     effect,
                 };
@@ -308,13 +310,11 @@ impl Transpiler {
                             context,
                             |(s, parameter_replicator)| {
                                 s.transpile_value_and_map(transform, context, |(s, transform)| {
-                                    let (simple_effs, simple_handlers, handler_types): (
+                                    let (ip_idxes, simple_handlers, handler_types): (
                                         Vec<_>,
                                         Vec<_>,
                                         Vec<_>,
                                     ) = itertools::multiunzip(handlers);
-                                    let (effs_v, simple_effs_c) =
-                                        s.transpile_values(simple_effs, context);
                                     let (handlers_v, simple_handlers_c) =
                                         s.transpile_values(simple_handlers, context);
                                     s.transpile_value_and_map(input, context, |(_s, input)| {
@@ -324,15 +324,13 @@ impl Transpiler {
                                             parameter_replicator,
                                             transform,
                                             handlers: itertools::multizip((
-                                                effs_v,
+                                                ip_idxes,
                                                 handlers_v,
                                                 handler_types,
                                             ))
                                             .collect(),
                                             input,
                                         };
-                                        let handler =
-                                            Self::squash_computations(handler, simple_effs_c);
                                         Self::squash_computations(handler, simple_handlers_c)
                                     })
                                 })
@@ -588,8 +586,10 @@ impl Transpiler {
                     Self::get_free_vars(body, &new_bound_names, free_vars);
                 }
             }
-            FTerm::OperationCall { box eff, args, .. } => {
-                Self::get_free_vars(eff, bound_names, free_vars);
+            FTerm::OperationCall {
+                box eff_ins, args, ..
+            } => {
+                Self::get_free_vars(eff_ins, bound_names, free_vars);
                 args.iter()
                     .for_each(|v| Self::get_free_vars(v, bound_names, free_vars));
             }
@@ -615,8 +615,7 @@ impl Transpiler {
                     None => {}
                 };
                 Self::get_free_vars(transform, bound_names, free_vars);
-                simple_handlers.iter().for_each(|(eff, handler, ..)| {
-                    Self::get_free_vars(eff, bound_names, free_vars);
+                simple_handlers.iter().for_each(|(_, handler, ..)| {
                     Self::get_free_vars(handler, bound_names, free_vars);
                 });
                 Self::get_free_vars(input, bound_names, free_vars);

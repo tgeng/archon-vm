@@ -8,7 +8,7 @@ use nom::bytes::complete::{escaped, take_while1};
 use nom::character::complete::{alphanumeric1, char, one_of, satisfy as char_satisfy, space0};
 use nom::combinator::{cut, map, map_res, opt};
 use nom::error::{context, ErrorKind, ParseError};
-use nom::multi::{many0, many1};
+use nom::multi::{many0, many1, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::Parser;
 use nom::{IResult, InputLength};
@@ -438,6 +438,13 @@ fn effect(input: Input) -> IResult<Input, Effect> {
     })(input)
 }
 
+fn op_idx(input: Input) -> IResult<Input, i64> {
+    map_token(|token| match token {
+        Token::Int(value, _, _) => Some(*value),
+        _ => None,
+    })(input)
+}
+
 fn op_effect(input: Input) -> IResult<Input, Effect> {
     alt((
         token("#").map(|_| Effect::Simple),
@@ -510,6 +517,10 @@ fn struct_(input: Input) -> IResult<Input, FTerm> {
     )(input)
 }
 
+fn op_idxes(input: Input) -> IResult<Input, Vec<i64>> {
+    preceded(token("#"), separated_list1(token(","), op_idx))(input)
+}
+
 fn atom(input: Input) -> IResult<Input, FTerm> {
     context(
         "atom",
@@ -547,7 +558,7 @@ fn atomic_call(input: Input) -> IResult<Input, FTerm> {
             pair(
                 atom,
                 alt((
-                    map(pair(op_effect, cut(struct_)), Either::Right),
+                    map(tuple((op_effect, op_idx, cut(struct_))), Either::Right),
                     map(
                         many0(pair(
                             preceded(token("@"), cut(atom)),
@@ -572,8 +583,9 @@ fn atomic_call(input: Input) -> IResult<Input, FTerm> {
                         },
                     },
                 ),
-                Either::Right((effect, FTerm::Struct { values })) => FTerm::OperationCall {
-                    eff: Box::new(t),
+                Either::Right((effect, op_idx, FTerm::Struct { values })) => FTerm::OperationCall {
+                    eff_ins: Box::new(t),
+                    op_idx,
                     args: values,
                     effect,
                 },
@@ -1017,7 +1029,7 @@ enum HandlerComponent {
     Replicator(FTerm),
     Transform(FTerm),
     Handler {
-        eff: FTerm,
+        op_idxes: Vec<i64>,
         handler: FTerm,
         handler_type: HandlerType,
     },
@@ -1038,9 +1050,13 @@ fn handler_component(input: Input) -> IResult<Input, HandlerComponent> {
             HandlerComponent::Transform,
         ),
         map(
-            tuple((atom, op_declaration, preceded(opt(newline), computation))),
-            |(eff, effect, handler)| HandlerComponent::Handler {
-                eff,
+            tuple((
+                op_idxes,
+                op_declaration,
+                preceded(opt(newline), computation),
+            )),
+            |(op_idxes, effect, handler)| HandlerComponent::Handler {
+                op_idxes,
                 handler,
                 handler_type: effect,
             },
@@ -1104,11 +1120,11 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
                             *transform = t;
                         }
                         HandlerComponent::Handler {
-                            eff,
+                            op_idxes,
                             handler,
                             handler_type,
                         } => {
-                            handlers.push((eff, handler, handler_type));
+                            handlers.push((op_idxes, handler, handler_type));
                         }
                     }
                 }

@@ -13,7 +13,8 @@ pub trait Transformer {
             VTerm::Thunk { .. } => self.transform_thunk(v_term),
             VTerm::Int { .. } => self.transform_int(v_term),
             VTerm::Str { .. } => self.transform_str(v_term),
-            VTerm::Struct { .. } => self.transform_tuple(v_term),
+            VTerm::Struct { .. } => self.transform_struct(v_term),
+            VTerm::EffCast { .. } => self.transform_eff_cast(v_term),
         }
     }
 
@@ -26,13 +27,20 @@ pub trait Transformer {
     }
     fn transform_int(&mut self, _v_term: &mut VTerm) {}
     fn transform_str(&mut self, _v_term: &mut VTerm) {}
-    fn transform_tuple(&mut self, v_term: &mut VTerm) {
+    fn transform_struct(&mut self, v_term: &mut VTerm) {
         let VTerm::Struct { values } = v_term else {
             unreachable!()
         };
         for v in values {
             self.transform_v_term(v);
         }
+    }
+
+    fn transform_eff_cast(&mut self, v_term: &mut VTerm) {
+        let VTerm::EffCast { operand, .. } = v_term else {
+            unreachable!()
+        };
+        self.transform_v_term(operand);
     }
 
     fn transform_c_term(&mut self, c_term: &mut CTerm) {
@@ -167,10 +175,10 @@ pub trait Transformer {
     }
 
     fn transform_operation_call(&mut self, c_term: &mut CTerm) {
-        let CTerm::OperationCall { eff, args, .. } = c_term else {
+        let CTerm::OperationCall { eff_ins, args, .. } = c_term else {
             unreachable!()
         };
-        self.transform_v_term(eff);
+        self.transform_v_term(eff_ins);
         args.iter_mut().for_each(|arg| self.transform_v_term(arg));
     }
 
@@ -200,8 +208,7 @@ pub trait Transformer {
             .iter_mut()
             .for_each(|replicator| self.transform_v_term(replicator));
         self.transform_v_term(transform);
-        for (eff, handler, ..) in handlers.iter_mut() {
-            self.transform_v_term(eff);
+        for (_, handler, ..) in handlers.iter_mut() {
             self.transform_v_term(handler);
         }
         self.transform_v_term(input);
