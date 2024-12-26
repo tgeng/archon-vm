@@ -293,6 +293,15 @@ impl Transpiler {
                 };
                 Self::squash_computations(operation_call, transpiled_computations)
             }),
+            FTerm::EffCast {
+                box operand,
+                ops_offset,
+            } => self.transpile_value_and_map(operand, context, |(_, operand)| CTerm::Return {
+                value: VTerm::EffCast {
+                    operand: Box::new(operand),
+                    ops_offset,
+                },
+            }),
             FTerm::Handler {
                 box parameter,
                 parameter_disposer,
@@ -356,10 +365,12 @@ impl Transpiler {
             }
             FTerm::Int { value } => (VTerm::Int { value }, None),
             FTerm::Str { value } => (VTerm::Str { value }, None),
-            FTerm::Struct { .. } => match self.transpile_impl(f_term, context) {
-                CTerm::Return { value } => (value, None),
-                c_term => self.new_computation(c_term),
-            },
+            FTerm::Struct { .. } | FTerm::EffCast { .. } => {
+                match self.transpile_impl(f_term, context) {
+                    CTerm::Return { value } => (value, None),
+                    c_term => self.new_computation(c_term),
+                }
+            }
             FTerm::Lambda { effect, .. } => {
                 let c_term = self.transpile_impl(f_term, context);
                 (
@@ -515,7 +526,7 @@ impl Transpiler {
         match f_term {
             FTerm::Identifier { name, .. } => {
                 if !bound_names.contains(name.as_str())
-                    && !PRIMITIVE_FUNCTIONS.contains_key(name.as_str())
+                    & &!PRIMITIVE_FUNCTIONS.contains_key(name.as_str())
                 {
                     free_vars.insert(name.as_str());
                 }
@@ -540,6 +551,9 @@ impl Transpiler {
             FTerm::Force { thunk, .. } => Self::get_free_vars(thunk, bound_names, free_vars),
             FTerm::Thunk { computation, .. } => {
                 Self::get_free_vars(computation, bound_names, free_vars)
+            }
+            FTerm::EffCast { operand, .. } => {
+                Self::get_free_vars(operand, bound_names, free_vars);
             }
             FTerm::CaseInt {
                 t,

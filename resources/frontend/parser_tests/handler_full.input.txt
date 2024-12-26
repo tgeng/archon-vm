@@ -1,10 +1,9 @@
-handler 42
+handler! 42
   disposer \p => p - 1
   replicator \p => {p + 1, p + 2}
   # \p r => r + 3
-  "foo" #! \p x cont =>! cont! 0 p (x + 1)
-  "bar" ## \p x => x + 2
-  "baz" # \p x => x + 2
-  "quux" #^ \p x => x + 2
-
-"foo" #! {1}
+  #!0 \p x cont =>! cont! 0 p (x + 1)
+  ##1 \p x => x + 2
+  #2 \p x => x + 2
+  #^3 \p x => x + 2
+\e => e #!0 {1}

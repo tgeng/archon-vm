@@ -103,9 +103,9 @@ Handler {
     },
     handlers: [
         (
-            Str {
-                value: "foo",
-            },
+            [
+                0,
+            ],
             Lambda {
                 arg_names: [
                     (
@@ -156,9 +156,9 @@ Handler {
             Complex,
         ),
         (
-            Str {
-                value: "bar",
-            },
+            [
+                1,
+            ],
             Lambda {
                 arg_names: [
                     (
@@ -190,9 +190,9 @@ Handler {
             Affine,
         ),
         (
-            Str {
-                value: "baz",
-            },
+            [
+                2,
+            ],
             Lambda {
                 arg_names: [
                     (
@@ -224,9 +224,9 @@ Handler {
             Linear,
         ),
         (
-            Str {
-                value: "quux",
-            },
+            [
+                3,
+            ],
             Lambda {
                 arg_names: [
                     (
@@ -259,17 +259,28 @@ Handler {
         ),
     ],
     input: Thunk {
-        computation: OperationCall {
-            eff: Str {
-                value: "foo",
-            },
-            args: [
-                Int {
-                    value: 1,
-                },
+        computation: Lambda {
+            arg_names: [
+                (
+                    "e",
+                    Uniform,
+                ),
             ],
-            effect: Complex,
+            body: OperationCall {
+                eff_ins: Identifier {
+                    name: "e",
+                    effect: Simple,
+                },
+                op_idx: 0,
+                args: [
+                    Int {
+                        value: 1,
+                    },
+                ],
+                effect: Complex,
+            },
+            effect: Simple,
         },
-        effect: Simple,
+        effect: Complex,
     },
 }

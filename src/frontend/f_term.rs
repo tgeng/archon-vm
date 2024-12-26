@@ -63,7 +63,10 @@ pub enum FTerm {
         args: Vec<FTerm>,
         effect: Effect,
     },
-    // TODO: add eff_ins binding and use it for input
+    EffCast {
+        operand: Box<FTerm>,
+        ops_offset: i64,
+    },
     Handler {
         parameter: Box<FTerm>,
         parameter_disposer: Option<Box<FTerm>>,
@@ -72,7 +75,6 @@ pub enum FTerm {
         handlers: Vec<(Vec<i64>, FTerm, HandlerType)>,
         input: Box<FTerm>,
     },
-    // TODO: add EffCast
 }
 
 #[derive(Debug, Clone, PartialEq)]

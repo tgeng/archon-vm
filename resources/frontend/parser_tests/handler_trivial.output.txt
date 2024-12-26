@@ -23,9 +23,9 @@ Handler {
     },
     handlers: [
         (
-            Str {
-                value: "foo",
-            },
+            [
+                0,
+            ],
             Lambda {
                 arg_names: [
                     (
@@ -77,16 +77,27 @@ Handler {
         ),
     ],
     input: Thunk {
-        computation: OperationCall {
-            eff: Str {
-                value: "foo",
-            },
-            args: [
-                Int {
-                    value: 1,
-                },
+        computation: Lambda {
+            arg_names: [
+                (
+                    "e",
+                    Uniform,
+                ),
             ],
-            effect: Complex,
+            body: OperationCall {
+                eff_ins: Identifier {
+                    name: "e",
+                    effect: Simple,
+                },
+                op_idx: 0,
+                args: [
+                    Int {
+                        value: 1,
+                    },
+                ],
+                effect: Complex,
+            },
+            effect: Simple,
         },
         effect: Complex,
     },

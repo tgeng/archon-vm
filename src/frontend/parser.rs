@@ -56,6 +56,7 @@ static KEYWORDS: &[&str] = &[
     "def",
     "case",
     "force",
+    "eff_cast",
     "thunk",
     "handler",
     "=>",
@@ -452,12 +453,15 @@ fn op_effect(input: Input) -> IResult<Input, Effect> {
     ))(input)
 }
 
-fn op_declaration(input: Input) -> IResult<Input, HandlerType> {
-    alt((
-        token("#").map(|_| HandlerType::Linear),
-        token("#^").map(|_| HandlerType::Exceptional),
-        token("##").map(|_| HandlerType::Affine),
-        token("#!").map(|_| HandlerType::Complex),
+fn op_declaration(input: Input) -> IResult<Input, (HandlerType, Vec<i64>)> {
+    tuple((
+        alt((
+            token("#").map(|_| HandlerType::Linear),
+            token("#^").map(|_| HandlerType::Exceptional),
+            token("##").map(|_| HandlerType::Affine),
+            token("#!").map(|_| HandlerType::Complex),
+        )),
+        separated_list1(token(","), op_idx),
     ))(input)
 }
 
@@ -517,10 +521,6 @@ fn struct_(input: Input) -> IResult<Input, FTerm> {
     )(input)
 }
 
-fn op_idxes(input: Input) -> IResult<Input, Vec<i64>> {
-    preceded(token("#"), separated_list1(token(","), op_idx))(input)
-}
-
 fn atom(input: Input) -> IResult<Input, FTerm> {
     context(
         "atom",
@@ -546,6 +546,19 @@ fn force(input: Input) -> IResult<Input, FTerm> {
             |(effect, t)| FTerm::Force {
                 thunk: Box::new(t),
                 effect,
+            },
+        ),
+    )(input)
+}
+
+fn eff_cast(input: Input) -> IResult<Input, FTerm> {
+    context(
+        "eff_cast",
+        map(
+            preceded(token("eff_cast"), pair(int, cut(atom))),
+            |(ops_offset, t)| FTerm::EffCast {
+                operand: Box::new(t),
+                ops_offset,
             },
         ),
     )(input)
@@ -600,7 +613,7 @@ fn scoped_app(input: Input) -> IResult<Input, FTerm> {
         "scoped_app",
         scoped(map(
             pair(
-                many1(alt((atomic_call, force))),
+                many1(alt((atomic_call, force, eff_cast))),
                 many0(preceded(newline, f_term)),
             ),
             |(f_and_args, more_args)| {
@@ -1046,20 +1059,16 @@ fn handler_component(input: Input) -> IResult<Input, HandlerComponent> {
             HandlerComponent::Replicator,
         ),
         map(
-            preceded(token("#"), preceded(opt(newline), cut(computation))),
-            HandlerComponent::Transform,
-        ),
-        map(
-            tuple((
-                op_idxes,
-                op_declaration,
-                preceded(opt(newline), computation),
-            )),
-            |(op_idxes, effect, handler)| HandlerComponent::Handler {
+            tuple((op_declaration, preceded(opt(newline), computation))),
+            |((effect, op_idxes), handler)| HandlerComponent::Handler {
                 op_idxes,
                 handler,
                 handler_type: effect,
             },
+        ),
+        map(
+            preceded(token("#"), preceded(opt(newline), cut(computation))),
+            HandlerComponent::Transform,
         ),
     ))(input)
 }
@@ -1070,7 +1079,7 @@ fn handler_term(input: Input) -> IResult<Input, FTerm> {
         map(
             pair(
                 scoped(tuple((
-                    preceded(token("handler"), pair(effect, cut(opt(atom)))),
+                    preceded(token("handler"), tuple((effect, cut(opt(atom))))),
                     many0(preceded(newline, cut(handler_component))),
                 ))),
                 preceded(newline, f_term),

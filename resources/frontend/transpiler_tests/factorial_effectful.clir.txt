@@ -94,6 +94,7 @@ function u0:0(i64) -> i64 tail {
     sig5 = (i64, i64) -> i64 tail
     sig6 = (i64) -> i64 apple_aarch64
     sig7 = (i64, i64) -> i64 apple_aarch64
+    sig8 = (i64) -> i64 apple_aarch64
     fn0 = u0:0 sig0
     fn1 = colocated u0:23 sig1
     fn2 = colocated u0:19 sig2
@@ -102,6 +103,7 @@ function u0:0(i64) -> i64 tail {
     fn5 = colocated u0:20 sig5
     fn6 = u0:0 sig6
     fn7 = u0:1 sig7
+    fn8 = u0:0 sig8
 
 block0(v0: i64):
     v1 = global_value.i64 gv0
@@ -119,32 +121,39 @@ block0(v0: i64):
     v12 = call fn3(v11, v2, v5, v6, v7, v9, v10)  ; v6 = 3, v7 = 3
     v13 = stack_load.i64 ss0
     v14 = load.i64 v12
-    v15 = func_addr.i64 fn5
-    v16 = iconst.i64 1
-    v17 = iadd_imm v15, 3
-    v18 = iconst.i64 5
-    v19 = ishl_imm v18, 1  ; v18 = 5
-    v20 = iconst.i64 3
-    v21 = call fn6(v20)  ; v20 = 3
-    store aligned v17, v21
-    store aligned v16, v21+8  ; v16 = 1
-    store aligned v19, v21+16
-    v22 = iadd_imm v21, 1
+    v15 = load.i64 v14
+    v16 = func_addr.i64 fn5
+    v17 = iconst.i64 1
+    v18 = iadd_imm v16, 3
+    v19 = iconst.i64 5
+    v20 = ishl_imm v19, 1  ; v19 = 5
+    v21 = iconst.i64 3
+    v22 = call fn6(v21)  ; v21 = 3
+    store aligned v18, v22
+    store aligned v17, v22+8  ; v17 = 1
+    store aligned v20, v22+16
+    v23 = iadd_imm v22, 1
     stack_store v13, ss0
-    v23 = stack_addr.i64 ss0
-    v24 = call fn7(v22, v23)
-    v25 = stack_load.i64 ss0
-    v26 = isub v13, v25
-    v27 = load.i64 v14+8
-    v28 = ishl_imm v27, 3
-    v29 = iadd v28, v26
-    v30 = ushr_imm v29, 3
-    store v30, v14+8
-    v31 = call fn4(v25, v14, v24, v12)
-    v32 = load.i64 v31
-    v33 = iadd_imm v31, 8
-    v34 = sshr_imm v32, 1
-    return v34
+    v24 = stack_addr.i64 ss0
+    v25 = call fn7(v23, v24)
+    v26 = stack_load.i64 ss0
+    v27 = iadd_imm v12, 1
+    v28 = iconst.i64 2
+    v29 = call fn8(v28)  ; v28 = 2
+    store aligned v25, v29
+    store aligned v27, v29+8
+    v30 = iadd_imm v29, 1
+    v31 = isub v13, v26
+    v32 = load.i64 v15+8
+    v33 = ishl_imm v32, 3
+    v34 = iadd v33, v31
+    v35 = ushr_imm v34, 3
+    store v35, v15+8
+    v36 = call fn4(v26, v15, v30, v14)
+    v37 = load.i64 v36
+    v38 = iadd_imm v36, 8
+    v39 = sshr_imm v37, 1
+    return v39
 }
 
 
