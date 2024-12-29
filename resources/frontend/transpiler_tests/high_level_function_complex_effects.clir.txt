@@ -223,54 +223,58 @@ block0(v0: i64):
     v12 = call fn3(v11, v2, v5, v6, v7, v9, v10)  ; v6 = 3, v7 = 3
     v13 = stack_load.i64 ss0
     v14 = load.i64 v12
-    v15 = func_addr.i64 fn5
-    v16 = iconst.i64 5
-    v17 = iadd_imm v15, 3
-    v18 = iconst.i64 3
-    v19 = ishl_imm v18, 1  ; v18 = 3
-    v20 = iconst.i64 1
-    v21 = ishl_imm v20, 1  ; v20 = 1
-    v22 = iconst.i64 2
-    v23 = ishl_imm v22, 1  ; v22 = 2
-    v24 = iconst.i64 3
-    v25 = ishl_imm v24, 1  ; v24 = 3
-    v26 = iconst.i64 3
-    v27 = call fn6(v26)  ; v26 = 3
-    store aligned v21, v27
-    store aligned v23, v27+8
-    store aligned v25, v27+16
-    v28 = iadd_imm v27, 1
-    v29 = iconst.i64 10
-    v30 = ishl_imm v29, 1  ; v29 = 10
-    v31 = func_addr.i64 fn7
-    v32 = iadd_imm v31, 3
-    v33 = iconst.i64 0
-    v34 = ishl_imm v33, 1  ; v33 = 0
-    v35 = iconst.i64 7
-    v36 = call fn8(v35)  ; v35 = 7
-    store aligned v17, v36
-    store aligned v16, v36+8  ; v16 = 5
-    store aligned v19, v36+16
-    store aligned v28, v36+24
-    store aligned v30, v36+32
-    store aligned v32, v36+40
-    store aligned v34, v36+48
-    v37 = iadd_imm v36, 1
+    v15 = load.i64 v14
+    v16 = func_addr.i64 fn5
+    v17 = iconst.i64 5
+    v18 = iadd_imm v16, 3
+    v19 = iconst.i64 3
+    v20 = ishl_imm v19, 1  ; v19 = 3
+    v21 = iconst.i64 1
+    v22 = ishl_imm v21, 1  ; v21 = 1
+    v23 = iconst.i64 2
+    v24 = ishl_imm v23, 1  ; v23 = 2
+    v25 = iconst.i64 3
+    v26 = ishl_imm v25, 1  ; v25 = 3
+    v27 = iconst.i64 3
+    v28 = call fn6(v27)  ; v27 = 3
+    store aligned v22, v28
+    store aligned v24, v28+8
+    store aligned v26, v28+16
+    v29 = iadd_imm v28, 1
+    v30 = iconst.i64 10
+    v31 = ishl_imm v30, 1  ; v30 = 10
+    v32 = func_addr.i64 fn7
+    v33 = iadd_imm v32, 3
+    v34 = iconst.i64 0
+    v35 = ishl_imm v34, 1  ; v34 = 0
+    v36 = iconst.i64 7
+    v37 = call fn8(v36)  ; v36 = 7
+    store aligned v18, v37
+    store aligned v17, v37+8  ; v17 = 5
+    store aligned v20, v37+16
+    store aligned v29, v37+24
+    store aligned v31, v37+32
+    store aligned v33, v37+40
+    store aligned v35, v37+48
+    v38 = iadd_imm v37, 1
     stack_store v13, ss0
-    v38 = stack_addr.i64 ss0
-    v39 = call fn9(v37, v38)
-    v40 = stack_load.i64 ss0
-    v41 = isub v13, v40
-    v42 = load.i64 v14+8
-    v43 = ishl_imm v42, 3
-    v44 = iadd v43, v41
-    v45 = ushr_imm v44, 3
-    store v45, v14+8
-    v46 = call fn4(v40, v14, v39, v12)
-    v47 = load.i64 v46
-    v48 = iadd_imm v46, 8
-    v49 = sshr_imm v47, 1
-    return v49
+    v39 = stack_addr.i64 ss0
+    v40 = call fn9(v38, v39)
+    v41 = stack_load.i64 ss0
+    v42 = iadd_imm v12, 1
+    v43 = iadd_imm v41, -8
+    store aligned v42, v43
+    v44 = isub v13, v43
+    v45 = load.i64 v15+8
+    v46 = ishl_imm v45, 3
+    v47 = iadd v46, v44
+    v48 = ushr_imm v47, 3
+    store v48, v15+8
+    v49 = call fn4(v43, v15, v40, v14)
+    v50 = load.i64 v49
+    v51 = iadd_imm v49, 8
+    v52 = sshr_imm v50, 1
+    return v52
 }
 
 

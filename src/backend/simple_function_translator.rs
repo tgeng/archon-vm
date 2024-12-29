@@ -615,12 +615,10 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         let old_tip_address = self.tip_address;
         let input_thunk_func_ptr = self.process_thunk(input);
 
-        // Bind the effect instance (aka handler) to the input thunk. This is the key of lexical
-        // algebraic handler.
         let eff_ins = self.convert_to_uniform(Some((eff_ins, Specialized(StructPtr))));
-        let input_thunk_with_handler = self.create_struct(vec![input_thunk_func_ptr, eff_ins]);
-        let input_thunk_with_handler_ptr =
-            self.convert_to_uniform(Some((input_thunk_with_handler, Specialized(StructPtr))));
+        // Push the eff_ins to the arg stack so that the input lambda can access it. This is a key
+        // step for lexical effect to work.
+        self.push_args(vec![eff_ins]);
 
         // stack grows downwards so if we expect positive offset, we subtract old tip address by new tip address.
         let offset_in_bytes = self
@@ -631,7 +629,7 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
         let args = &[
             self.tip_address,
             transform_loader_continuation,
-            input_thunk_with_handler_ptr,
+            input_thunk_func_ptr,
             handler,
         ];
         if is_tail && !self.is_specialized {

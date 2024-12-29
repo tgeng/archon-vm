@@ -1,7 +1,7 @@
-def call x: int y: int z: int -> int =>
-  "double" #! {x} + "double" #! {y} + "double" #! {z}
+def call e x: int y: int z: int -> int =>
+  e #!0 {x} + e #!0 {y} + e #!0 {z}
 
 handler
-  "double" ## \p x => {p, {1, x * 2}}
+  ##0 \p x => {p, {1, x * 2}}
 
-call 1 2 3
+\e => call e 1 2 3

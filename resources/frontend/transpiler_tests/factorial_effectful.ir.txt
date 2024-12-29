@@ -25,96 +25,105 @@ Handler {
     },
     handlers: [],
     input: Thunk {
-        computation: Defs {
-            defs: [
+        computation: Lambda {
+            arg_names: [
                 (
-                    "factorial",
-                    Def {
-                        args: [
-                            (
-                                "n",
-                                Specialized(
-                                    Integer,
-                                ),
-                            ),
-                        ],
-                        body: CaseInt {
-                            t: Identifier {
-                                name: "n",
-                                effect: Simple,
-                            },
-                            result_type: SpecializedF(
-                                Specialized(
-                                    Integer,
-                                ),
-                            ),
-                            branches: [
-                                (
-                                    0,
-                                    Int {
-                                        value: 1,
-                                    },
-                                ),
-                            ],
-                            default_branch: Some(
-                                Redex {
-                                    function: Identifier {
-                                        name: "_int_mul",
-                                        effect: Simple,
-                                    },
-                                    args: [
-                                        Identifier {
-                                            name: "n",
-                                            effect: Simple,
-                                        },
-                                        Redex {
-                                            function: Identifier {
-                                                name: "factorial",
-                                                effect: Complex,
-                                            },
-                                            args: [
-                                                Redex {
-                                                    function: Identifier {
-                                                        name: "_int_sub",
-                                                        effect: Simple,
-                                                    },
-                                                    args: [
-                                                        Identifier {
-                                                            name: "n",
-                                                            effect: Simple,
-                                                        },
-                                                        Int {
-                                                            value: 1,
-                                                        },
-                                                    ],
-                                                },
-                                            ],
-                                        },
-                                    ],
-                                },
-                            ),
-                        },
-                        c_type: SpecializedF(
-                            Specialized(
-                                Integer,
-                            ),
-                        ),
-                    },
+                    "e",
+                    Uniform,
                 ),
             ],
-            body: Some(
-                Redex {
-                    function: Identifier {
-                        name: "factorial",
-                        effect: Simple,
-                    },
-                    args: [
-                        Int {
-                            value: 5,
+            body: Defs {
+                defs: [
+                    (
+                        "factorial",
+                        Def {
+                            args: [
+                                (
+                                    "n",
+                                    Specialized(
+                                        Integer,
+                                    ),
+                                ),
+                            ],
+                            body: CaseInt {
+                                t: Identifier {
+                                    name: "n",
+                                    effect: Simple,
+                                },
+                                result_type: SpecializedF(
+                                    Specialized(
+                                        Integer,
+                                    ),
+                                ),
+                                branches: [
+                                    (
+                                        0,
+                                        Int {
+                                            value: 1,
+                                        },
+                                    ),
+                                ],
+                                default_branch: Some(
+                                    Redex {
+                                        function: Identifier {
+                                            name: "_int_mul",
+                                            effect: Simple,
+                                        },
+                                        args: [
+                                            Identifier {
+                                                name: "n",
+                                                effect: Simple,
+                                            },
+                                            Redex {
+                                                function: Identifier {
+                                                    name: "factorial",
+                                                    effect: Complex,
+                                                },
+                                                args: [
+                                                    Redex {
+                                                        function: Identifier {
+                                                            name: "_int_sub",
+                                                            effect: Simple,
+                                                        },
+                                                        args: [
+                                                            Identifier {
+                                                                name: "n",
+                                                                effect: Simple,
+                                                            },
+                                                            Int {
+                                                                value: 1,
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ),
+                            },
+                            c_type: SpecializedF(
+                                Specialized(
+                                    Integer,
+                                ),
+                            ),
                         },
-                    ],
-                },
-            ),
+                    ),
+                ],
+                body: Some(
+                    Redex {
+                        function: Identifier {
+                            name: "factorial",
+                            effect: Simple,
+                        },
+                        args: [
+                            Int {
+                                value: 5,
+                            },
+                        ],
+                    },
+                ),
+            },
+            effect: Simple,
         },
         effect: Simple,
     },
@@ -202,8 +211,8 @@ Defs
             ),
             var_bound: 3,
             need_simple: false,
-            need_cps: true,
-            need_specialized: false,
+            need_cps: false,
+            need_specialized: true,
         },
     ),
     (
@@ -230,14 +239,10 @@ Defs
                 input: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "factorial",
+                            name: "main$__lambda_1",
                             effect: Simple,
                         },
-                        args: [
-                            Int {
-                                value: 5,
-                            },
-                        ],
+                        args: [],
                     },
                     effect: Simple,
                 },
@@ -273,6 +278,33 @@ Defs
             },
             c_type: Default,
             var_bound: 2,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_1",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
+            body: Redex {
+                function: Def {
+                    name: "factorial",
+                    effect: Simple,
+                },
+                args: [
+                    Int {
+                        value: 5,
+                    },
+                ],
+            },
+            c_type: Default,
+            var_bound: 1,
             need_simple: false,
             need_cps: true,
             need_specialized: false,

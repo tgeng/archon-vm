@@ -713,21 +713,18 @@ mod tests {
         }
     }
 
-    #[test]
-    fn run_tests() -> Result<(), String> {
+    fn run_test(test_name: &str) -> Result<(), String> {
+        let test_file_name = format!("{}.input.txt", test_name);
         let mut resource_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         resource_dir.push("resources/frontend/transpiler_tests");
         let mut test_input_paths = fs::read_dir(resource_dir)
             .unwrap()
             .map(|r| r.unwrap().path())
-            .filter(|p| {
-                p.file_name()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .ends_with("input.txt")
-            })
+            .filter(|p| p.file_name().unwrap().to_str().unwrap().eq(&test_file_name))
             .collect::<Vec<_>>();
+        if test_input_paths.len() != 1 {
+            return Err("No test found".to_string());
+        }
         test_input_paths.sort();
         let all_results = test_input_paths
             .into_iter()
@@ -752,5 +749,153 @@ mod tests {
                 .collect::<Vec<_>>()
                 .join("\n"))
         }
+    }
+    #[test]
+    fn factorial() -> Result<(), String> {
+        run_test("factorial")
+    }
+    #[test]
+    fn factorial_effectful() -> Result<(), String> {
+        run_test("factorial_effectful")
+    }
+    #[test]
+    fn handler_call_simple_operation_complexly_1() -> Result<(), String> {
+        run_test("handler_call_simple_operation_complexly_1")
+    }
+    #[test]
+    fn handler_call_simple_operation_complexly_2() -> Result<(), String> {
+        run_test("handler_call_simple_operation_complexly_2")
+    }
+    #[test]
+    fn handler_complex_1() -> Result<(), String> {
+        run_test("handler_complex_1")
+    }
+    #[test]
+    fn handler_complex_2() -> Result<(), String> {
+        run_test("handler_complex_2")
+    }
+    #[test]
+    fn handler_complex_3() -> Result<(), String> {
+        run_test("handler_complex_3")
+    }
+    #[test]
+    fn handler_complex_4() -> Result<(), String> {
+        run_test("handler_complex_4")
+    }
+    #[test]
+    fn handler_complex_5_sum_0_7() -> Result<(), String> {
+        run_test("handler_complex_5_sum_0_7")
+    }
+    #[test]
+    fn handler_complex_exception_restores_execution() -> Result<(), String> {
+        run_test("handler_complex_exception_restores_execution")
+    }
+    #[test]
+    fn handler_dispose() -> Result<(), String> {
+        run_test("handler_dispose")
+    }
+    #[test]
+    fn handler_exception() -> Result<(), String> {
+        run_test("handler_exception")
+    }
+    #[test]
+    fn handler_exception_dispose() -> Result<(), String> {
+        run_test("handler_exception_dispose")
+    }
+    #[test]
+    fn handler_exception_exceptional() -> Result<(), String> {
+        run_test("handler_exception_exceptional")
+    }
+    #[test]
+    fn handler_exception_restores_execution() -> Result<(), String> {
+        run_test("ler_exception_restores_execution")
+    }
+    #[test]
+    fn handler_exception_restores_execution_exceptional() -> Result<(), String> {
+        run_test("handler_exception_restores_execution_exceptional")
+    }
+    #[test]
+    fn handler_nearby_exception_in_disposer() -> Result<(), String> {
+        run_test("handler_nearby_exception_in_disposer")
+    }
+    #[test]
+    fn handler_nested_complex() -> Result<(), String> {
+        run_test("handler_nested_complex")
+    }
+    #[test]
+    fn handler_nested_simple() -> Result<(), String> {
+        run_test("handler_nested_simple")
+    }
+    #[test]
+    fn handler_simple_1() -> Result<(), String> {
+        run_test("handler_simple_1")
+    }
+    #[test]
+    fn handler_simple_2() -> Result<(), String> {
+        run_test("handler_simple_2")
+    }
+    #[test]
+    fn handler_simple_3() -> Result<(), String> {
+        run_test("handler_simple_3")
+    }
+    #[test]
+    fn handler_simple_3_linear() -> Result<(), String> {
+        run_test("handler_simple_3_linear")
+    }
+    #[test]
+    fn handler_trivial() -> Result<(), String> {
+        run_test("handler_trivial")
+    }
+    #[test]
+    fn high_level_function() -> Result<(), String> {
+        run_test("high_level_function")
+    }
+    #[test]
+    fn high_level_function_complex_effects() -> Result<(), String> {
+        run_test("high_level_function_complex_effects")
+    }
+    #[test]
+    fn immediate_redex() -> Result<(), String> {
+        run_test("immediate_redex")
+    }
+    #[test]
+    fn lambda() -> Result<(), String> {
+        run_test("lambda")
+    }
+    #[test]
+    fn lambda_as_arg() -> Result<(), String> {
+        run_test("lambda_as_arg")
+    }
+    #[test]
+    fn local_vars_with_same_name() -> Result<(), String> {
+        run_test("local_vars_with_same_name")
+    }
+    #[test]
+    fn mem_access() -> Result<(), String> {
+        run_test("mem_access")
+    }
+    #[test]
+    fn nested_redex() -> Result<(), String> {
+        run_test("nested_redex")
+    }
+    #[test]
+    fn partial_primitive_call() -> Result<(), String> {
+        run_test("partial_primitive_call")
+    }
+    #[test]
+    fn return_computation() -> Result<(), String> {
+        run_test("return_computation")
+    }
+    #[test]
+    fn simple() -> Result<(), String> {
+        run_test("simple")
+    }
+    #[test]
+    fn simple_expression() -> Result<(), String> {
+        run_test("simple_expression")
+    }
+    #[test]
+    fn thunk() -> Result<(), String> {
+        run_test("thunk")
     }
 }

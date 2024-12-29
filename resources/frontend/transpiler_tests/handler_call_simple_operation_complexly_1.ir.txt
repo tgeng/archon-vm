@@ -7,6 +7,10 @@ Defs {
             Def {
                 args: [
                     (
+                        "e",
+                        Uniform,
+                    ),
+                    (
                         "x",
                         Specialized(
                             Integer,
@@ -38,9 +42,11 @@ Defs {
                             },
                             args: [
                                 OperationCall {
-                                    eff: Str {
-                                        value: "double",
+                                    eff_ins: Identifier {
+                                        name: "e",
+                                        effect: Simple,
                                     },
+                                    op_idx: 0,
                                     args: [
                                         Identifier {
                                             name: "x",
@@ -50,9 +56,11 @@ Defs {
                                     effect: Complex,
                                 },
                                 OperationCall {
-                                    eff: Str {
-                                        value: "double",
+                                    eff_ins: Identifier {
+                                        name: "e",
+                                        effect: Simple,
                                     },
+                                    op_idx: 0,
                                     args: [
                                         Identifier {
                                             name: "y",
@@ -64,9 +72,11 @@ Defs {
                             ],
                         },
                         OperationCall {
-                            eff: Str {
-                                value: "double",
+                            eff_ins: Identifier {
+                                name: "e",
+                                effect: Simple,
                             },
+                            op_idx: 0,
                             args: [
                                 Identifier {
                                     name: "z",
@@ -111,9 +121,9 @@ Defs {
             },
             handlers: [
                 (
-                    Str {
-                        value: "double",
-                    },
+                    [
+                        0,
+                    ],
                     Lambda {
                         arg_names: [
                             (
@@ -161,22 +171,35 @@ Defs {
                 ),
             ],
             input: Thunk {
-                computation: Redex {
-                    function: Identifier {
-                        name: "call",
-                        effect: Simple,
-                    },
-                    args: [
-                        Int {
-                            value: 1,
-                        },
-                        Int {
-                            value: 2,
-                        },
-                        Int {
-                            value: 3,
-                        },
+                computation: Lambda {
+                    arg_names: [
+                        (
+                            "e",
+                            Uniform,
+                        ),
                     ],
+                    body: Redex {
+                        function: Identifier {
+                            name: "call",
+                            effect: Simple,
+                        },
+                        args: [
+                            Identifier {
+                                name: "e",
+                                effect: Simple,
+                            },
+                            Int {
+                                value: 1,
+                            },
+                            Int {
+                                value: 2,
+                            },
+                            Int {
+                                value: 3,
+                            },
+                        ],
+                    },
+                    effect: Simple,
                 },
                 effect: Simple,
             },
@@ -193,9 +216,7 @@ Defs
             args: [
                 (
                     0,
-                    Specialized(
-                        Integer,
-                    ),
+                    Uniform,
                 ),
                 (
                     1,
@@ -209,69 +230,78 @@ Defs
                         Integer,
                     ),
                 ),
+                (
+                    3,
+                    Specialized(
+                        Integer,
+                    ),
+                ),
             ],
             body: Let {
                 t: Let {
                     t: OperationCall {
-                        eff: Str {
-                            value: "double",
+                        eff_ins: Var {
+                            index: 0,
                         },
+                        op_idx: 0,
                         args: [
                             Var {
-                                index: 0,
+                                index: 1,
                             },
                         ],
                         effect: Complex,
                     },
-                    bound_index: 3,
+                    bound_index: 4,
                     body: Let {
                         t: OperationCall {
-                            eff: Str {
-                                value: "double",
+                            eff_ins: Var {
+                                index: 0,
                             },
+                            op_idx: 0,
                             args: [
                                 Var {
-                                    index: 1,
+                                    index: 2,
                                 },
                             ],
                             effect: Complex,
                         },
-                        bound_index: 4,
+                        bound_index: 5,
                         body: PrimitiveCall {
                             name: "_int_add",
                             args: [
                                 Var {
-                                    index: 3,
+                                    index: 4,
                                 },
                                 Var {
-                                    index: 4,
+                                    index: 5,
                                 },
                             ],
                         },
                     },
                 },
-                bound_index: 5,
+                bound_index: 6,
                 body: Let {
                     t: OperationCall {
-                        eff: Str {
-                            value: "double",
+                        eff_ins: Var {
+                            index: 0,
                         },
+                        op_idx: 0,
                         args: [
                             Var {
-                                index: 2,
+                                index: 3,
                             },
                         ],
                         effect: Complex,
                     },
-                    bound_index: 6,
+                    bound_index: 7,
                     body: PrimitiveCall {
                         name: "_int_add",
                         args: [
                             Var {
-                                index: 5,
+                                index: 6,
                             },
                             Var {
-                                index: 6,
+                                index: 7,
                             },
                         ],
                     },
@@ -282,10 +312,10 @@ Defs
                     Integer,
                 ),
             ),
-            var_bound: 7,
+            var_bound: 8,
             need_simple: false,
-            need_cps: true,
-            need_specialized: false,
+            need_cps: false,
+            need_specialized: true,
         },
     ),
     (
@@ -310,9 +340,9 @@ Defs
                 },
                 handlers: [
                     (
-                        Str {
-                            value: "double",
-                        },
+                        [
+                            0,
+                        ],
                         Thunk {
                             t: Redex {
                                 function: Def {
@@ -329,20 +359,10 @@ Defs
                 input: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "call",
+                            name: "main$__lambda_2",
                             effect: Simple,
                         },
-                        args: [
-                            Int {
-                                value: 1,
-                            },
-                            Int {
-                                value: 2,
-                            },
-                            Int {
-                                value: 3,
-                            },
-                        ],
+                        args: [],
                     },
                     effect: Simple,
                 },
@@ -439,6 +459,42 @@ Defs
             },
             c_type: Default,
             var_bound: 4,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_2",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
+            body: Redex {
+                function: Def {
+                    name: "call",
+                    effect: Simple,
+                },
+                args: [
+                    Var {
+                        index: 0,
+                    },
+                    Int {
+                        value: 1,
+                    },
+                    Int {
+                        value: 2,
+                    },
+                    Int {
+                        value: 3,
+                    },
+                ],
+            },
+            c_type: Default,
+            var_bound: 1,
             need_simple: false,
             need_cps: true,
             need_specialized: false,

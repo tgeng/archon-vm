@@ -14,6 +14,8 @@ pub type RawFuncPtr = *const usize;
 /// A pointer to a continuation implementation, which takes a corresponding continuation and a
 /// result value and calls the next continuation in the end.
 pub type ContImplPtr = *const usize;
+/// A pointer to an EffIns in uniform representation.
+pub type UniformEffIns = usize;
 /// A value in uniform representation.
 #[repr(C, align(8))]
 pub struct EffIns {
@@ -49,7 +51,6 @@ pub struct Continuation {
 #[repr(C, align(8))]
 #[derive(Clone)]
 pub struct Handler {
-    pub parent_handler: Option<Rc<RefCell<Handler>>>,
     pub transform_loader_continuation: *mut Continuation,
     /// An alternative is to use a Vec<Uniform> to store the argument stack inside the handler
     /// instead of having a per-thread argument stack. That way, the per-handler stack would store
@@ -72,6 +73,7 @@ pub struct Handler {
     pub vector_callee_saved_registers: [u128; 8],
     /// Option is used here because during register registration there can be empty slots
     pub handlers: Vec<Option<(ThunkPtr, HandlerTypeOrdinal)>>,
+    pub parent_handler: Option<Rc<RefCell<Handler>>>,
 }
 
 #[derive(Clone)]
@@ -82,6 +84,7 @@ pub struct CapturedContinuation {
     /// This contains all the arguments passed to the matching handler's transform component. But
     /// it does NOT contain any arguments passed to the handler implementation. That is,
     pub stack_fragment: Vec<Uniform>,
+    // TODO[p0]: add handler entry here too since the `parent_handler` field is also mutable
     /// Parameters and transform loader continuations corresponding to the captured handlers. If not
     /// set, those values in the handlers are used as they are. If set, these values will overwrite
     /// those in the handlers. The first element is for the tip handler.

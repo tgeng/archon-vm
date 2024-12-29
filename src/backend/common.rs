@@ -302,16 +302,6 @@ impl BuiltinFunction {
         // continuation, it will place the result right below the base address, which is where this
         // trivial continuation should be placing the result.
         let last_result_ptr = builder.block_params(entry_block)[2];
-        Self::call_built_in(
-            m,
-            builder,
-            BuiltinFunction::DebugHelper,
-            &[
-                builder.block_params(entry_block)[0],
-                builder.block_params(entry_block)[1],
-                builder.block_params(entry_block)[2],
-            ],
-        );
         builder.ins().return_(&[last_result_ptr]);
     }
 

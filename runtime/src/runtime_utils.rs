@@ -1,6 +1,6 @@
 use crate::runtime::{
     CapturedContinuation, ContImplPtr, Continuation, EffIns, Generic, Handler, HandlerType,
-    HandlerTypeOrdinal, RawFuncPtr, ThunkPtr, Uniform,
+    HandlerTypeOrdinal, RawFuncPtr, ThunkPtr, Uniform, UniformEffIns,
 };
 use crate::types::{UPtr, UniformPtr, UniformType};
 use enum_ordinalize::Ordinalize;
@@ -166,9 +166,9 @@ pub unsafe extern "C" fn runtime_alloc_stack() -> *mut usize {
 
 /// Returns the result of the operation in uniform representation
 pub unsafe fn debug_helper(
-    _base: *const usize,
-    _last_result_ptr: *const usize,
-    _thunk: *const usize,
+    _eff_ins: *const EffIns,
+    _handler: *const usize,
+    _result: usize,
 ) -> usize {
     1 + 1
 }
@@ -180,7 +180,7 @@ pub unsafe fn debug_helper(
 ///
 #[no_mangle]
 pub unsafe extern "C" fn runtime_prepare_operation(
-    eff_ins: *const EffIns,
+    eff_ins: UniformEffIns,
     op_idx: i64,
     handler_call_base_address: *mut usize,
     tip_continuation: &mut Continuation,
@@ -188,6 +188,7 @@ pub unsafe extern "C" fn runtime_prepare_operation(
     captured_continuation_thunk_impl: RawFuncPtr,
     simple_handler_runner_impl_ptr: RawFuncPtr,
 ) -> *const usize {
+    let eff_ins = eff_ins.to_normal_ptr() as *const EffIns;
     let (handler_ptr, handler_impl, handler_type) = get_operation(eff_ins, op_idx);
     let (handler_function_ptr, new_base_address, next_continuation) =
         if handler_type == HandlerType::Complex {
@@ -224,17 +225,15 @@ unsafe fn prepare_complex_operation(
     handler_ptr: *mut Handler,
     handler_impl: ThunkPtr,
 ) -> (*const usize, *mut usize, *mut Continuation) {
-    let matching_handler = handler_ptr.read();
-
     // Update the tip continuation so that its height no longer includes the arguments passed to
     // the handler because the captured continuation won't include them in the stack fragment. Later
     // when the captured continuation is resumed, the tip (tip - 8) of the argument stack will be
     // where the operation result is placed.
     tip_continuation.arg_stack_frame_height -= handler_num_args;
 
-    let matching_parameter = matching_handler.parameter;
+    let matching_parameter = (*handler_ptr).parameter;
     // Split the continuation chain at the matching handler.
-    let base_continuation = matching_handler.transform_loader_continuation;
+    let base_continuation = (*handler_ptr).transform_loader_continuation;
     let next_continuation = (*base_continuation).next;
     // Tie up the captured continuation end.
     (*base_continuation).next = null_mut::<Continuation>();
@@ -244,7 +243,7 @@ unsafe fn prepare_complex_operation(
     (*next_continuation).arg_stack_frame_height += handler_num_args + 2 - TRANSFORM_LOADER_NUM_ARGS;
 
     // Copy the stack fragment.
-    let stack_fragment_end = matching_handler
+    let stack_fragment_end = (*handler_ptr)
         .transform_loader_base_address
         .add(TRANSFORM_LOADER_NUM_ARGS);
     let stack_fragment_start = handler_call_base_address.add(handler_num_args);
@@ -253,7 +252,7 @@ unsafe fn prepare_complex_operation(
     let stack_fragment: Vec<Generic> =
         std::slice::from_raw_parts(stack_fragment_start, stack_fragment_length as usize).to_vec();
 
-    let new_tip_handler = matching_handler.parent_handler;
+    let new_tip_handler = (*handler_ptr).parent_handler.clone();
 
     let captured_continuation_thunk = create_captured_continuation(
         captured_continuation_thunk_impl,
@@ -347,11 +346,9 @@ unsafe fn prepare_simple_operation(
     handler_type: HandlerType,
 ) -> (*const usize, *mut usize, *mut Continuation) {
     assert_ne!(handler_type, HandlerType::Complex);
-    let matching_handler = handler_ptr.read();
-
     let mut tip_address = handler_call_base_address;
     tip_address = tip_address.sub(1);
-    tip_address.write(matching_handler.parameter);
+    tip_address.write((*handler_ptr).parameter);
     let handler_impl_ptr = runtime_force_thunk(handler_impl, &mut tip_address);
 
     tip_address = tip_address.sub(1);
@@ -382,14 +379,14 @@ unsafe fn prepare_simple_operation(
 /// all the evicted handlers.
 #[no_mangle]
 pub unsafe extern "C" fn runtime_process_simple_handler_result(
-    eff_ins: *mut EffIns,
+    eff_ins: UniformEffIns,
     simple_handler_type: HandlerTypeOrdinal,
     simple_result: &SimpleResult,
     simple_exception_continuation_impl: RawFuncPtr,
     runtime_disposer_loader_cps_impl: ContImplPtr,
 ) -> Uniform {
+    let eff_ins = eff_ins.to_normal_ptr() as *const EffIns;
     let handler_ptr = eff_ins.read().handler;
-    let matching_handler = handler_ptr.read();
 
     let (value, tag) = match simple_handler_type {
         0 => (simple_result.result_value.as_uniform(), 0),
@@ -404,7 +401,7 @@ pub unsafe extern "C" fn runtime_process_simple_handler_result(
     match tag {
         0 => unsafe {
             let handler_output_result = value;
-            let next_continuation = matching_handler.transform_loader_continuation.read().next;
+            let next_continuation = (*handler_ptr).transform_loader_continuation.read().next;
             let simple_exception_continuation = runtime_alloc(4) as *mut Continuation;
             *simple_exception_continuation = Continuation {
                 func: simple_exception_continuation_impl,
@@ -414,7 +411,7 @@ pub unsafe extern "C" fn runtime_process_simple_handler_result(
                 state: handler_output_result,
             };
             let (next_continuation, next_base_address) = convert_handler_transformers_to_disposers(
-                matching_handler.transform_loader_base_address,
+                (*handler_ptr).transform_loader_base_address,
                 handler_ptr,
                 simple_exception_continuation,
                 runtime_disposer_loader_cps_impl,
@@ -444,7 +441,7 @@ pub extern "C" fn runtime_pop_handler() -> Uniform {
         let binding = h.take().unwrap();
         let handler = binding.borrow();
         *h.borrow_mut() = handler.parent_handler.clone();
-        handler.parameter
+        handler.parameter.clone()
     })
 }
 
