@@ -473,7 +473,7 @@ impl BuiltinFunction {
         let next_continuation = builder.block_params(entry_block)[1];
 
         let handler_function_ptr = builder.ins().load(I64, MemFlags::new(), base_address, 0);
-        let eff_ins = builder.ins().load(I64, MemFlags::new(), base_address, 8);
+        let handler_ptr = builder.ins().load(I64, MemFlags::new(), base_address, 8);
         let simple_handler_type = builder.ins().load(I64, MemFlags::new(), base_address, 16);
 
         let trivial_continuation =
@@ -504,7 +504,7 @@ impl BuiltinFunction {
             builder,
             BuiltinFunction::ProcessSimpleHandlerResult,
             &[
-                eff_ins,
+                handler_ptr,
                 simple_handler_type,
                 simple_handler_result_ptr,
                 simple_exception_continuation_impl,
