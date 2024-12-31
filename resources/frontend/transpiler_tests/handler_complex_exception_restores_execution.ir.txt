@@ -7,6 +7,10 @@ Defs {
             Def {
                 args: [
                     (
+                        "e1",
+                        Uniform,
+                    ),
+                    (
                         "x",
                         Specialized(
                             Integer,
@@ -38,9 +42,9 @@ Defs {
                     },
                     handlers: [
                         (
-                            Str {
-                                value: "exp",
-                            },
+                            [
+                                0,
+                            ],
                             Lambda {
                                 arg_names: [
                                     (
@@ -87,37 +91,50 @@ Defs {
                         ),
                     ],
                     input: Thunk {
-                        computation: Let {
-                            name: "_",
-                            t: OperationCall {
-                                eff: Str {
-                                    value: "exp",
-                                },
-                                args: [
-                                    Identifier {
-                                        name: "x",
-                                        effect: Simple,
-                                    },
-                                ],
-                                effect: Complex,
-                            },
+                        computation: Lambda {
+                            arg_names: [
+                                (
+                                    "e2",
+                                    Uniform,
+                                ),
+                            ],
                             body: Let {
                                 name: "_",
                                 t: OperationCall {
-                                    eff: Str {
-                                        value: "track",
+                                    eff_ins: Identifier {
+                                        name: "e2",
+                                        effect: Simple,
                                     },
+                                    op_idx: 0,
                                     args: [
-                                        Int {
-                                            value: 31,
+                                        Identifier {
+                                            name: "x",
+                                            effect: Simple,
                                         },
                                     ],
-                                    effect: Simple,
+                                    effect: Complex,
                                 },
-                                body: Int {
-                                    value: 31,
+                                body: Let {
+                                    name: "_",
+                                    t: OperationCall {
+                                        eff_ins: Identifier {
+                                            name: "e1",
+                                            effect: Simple,
+                                        },
+                                        op_idx: 1,
+                                        args: [
+                                            Int {
+                                                value: 31,
+                                            },
+                                        ],
+                                        effect: Simple,
+                                    },
+                                    body: Int {
+                                        value: 31,
+                                    },
                                 },
                             },
+                            effect: Simple,
                         },
                         effect: Simple,
                     },
@@ -179,9 +196,9 @@ Defs {
             },
             handlers: [
                 (
-                    Str {
-                        value: "track",
-                    },
+                    [
+                        1,
+                    ],
                     Lambda {
                         arg_names: [
                             (
@@ -229,36 +246,24 @@ Defs {
                 ),
             ],
             input: Thunk {
-                computation: Let {
-                    name: "_",
-                    t: OperationCall {
-                        eff: Str {
-                            value: "track",
-                        },
-                        args: [
-                            Int {
-                                value: 2,
-                            },
-                        ],
-                        effect: Simple,
-                    },
+                computation: Lambda {
+                    arg_names: [
+                        (
+                            "e",
+                            Uniform,
+                        ),
+                    ],
                     body: Let {
                         name: "_",
                         t: OperationCall {
-                            eff: Str {
-                                value: "track",
+                            eff_ins: Identifier {
+                                name: "e",
+                                effect: Simple,
                             },
+                            op_idx: 1,
                             args: [
-                                Redex {
-                                    function: Identifier {
-                                        name: "interruptAndRecover",
-                                        effect: Simple,
-                                    },
-                                    args: [
-                                        Int {
-                                            value: 3,
-                                        },
-                                    ],
+                                Int {
+                                    value: 2,
                                 },
                             ],
                             effect: Simple,
@@ -266,9 +271,11 @@ Defs {
                         body: Let {
                             name: "_",
                             t: OperationCall {
-                                eff: Str {
-                                    value: "track",
+                                eff_ins: Identifier {
+                                    name: "e",
+                                    effect: Simple,
                                 },
+                                op_idx: 1,
                                 args: [
                                     Redex {
                                         function: Identifier {
@@ -276,8 +283,12 @@ Defs {
                                             effect: Simple,
                                         },
                                         args: [
+                                            Identifier {
+                                                name: "e",
+                                                effect: Simple,
+                                            },
                                             Int {
-                                                value: 5,
+                                                value: 3,
                                             },
                                         ],
                                     },
@@ -287,9 +298,11 @@ Defs {
                             body: Let {
                                 name: "_",
                                 t: OperationCall {
-                                    eff: Str {
-                                        value: "track",
+                                    eff_ins: Identifier {
+                                        name: "e",
+                                        effect: Simple,
                                     },
+                                    op_idx: 1,
                                     args: [
                                         Redex {
                                             function: Identifier {
@@ -297,20 +310,53 @@ Defs {
                                                 effect: Simple,
                                             },
                                             args: [
+                                                Identifier {
+                                                    name: "e",
+                                                    effect: Simple,
+                                                },
                                                 Int {
-                                                    value: 7,
+                                                    value: 5,
                                                 },
                                             ],
                                         },
                                     ],
                                     effect: Simple,
                                 },
-                                body: Int {
-                                    value: 1,
+                                body: Let {
+                                    name: "_",
+                                    t: OperationCall {
+                                        eff_ins: Identifier {
+                                            name: "e",
+                                            effect: Simple,
+                                        },
+                                        op_idx: 1,
+                                        args: [
+                                            Redex {
+                                                function: Identifier {
+                                                    name: "interruptAndRecover",
+                                                    effect: Simple,
+                                                },
+                                                args: [
+                                                    Identifier {
+                                                        name: "e",
+                                                        effect: Simple,
+                                                    },
+                                                    Int {
+                                                        value: 7,
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                        effect: Simple,
+                                    },
+                                    body: Int {
+                                        value: 1,
+                                    },
                                 },
                             },
                         },
                     },
+                    effect: Simple,
                 },
                 effect: Simple,
             },
@@ -327,6 +373,10 @@ Defs
             args: [
                 (
                     0,
+                    Uniform,
+                ),
+                (
+                    1,
                     Specialized(
                         Integer,
                     ),
@@ -350,9 +400,9 @@ Defs
                 },
                 handlers: [
                     (
-                        Str {
-                            value: "exp",
-                        },
+                        [
+                            0,
+                        ],
                         Thunk {
                             t: Redex {
                                 function: Def {
@@ -376,6 +426,9 @@ Defs
                             Var {
                                 index: 0,
                             },
+                            Var {
+                                index: 1,
+                            },
                         ],
                     },
                     effect: Simple,
@@ -386,7 +439,7 @@ Defs
                     Integer,
                 ),
             ),
-            var_bound: 1,
+            var_bound: 2,
             need_simple: false,
             need_cps: false,
             need_specialized: true,
@@ -471,29 +524,39 @@ Defs
             args: [
                 (
                     0,
+                    Uniform,
+                ),
+                (
+                    1,
                     Specialized(
                         Integer,
                     ),
                 ),
+                (
+                    2,
+                    Uniform,
+                ),
             ],
             body: Let {
                 t: OperationCall {
-                    eff: Str {
-                        value: "exp",
+                    eff_ins: Var {
+                        index: 2,
                     },
+                    op_idx: 0,
                     args: [
                         Var {
-                            index: 0,
+                            index: 1,
                         },
                     ],
                     effect: Complex,
                 },
-                bound_index: 1,
+                bound_index: 3,
                 body: Let {
                     t: OperationCall {
-                        eff: Str {
-                            value: "track",
+                        eff_ins: Var {
+                            index: 0,
                         },
+                        op_idx: 1,
                         args: [
                             Int {
                                 value: 31,
@@ -501,7 +564,7 @@ Defs
                         ],
                         effect: Simple,
                     },
-                    bound_index: 2,
+                    bound_index: 4,
                     body: Return {
                         value: Int {
                             value: 31,
@@ -510,7 +573,7 @@ Defs
                 },
             },
             c_type: Default,
-            var_bound: 3,
+            var_bound: 5,
             need_simple: false,
             need_cps: true,
             need_specialized: false,
@@ -538,9 +601,9 @@ Defs
                 },
                 handlers: [
                     (
-                        Str {
-                            value: "track",
-                        },
+                        [
+                            1,
+                        ],
                         Thunk {
                             t: Redex {
                                 function: Def {
@@ -677,12 +740,18 @@ Defs
     (
         "main$__lambda_2",
         FunctionDefinition {
-            args: [],
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
             body: Let {
                 t: OperationCall {
-                    eff: Str {
-                        value: "track",
+                    eff_ins: Var {
+                        index: 0,
                     },
+                    op_idx: 1,
                     args: [
                         Int {
                             value: 2,
@@ -690,7 +759,7 @@ Defs
                     ],
                     effect: Simple,
                 },
-                bound_index: 0,
+                bound_index: 1,
                 body: Let {
                     t: Let {
                         t: Redex {
@@ -699,25 +768,29 @@ Defs
                                 effect: Simple,
                             },
                             args: [
+                                Var {
+                                    index: 0,
+                                },
                                 Int {
                                     value: 3,
                                 },
                             ],
                         },
-                        bound_index: 1,
+                        bound_index: 2,
                         body: OperationCall {
-                            eff: Str {
-                                value: "track",
+                            eff_ins: Var {
+                                index: 0,
                             },
+                            op_idx: 1,
                             args: [
                                 Var {
-                                    index: 1,
+                                    index: 2,
                                 },
                             ],
                             effect: Simple,
                         },
                     },
-                    bound_index: 2,
+                    bound_index: 3,
                     body: Let {
                         t: Let {
                             t: Redex {
@@ -726,25 +799,29 @@ Defs
                                     effect: Simple,
                                 },
                                 args: [
+                                    Var {
+                                        index: 0,
+                                    },
                                     Int {
                                         value: 5,
                                     },
                                 ],
                             },
-                            bound_index: 3,
+                            bound_index: 4,
                             body: OperationCall {
-                                eff: Str {
-                                    value: "track",
+                                eff_ins: Var {
+                                    index: 0,
                                 },
+                                op_idx: 1,
                                 args: [
                                     Var {
-                                        index: 3,
+                                        index: 4,
                                     },
                                 ],
                                 effect: Simple,
                             },
                         },
-                        bound_index: 4,
+                        bound_index: 5,
                         body: Let {
                             t: Let {
                                 t: Redex {
@@ -753,25 +830,29 @@ Defs
                                         effect: Simple,
                                     },
                                     args: [
+                                        Var {
+                                            index: 0,
+                                        },
                                         Int {
                                             value: 7,
                                         },
                                     ],
                                 },
-                                bound_index: 5,
+                                bound_index: 6,
                                 body: OperationCall {
-                                    eff: Str {
-                                        value: "track",
+                                    eff_ins: Var {
+                                        index: 0,
                                     },
+                                    op_idx: 1,
                                     args: [
                                         Var {
-                                            index: 5,
+                                            index: 6,
                                         },
                                     ],
                                     effect: Simple,
                                 },
                             },
-                            bound_index: 6,
+                            bound_index: 7,
                             body: Return {
                                 value: Int {
                                     value: 1,
@@ -782,7 +863,7 @@ Defs
                 },
             },
             c_type: Default,
-            var_bound: 7,
+            var_bound: 8,
             need_simple: false,
             need_cps: true,
             need_specialized: false,

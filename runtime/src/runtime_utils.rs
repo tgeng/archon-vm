@@ -409,7 +409,7 @@ pub unsafe extern "C" fn runtime_process_simple_handler_result(
             };
             let (next_continuation, next_base_address) = convert_handler_transformers_to_disposers(
                 (*handler_ptr).transform_loader_base_address,
-                handler_ptr,
+                (*handler_ptr).parent_handler.as_ref().map(|r| r.as_ptr()),
                 simple_exception_continuation,
                 runtime_disposer_loader_cps_impl,
             );
@@ -447,9 +447,16 @@ pub extern "C" fn runtime_pop_handler() -> Uniform {
 /// since they are guranteed to not cause any effects with my current plan. But if somehow I decide
 /// to allow disposer and simple operations to perform simple exceptional effects, this
 /// implementation will be useful.
+///
+/// # Arguments
+///
+/// * `base_handler` - the handler that mark the boundary of the handler stack, non-inclusive. That
+///   is, this parent handler should not be modified with the disposer transformation.
+/// * `next_continuation` - the next continuation that should be chained to the last transformed
+///   handler continuation. That is, the handler whose parent is the passed `base_handler`.
 unsafe fn convert_handler_transformers_to_disposers(
     base_address: *mut Uniform,
-    parent_handler_ptr: *mut Handler,
+    base_handler: Option<*mut Handler>,
     next_continuation: *mut Continuation,
     runtime_disposer_loader_cps_impl: ContImplPtr,
 ) -> (*mut Continuation, *mut Uniform) {
@@ -466,32 +473,31 @@ unsafe fn convert_handler_transformers_to_disposers(
 
     TIP_HANDLER.with(|h| {
         let binding = h.borrow();
-        let mut current_handler_ptr = binding.as_ref().unwrap().as_ptr();
+        let mut current_handler = binding.as_ref().map(|r| r.as_ptr());
         loop {
+            let Some(current_handler_ptr) = current_handler else {
+                break;
+            };
+            let parent_handler = (*current_handler_ptr)
+                .parent_handler
+                .as_ref()
+                .map(|r| r.as_ptr());
             (*(*current_handler_ptr).transform_loader_continuation).func =
                 runtime_disposer_loader_cps_impl;
-            (*(*current_handler_ptr).transform_loader_continuation).next =
-                if current_handler_ptr == parent_handler_ptr {
-                    next_continuation
-                } else {
-                    (*(*current_handler_ptr)
-                        .parent_handler
-                        .as_ref()
-                        .unwrap()
-                        .as_ptr())
-                    .transform_loader_continuation
-                };
-            let next_continuation = (*(*current_handler_ptr).transform_loader_continuation).next;
+            let next_continuation = if parent_handler == base_handler {
+                next_continuation
+            } else {
+                // unwrap is safe because if parent handler is not base handler, it must point
+                // to some handler that transitively points to the (nullable) base handler.
+                (*parent_handler.unwrap()).transform_loader_continuation
+            };
+            (*(*current_handler_ptr).transform_loader_continuation).next = next_continuation;
             if (*next_continuation).state != usize::MAX {
-                let next_base_address = if current_handler_ptr == parent_handler_ptr {
+                let next_base_address = if parent_handler == base_handler {
                     next_base_address
                 } else {
-                    (*(*current_handler_ptr)
-                        .parent_handler
-                        .as_ref()
-                        .unwrap()
-                        .as_ptr())
-                    .transform_loader_base_address
+                    // unwrap is safe for the same reason above
+                    (*parent_handler.unwrap()).transform_loader_base_address
                 };
                 // trivial continuation has state equal to 0xffffffffffffffff and we don't want to
                 // update the frame height of trivial continuations because this field is not
@@ -506,14 +512,10 @@ unsafe fn convert_handler_transformers_to_disposers(
             *(*current_handler_ptr).transform_loader_base_address =
                 (*current_handler_ptr).parameter_disposer as Uniform;
 
-            if current_handler_ptr == parent_handler_ptr {
+            current_handler = parent_handler;
+            if current_handler == base_handler {
                 break;
             }
-            current_handler_ptr = (*current_handler_ptr)
-                .parent_handler
-                .as_ref()
-                .unwrap()
-                .as_ptr();
         }
     });
 
@@ -675,7 +677,7 @@ pub unsafe extern "C" fn runtime_prepare_dispose_continuation(
     stack_pointer: *const u8,
     runtime_disposer_loader_cps_impl: ContImplPtr,
 ) -> *const Uniform {
-    let parent_handler_ptr = TIP_HANDLER.with(|h| h.borrow().as_ref().unwrap().as_ptr() as *mut _);
+    let parent_handler = TIP_HANDLER.with(|h| h.borrow().as_ref().map(|r| r.as_ptr() as *mut _));
 
     // 3 arguments passed to captured continuation: captured continuation object, record field index, and handler parameter.
     let dispose_num_args = 3;
@@ -691,7 +693,7 @@ pub unsafe extern "C" fn runtime_prepare_dispose_continuation(
 
     let (next_continuation, next_base_address) = convert_handler_transformers_to_disposers(
         base_address,
-        parent_handler_ptr,
+        parent_handler,
         next_continuation,
         runtime_disposer_loader_cps_impl,
     );
