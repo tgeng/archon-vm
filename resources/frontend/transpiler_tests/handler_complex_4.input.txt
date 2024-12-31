@@ -1,5 +1,5 @@
 handler 1
-  "getNumber" #!
+  #!0
     \p cont =>
       let pair = force cont 2 p
       let cont1 = pair@0
@@ -7,5 +7,5 @@ handler 1
       let a = force! cont1 0 p 3
       let b = force! cont2 0 p 5
       a + b
-
-"getNumber" #! {} * 2 + "getNumber" #! {}
+\e =>
+  e #!0 {} * 2 + e #!0 {}

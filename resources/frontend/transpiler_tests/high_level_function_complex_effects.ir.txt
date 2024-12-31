@@ -25,228 +25,237 @@ Handler {
     },
     handlers: [],
     input: Thunk {
-        computation: Defs {
-            defs: [
+        computation: Lambda {
+            arg_names: [
                 (
-                    "add",
-                    Def {
-                        args: [
-                            (
-                                "x",
-                                Specialized(
-                                    Integer,
-                                ),
-                            ),
-                            (
-                                "y",
-                                Specialized(
-                                    Integer,
-                                ),
-                            ),
-                        ],
-                        body: Redex {
-                            function: Identifier {
-                                name: "_int_add",
-                                effect: Simple,
-                            },
-                            args: [
-                                Identifier {
-                                    name: "x",
-                                    effect: Simple,
-                                },
-                                Identifier {
-                                    name: "y",
-                                    effect: Simple,
-                                },
-                            ],
-                        },
-                        c_type: SpecializedF(
-                            Specialized(
-                                Integer,
-                            ),
-                        ),
-                    },
+                    "e",
+                    Uniform,
                 ),
             ],
-            body: Some(
-                Defs {
-                    defs: [
-                        (
-                            "fold",
-                            Def {
-                                args: [
-                                    (
-                                        "size",
-                                        Specialized(
-                                            Integer,
-                                        ),
-                                    ),
-                                    (
-                                        "array",
-                                        Uniform,
-                                    ),
-                                    (
-                                        "acc",
-                                        Specialized(
-                                            Integer,
-                                        ),
-                                    ),
-                                    (
-                                        "f",
-                                        Uniform,
-                                    ),
-                                    (
-                                        "i",
-                                        Specialized(
-                                            Integer,
-                                        ),
-                                    ),
-                                ],
-                                body: CaseInt {
-                                    t: Redex {
-                                        function: Identifier {
-                                            name: "_int_lt",
-                                            effect: Simple,
-                                        },
-                                        args: [
-                                            Identifier {
-                                                name: "i",
-                                                effect: Simple,
-                                            },
-                                            Identifier {
-                                                name: "size",
-                                                effect: Simple,
-                                            },
-                                        ],
-                                    },
-                                    result_type: SpecializedF(
-                                        Specialized(
-                                            Integer,
-                                        ),
-                                    ),
-                                    branches: [
-                                        (
-                                            1,
-                                            Redex {
-                                                function: Identifier {
-                                                    name: "fold",
-                                                    effect: Simple,
-                                                },
-                                                args: [
-                                                    Identifier {
-                                                        name: "size",
-                                                        effect: Simple,
-                                                    },
-                                                    Identifier {
-                                                        name: "array",
-                                                        effect: Simple,
-                                                    },
-                                                    Redex {
-                                                        function: Force {
-                                                            thunk: Identifier {
-                                                                name: "f",
-                                                                effect: Simple,
-                                                            },
-                                                            effect: Complex,
-                                                        },
-                                                        args: [
-                                                            Identifier {
-                                                                name: "acc",
-                                                                effect: Simple,
-                                                            },
-                                                            MemGet {
-                                                                base: Identifier {
-                                                                    name: "array",
-                                                                    effect: Simple,
-                                                                },
-                                                                offset: Identifier {
-                                                                    name: "i",
-                                                                    effect: Simple,
-                                                                },
-                                                            },
-                                                        ],
-                                                    },
-                                                    Identifier {
-                                                        name: "f",
-                                                        effect: Simple,
-                                                    },
-                                                    Redex {
-                                                        function: Identifier {
-                                                            name: "_int_add",
-                                                            effect: Simple,
-                                                        },
-                                                        args: [
-                                                            Identifier {
-                                                                name: "i",
-                                                                effect: Simple,
-                                                            },
-                                                            Int {
-                                                                value: 1,
-                                                            },
-                                                        ],
-                                                    },
-                                                ],
-                                            },
-                                        ),
-                                        (
-                                            0,
-                                            Identifier {
-                                                name: "acc",
-                                                effect: Simple,
-                                            },
-                                        ),
-                                    ],
-                                    default_branch: None,
-                                },
-                                c_type: SpecializedF(
+            body: Defs {
+                defs: [
+                    (
+                        "add",
+                        Def {
+                            args: [
+                                (
+                                    "x",
                                     Specialized(
                                         Integer,
                                     ),
                                 ),
-                            },
-                        ),
-                    ],
-                    body: Some(
-                        Redex {
-                            function: Identifier {
-                                name: "fold",
-                                effect: Simple,
-                            },
-                            args: [
-                                Int {
-                                    value: 3,
-                                },
-                                Struct {
-                                    values: [
-                                        Int {
-                                            value: 1,
-                                        },
-                                        Int {
-                                            value: 2,
-                                        },
-                                        Int {
-                                            value: 3,
-                                        },
-                                    ],
-                                },
-                                Int {
-                                    value: 10,
-                                },
-                                Thunk {
-                                    computation: Identifier {
-                                        name: "add",
-                                        effect: Simple,
-                                    },
+                                (
+                                    "y",
+                                    Specialized(
+                                        Integer,
+                                    ),
+                                ),
+                            ],
+                            body: Redex {
+                                function: Identifier {
+                                    name: "_int_add",
                                     effect: Simple,
                                 },
-                                Int {
-                                    value: 0,
-                                },
-                            ],
+                                args: [
+                                    Identifier {
+                                        name: "x",
+                                        effect: Simple,
+                                    },
+                                    Identifier {
+                                        name: "y",
+                                        effect: Simple,
+                                    },
+                                ],
+                            },
+                            c_type: SpecializedF(
+                                Specialized(
+                                    Integer,
+                                ),
+                            ),
                         },
                     ),
-                },
-            ),
+                ],
+                body: Some(
+                    Defs {
+                        defs: [
+                            (
+                                "fold",
+                                Def {
+                                    args: [
+                                        (
+                                            "size",
+                                            Specialized(
+                                                Integer,
+                                            ),
+                                        ),
+                                        (
+                                            "array",
+                                            Uniform,
+                                        ),
+                                        (
+                                            "acc",
+                                            Specialized(
+                                                Integer,
+                                            ),
+                                        ),
+                                        (
+                                            "f",
+                                            Uniform,
+                                        ),
+                                        (
+                                            "i",
+                                            Specialized(
+                                                Integer,
+                                            ),
+                                        ),
+                                    ],
+                                    body: CaseInt {
+                                        t: Redex {
+                                            function: Identifier {
+                                                name: "_int_lt",
+                                                effect: Simple,
+                                            },
+                                            args: [
+                                                Identifier {
+                                                    name: "i",
+                                                    effect: Simple,
+                                                },
+                                                Identifier {
+                                                    name: "size",
+                                                    effect: Simple,
+                                                },
+                                            ],
+                                        },
+                                        result_type: SpecializedF(
+                                            Specialized(
+                                                Integer,
+                                            ),
+                                        ),
+                                        branches: [
+                                            (
+                                                1,
+                                                Redex {
+                                                    function: Identifier {
+                                                        name: "fold",
+                                                        effect: Simple,
+                                                    },
+                                                    args: [
+                                                        Identifier {
+                                                            name: "size",
+                                                            effect: Simple,
+                                                        },
+                                                        Identifier {
+                                                            name: "array",
+                                                            effect: Simple,
+                                                        },
+                                                        Redex {
+                                                            function: Force {
+                                                                thunk: Identifier {
+                                                                    name: "f",
+                                                                    effect: Simple,
+                                                                },
+                                                                effect: Complex,
+                                                            },
+                                                            args: [
+                                                                Identifier {
+                                                                    name: "acc",
+                                                                    effect: Simple,
+                                                                },
+                                                                MemGet {
+                                                                    base: Identifier {
+                                                                        name: "array",
+                                                                        effect: Simple,
+                                                                    },
+                                                                    offset: Identifier {
+                                                                        name: "i",
+                                                                        effect: Simple,
+                                                                    },
+                                                                },
+                                                            ],
+                                                        },
+                                                        Identifier {
+                                                            name: "f",
+                                                            effect: Simple,
+                                                        },
+                                                        Redex {
+                                                            function: Identifier {
+                                                                name: "_int_add",
+                                                                effect: Simple,
+                                                            },
+                                                            args: [
+                                                                Identifier {
+                                                                    name: "i",
+                                                                    effect: Simple,
+                                                                },
+                                                                Int {
+                                                                    value: 1,
+                                                                },
+                                                            ],
+                                                        },
+                                                    ],
+                                                },
+                                            ),
+                                            (
+                                                0,
+                                                Identifier {
+                                                    name: "acc",
+                                                    effect: Simple,
+                                                },
+                                            ),
+                                        ],
+                                        default_branch: None,
+                                    },
+                                    c_type: SpecializedF(
+                                        Specialized(
+                                            Integer,
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ],
+                        body: Some(
+                            Redex {
+                                function: Identifier {
+                                    name: "fold",
+                                    effect: Simple,
+                                },
+                                args: [
+                                    Int {
+                                        value: 3,
+                                    },
+                                    Struct {
+                                        values: [
+                                            Int {
+                                                value: 1,
+                                            },
+                                            Int {
+                                                value: 2,
+                                            },
+                                            Int {
+                                                value: 3,
+                                            },
+                                        ],
+                                    },
+                                    Int {
+                                        value: 10,
+                                    },
+                                    Thunk {
+                                        computation: Identifier {
+                                            name: "add",
+                                            effect: Simple,
+                                        },
+                                        effect: Simple,
+                                    },
+                                    Int {
+                                        value: 0,
+                                    },
+                                ],
+                            },
+                        ),
+                    },
+                ),
+            },
+            effect: Simple,
         },
         effect: Simple,
     },
@@ -437,7 +446,7 @@ Defs
             ),
             var_bound: 9,
             need_simple: false,
-            need_cps: true,
+            need_cps: false,
             need_specialized: true,
         },
     ),
@@ -465,40 +474,10 @@ Defs
                 input: Thunk {
                     t: Redex {
                         function: Def {
-                            name: "fold",
+                            name: "main$__lambda_1",
                             effect: Simple,
                         },
-                        args: [
-                            Int {
-                                value: 3,
-                            },
-                            Struct {
-                                values: [
-                                    Int {
-                                        value: 1,
-                                    },
-                                    Int {
-                                        value: 2,
-                                    },
-                                    Int {
-                                        value: 3,
-                                    },
-                                ],
-                            },
-                            Int {
-                                value: 10,
-                            },
-                            Thunk {
-                                t: Def {
-                                    name: "add",
-                                    effect: Simple,
-                                },
-                                effect: Simple,
-                            },
-                            Int {
-                                value: 0,
-                            },
-                        ],
+                        args: [],
                     },
                     effect: Simple,
                 },
@@ -534,6 +513,59 @@ Defs
             },
             c_type: Default,
             var_bound: 2,
+            need_simple: false,
+            need_cps: true,
+            need_specialized: false,
+        },
+    ),
+    (
+        "main$__lambda_1",
+        FunctionDefinition {
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
+            body: Redex {
+                function: Def {
+                    name: "fold",
+                    effect: Simple,
+                },
+                args: [
+                    Int {
+                        value: 3,
+                    },
+                    Struct {
+                        values: [
+                            Int {
+                                value: 1,
+                            },
+                            Int {
+                                value: 2,
+                            },
+                            Int {
+                                value: 3,
+                            },
+                        ],
+                    },
+                    Int {
+                        value: 10,
+                    },
+                    Thunk {
+                        t: Def {
+                            name: "add",
+                            effect: Simple,
+                        },
+                        effect: Simple,
+                    },
+                    Int {
+                        value: 0,
+                    },
+                ],
+            },
+            c_type: Default,
+            var_bound: 1,
             need_simple: false,
             need_cps: true,
             need_specialized: false,

@@ -25,9 +25,9 @@ Handler {
     },
     handlers: [
         (
-            Str {
-                value: "getBit",
-            },
+            [
+                0,
+            ],
             Lambda {
                 arg_names: [
                     (
@@ -154,64 +154,79 @@ Handler {
         ),
     ],
     input: Thunk {
-        computation: Redex {
-            function: Identifier {
-                name: "_int_add",
-                effect: Simple,
-            },
-            args: [
-                Redex {
-                    function: Identifier {
-                        name: "_int_add",
-                        effect: Simple,
-                    },
-                    args: [
-                        OperationCall {
-                            eff: Str {
-                                value: "getBit",
-                            },
-                            args: [],
-                            effect: Complex,
-                        },
-                        Redex {
-                            function: Identifier {
-                                name: "_int_mul",
-                                effect: Simple,
-                            },
-                            args: [
-                                OperationCall {
-                                    eff: Str {
-                                        value: "getBit",
-                                    },
-                                    args: [],
-                                    effect: Complex,
-                                },
-                                Int {
-                                    value: 2,
-                                },
-                            ],
-                        },
-                    ],
-                },
-                Redex {
-                    function: Identifier {
-                        name: "_int_mul",
-                        effect: Simple,
-                    },
-                    args: [
-                        OperationCall {
-                            eff: Str {
-                                value: "getBit",
-                            },
-                            args: [],
-                            effect: Complex,
-                        },
-                        Int {
-                            value: 4,
-                        },
-                    ],
-                },
+        computation: Lambda {
+            arg_names: [
+                (
+                    "e",
+                    Uniform,
+                ),
             ],
+            body: Redex {
+                function: Identifier {
+                    name: "_int_add",
+                    effect: Simple,
+                },
+                args: [
+                    Redex {
+                        function: Identifier {
+                            name: "_int_add",
+                            effect: Simple,
+                        },
+                        args: [
+                            OperationCall {
+                                eff_ins: Identifier {
+                                    name: "e",
+                                    effect: Simple,
+                                },
+                                op_idx: 0,
+                                args: [],
+                                effect: Complex,
+                            },
+                            Redex {
+                                function: Identifier {
+                                    name: "_int_mul",
+                                    effect: Simple,
+                                },
+                                args: [
+                                    OperationCall {
+                                        eff_ins: Identifier {
+                                            name: "e",
+                                            effect: Simple,
+                                        },
+                                        op_idx: 0,
+                                        args: [],
+                                        effect: Complex,
+                                    },
+                                    Int {
+                                        value: 2,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    Redex {
+                        function: Identifier {
+                            name: "_int_mul",
+                            effect: Simple,
+                        },
+                        args: [
+                            OperationCall {
+                                eff_ins: Identifier {
+                                    name: "e",
+                                    effect: Simple,
+                                },
+                                op_idx: 0,
+                                args: [],
+                                effect: Complex,
+                            },
+                            Int {
+                                value: 4,
+                            },
+                        ],
+                    },
+                ],
+            },
+            effect: Simple,
         },
         effect: Simple,
     },
@@ -242,9 +257,9 @@ Defs
                 },
                 handlers: [
                     (
-                        Str {
-                            value: "getBit",
-                        },
+                        [
+                            0,
+                        ],
                         Thunk {
                             t: Redex {
                                 function: Def {
@@ -424,32 +439,39 @@ Defs
     (
         "main$__lambda_2",
         FunctionDefinition {
-            args: [],
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
             body: Let {
                 t: Let {
                     t: OperationCall {
-                        eff: Str {
-                            value: "getBit",
+                        eff_ins: Var {
+                            index: 0,
                         },
+                        op_idx: 0,
                         args: [],
                         effect: Complex,
                     },
-                    bound_index: 0,
+                    bound_index: 1,
                     body: Let {
                         t: Let {
                             t: OperationCall {
-                                eff: Str {
-                                    value: "getBit",
+                                eff_ins: Var {
+                                    index: 0,
                                 },
+                                op_idx: 0,
                                 args: [],
                                 effect: Complex,
                             },
-                            bound_index: 1,
+                            bound_index: 2,
                             body: PrimitiveCall {
                                 name: "_int_mul",
                                 args: [
                                     Var {
-                                        index: 1,
+                                        index: 2,
                                     },
                                     Int {
                                         value: 2,
@@ -457,36 +479,37 @@ Defs
                                 ],
                             },
                         },
-                        bound_index: 2,
+                        bound_index: 3,
                         body: PrimitiveCall {
                             name: "_int_add",
                             args: [
                                 Var {
-                                    index: 0,
+                                    index: 1,
                                 },
                                 Var {
-                                    index: 2,
+                                    index: 3,
                                 },
                             ],
                         },
                     },
                 },
-                bound_index: 3,
+                bound_index: 4,
                 body: Let {
                     t: Let {
                         t: OperationCall {
-                            eff: Str {
-                                value: "getBit",
+                            eff_ins: Var {
+                                index: 0,
                             },
+                            op_idx: 0,
                             args: [],
                             effect: Complex,
                         },
-                        bound_index: 4,
+                        bound_index: 5,
                         body: PrimitiveCall {
                             name: "_int_mul",
                             args: [
                                 Var {
-                                    index: 4,
+                                    index: 5,
                                 },
                                 Int {
                                     value: 4,
@@ -494,22 +517,22 @@ Defs
                             ],
                         },
                     },
-                    bound_index: 5,
+                    bound_index: 6,
                     body: PrimitiveCall {
                         name: "_int_add",
                         args: [
                             Var {
-                                index: 3,
+                                index: 4,
                             },
                             Var {
-                                index: 5,
+                                index: 6,
                             },
                         ],
                     },
                 },
             },
             c_type: Default,
-            var_bound: 6,
+            var_bound: 7,
             need_simple: false,
             need_cps: true,
             need_specialized: false,

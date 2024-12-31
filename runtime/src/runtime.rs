@@ -84,12 +84,19 @@ pub struct CapturedContinuation {
     /// This contains all the arguments passed to the matching handler's transform component. But
     /// it does NOT contain any arguments passed to the handler implementation. That is,
     pub stack_fragment: Vec<Uniform>,
-    // TODO[p0]: add handler entry here too since the `parent_handler` field is also mutable
-    /// Parameters and transform loader continuations corresponding to the captured handlers. If not
-    /// set, those values in the handlers are used as they are. If set, these values will overwrite
-    /// those in the handlers. The first element is for the tip handler.
+    /// Parameters, transform loader continuations, and parent handler entries corresponding to the
+    /// captured handlers. If not set, those values in the handlers are used as they are. If set,
+    /// these values will overwrite those in the handlers. The first element is for the tip handler.
     /// The purpose of this is that if a captured continuation is replicated, the handlers will be
     /// reused, and hence the runtime must reset the stateful pieces when a (replicated) captured
     /// continuation is unpacked.
-    pub overwrites: Option<Vec<(Uniform, *mut Continuation)>>,
+    pub overwrites: Option<Vec<(Uniform, *mut Continuation, Option<Rc<RefCell<Handler>>>)>>,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone)]
+pub struct CapturedContinuationThunk {
+    pub func: Uniform,
+    pub num_args: usize,
+    pub captured_continuation: Uniform, // uniform pointer to captured continuation
 }

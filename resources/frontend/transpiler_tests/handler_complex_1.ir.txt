@@ -25,9 +25,9 @@ Handler {
     },
     handlers: [
         (
-            Int {
-                value: 123,
-            },
+            [
+                0,
+            ],
             Lambda {
                 arg_names: [
                     (
@@ -83,16 +83,27 @@ Handler {
         ),
     ],
     input: Thunk {
-        computation: OperationCall {
-            eff: Int {
-                value: 123,
-            },
-            args: [
-                Int {
-                    value: 3,
-                },
+        computation: Lambda {
+            arg_names: [
+                (
+                    "e",
+                    Uniform,
+                ),
             ],
-            effect: Complex,
+            body: OperationCall {
+                eff_ins: Identifier {
+                    name: "e",
+                    effect: Simple,
+                },
+                op_idx: 0,
+                args: [
+                    Int {
+                        value: 3,
+                    },
+                ],
+                effect: Complex,
+            },
+            effect: Simple,
         },
         effect: Complex,
     },
@@ -123,9 +134,9 @@ Defs
                 },
                 handlers: [
                     (
-                        Int {
-                            value: 123,
-                        },
+                        [
+                            0,
+                        ],
                         Thunk {
                             t: Redex {
                                 function: Def {
@@ -143,7 +154,7 @@ Defs
                     t: Redex {
                         function: Def {
                             name: "main$__lambda_2",
-                            effect: Complex,
+                            effect: Simple,
                         },
                         args: [],
                     },
@@ -246,11 +257,17 @@ Defs
     (
         "main$__lambda_2",
         FunctionDefinition {
-            args: [],
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
             body: OperationCall {
-                eff: Int {
-                    value: 123,
+                eff_ins: Var {
+                    index: 0,
                 },
+                op_idx: 0,
                 args: [
                     Int {
                         value: 3,
@@ -259,7 +276,7 @@ Defs
                 effect: Complex,
             },
             c_type: Default,
-            var_bound: 0,
+            var_bound: 1,
             need_simple: false,
             need_cps: true,
             need_specialized: false,

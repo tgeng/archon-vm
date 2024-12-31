@@ -4,7 +4,6 @@ CLIR
 function u0:0(i64) -> i64 tail {
     ss0 = explicit_slot 8
     gv0 = symbol colocated userextname0
-    gv1 = symbol colocated userextname5
     sig0 = (i64) -> i64 apple_aarch64
     sig1 = (i64, i64) -> i64 tail
     sig2 = (i64, i64, i64) -> i64 tail
@@ -39,31 +38,33 @@ block0(v0: i64):
     v11 = stack_addr.i64 ss0
     v12 = call fn3(v11, v2, v5, v6, v7, v9, v10)  ; v6 = 3, v7 = 3
     v13 = stack_load.i64 ss0
-    v14 = symbol_value.i64 gv1
-    v15 = iadd_imm v14, 8
+    v14 = load.i64 v12
+    v15 = func_addr.i64 fn4
     v16 = iadd_imm v15, 3
-    v17 = func_addr.i64 fn4
-    v18 = iadd_imm v17, 3
-    v19 = iconst.i64 3
-    call fn5(v12, v16, v18, v19)  ; v19 = 3
-    v20 = load.i64 v12
-    v21 = func_addr.i64 fn7
-    v22 = iadd_imm v21, 3
+    v17 = iconst.i64 3
+    v18 = iconst.i64 0
+    call fn5(v14, v16, v17, v18)  ; v17 = 3, v18 = 0
+    v19 = load.i64 v14
+    v20 = func_addr.i64 fn7
+    v21 = iadd_imm v20, 3
     stack_store v13, ss0
-    v23 = stack_addr.i64 ss0
-    v24 = call fn8(v22, v23)
-    v25 = stack_load.i64 ss0
-    v26 = isub v13, v25
-    v27 = load.i64 v20+8
-    v28 = ishl_imm v27, 3
-    v29 = iadd v28, v26
-    v30 = ushr_imm v29, 3
-    store v30, v20+8
-    v31 = call fn6(v25, v20, v24, v12)
-    v32 = load.i64 v31
-    v33 = iadd_imm v31, 8
-    v34 = sshr_imm v32, 1
-    return v34
+    v22 = stack_addr.i64 ss0
+    v23 = call fn8(v21, v22)
+    v24 = stack_load.i64 ss0
+    v25 = iadd_imm v12, 1
+    v26 = iadd_imm v24, -8
+    store aligned v25, v26
+    v27 = isub v13, v26
+    v28 = load.i64 v19+8
+    v29 = ishl_imm v28, 3
+    v30 = iadd v29, v27
+    v31 = ushr_imm v30, 3
+    store v31, v19+8
+    v32 = call fn6(v26, v19, v23, v14)
+    v33 = load.i64 v32
+    v34 = iadd_imm v32, 8
+    v35 = sshr_imm v33, 1
+    return v35
 }
 
 
@@ -228,9 +229,6 @@ block0(v0: i64, v1: i64):
 [main$__lambda_2__cps_impl]
 function u0:0(i64, i64, i64) -> i64 tail {
     ss0 = explicit_slot 8
-    gv0 = symbol colocated userextname0
-    gv1 = symbol colocated userextname0
-    gv2 = symbol colocated userextname0
     sig0 = (i64, i64) -> i64 tail
     sig1 = (i64, i64) -> i64 tail
     sig2 = (i64, i64, i64, i64, i64, i64, i64) -> i64 apple_aarch64
@@ -267,90 +265,84 @@ block5:
     br_table v8, block1, [block1, block2, block3, block4]
 
 block1:
-    v9 = symbol_value.i64 gv0
-    v10 = iadd_imm v9, 8
-    v11 = iadd_imm v10, 3
-    v12 = isub.i64 v0, v5
-    v13 = ushr_imm v12, 3
-    store v13, v1+8
-    v14 = iconst.i64 1
-    store v14, v1+24  ; v14 = 1
-    v15 = iconst.i64 0
-    v16 = func_addr.i64 fn0
-    v17 = func_addr.i64 fn1
-    v18 = iconst.i64 1
-    v19 = call fn2(v11, v5, v1, v15, v16, v17, v18)  ; v15 = 0, v18 = 1
-    v20 = load.i64 v19
-    v21 = load.i64 v19+8
-    v22 = load.i64 v19+16
-    return_call_indirect sig3, v20(v21, v22)
+    v9 = load.i64 v0
+    v10 = isub.i64 v0, v5
+    v11 = ushr_imm v10, 3
+    store v11, v1+8
+    v12 = iconst.i64 1
+    store v12, v1+24  ; v12 = 1
+    v13 = iconst.i64 0
+    v14 = func_addr.i64 fn0
+    v15 = func_addr.i64 fn1
+    v16 = iconst.i64 0
+    v17 = call fn2(v9, v16, v5, v1, v13, v14, v15)  ; v16 = 0, v13 = 0
+    v18 = load.i64 v17
+    v19 = load.i64 v17+8
+    v20 = load.i64 v17+16
+    return_call_indirect sig3, v18(v19, v20)
 
 block2:
-    v23 = symbol_value.i64 gv1
-    v24 = iadd_imm v23, 8
-    v25 = iadd_imm v24, 3
-    v26 = isub.i64 v0, v5
-    v27 = ushr_imm v26, 3
-    store v27, v1+8
-    v28 = iconst.i64 2
-    store v28, v1+24  ; v28 = 2
+    v21 = load.i64 v0
+    v22 = isub.i64 v0, v5
+    v23 = ushr_imm v22, 3
+    store v23, v1+8
+    v24 = iconst.i64 2
+    store v24, v1+24  ; v24 = 2
     store.i64 v6, v4
-    v29 = iconst.i64 0
-    v30 = func_addr.i64 fn3
-    v31 = func_addr.i64 fn4
-    v32 = iconst.i64 1
-    v33 = call fn5(v25, v5, v1, v29, v30, v31, v32)  ; v29 = 0, v32 = 1
-    v34 = load.i64 v33
-    v35 = load.i64 v33+8
-    v36 = load.i64 v33+16
-    return_call_indirect sig7, v34(v35, v36)
+    v25 = iconst.i64 0
+    v26 = func_addr.i64 fn3
+    v27 = func_addr.i64 fn4
+    v28 = iconst.i64 0
+    v29 = call fn5(v21, v28, v5, v1, v25, v26, v27)  ; v28 = 0, v25 = 0
+    v30 = load.i64 v29
+    v31 = load.i64 v29+8
+    v32 = load.i64 v29+16
+    return_call_indirect sig7, v30(v31, v32)
 
 block3:
-    v37 = iconst.i64 2
-    v38 = sshr_imm.i64 v6, 1
-    v39 = imul v38, v37  ; v37 = 2
-    v40 = load.i64 v4
-    v41 = sshr_imm v40, 1
-    v42 = iadd v41, v39
-    v43 = symbol_value.i64 gv2
-    v44 = iadd_imm v43, 8
-    v45 = iadd_imm v44, 3
-    v46 = isub.i64 v0, v5
-    v47 = ushr_imm v46, 3
-    store v47, v1+8
-    v48 = iconst.i64 3
-    store v48, v1+24  ; v48 = 3
+    v33 = iconst.i64 2
+    v34 = sshr_imm.i64 v6, 1
+    v35 = imul v34, v33  ; v33 = 2
+    v36 = load.i64 v4
+    v37 = sshr_imm v36, 1
+    v38 = iadd v37, v35
+    v39 = load.i64 v0
+    v40 = isub.i64 v0, v5
+    v41 = ushr_imm v40, 3
+    store v41, v1+8
+    v42 = iconst.i64 3
+    store v42, v1+24  ; v42 = 3
     store.i64 v6, v4+8
-    v49 = ishl_imm v39, 1
-    store v49, v4+16
-    v50 = ishl_imm v42, 1
-    store v50, v4+24
-    v51 = iconst.i64 0
-    v52 = func_addr.i64 fn6
-    v53 = func_addr.i64 fn7
-    v54 = iconst.i64 1
-    v55 = call fn8(v45, v5, v1, v51, v52, v53, v54)  ; v51 = 0, v54 = 1
-    v56 = load.i64 v55
-    v57 = load.i64 v55+8
-    v58 = load.i64 v55+16
-    return_call_indirect sig11, v56(v57, v58)
+    v43 = ishl_imm v35, 1
+    store v43, v4+16
+    v44 = ishl_imm v38, 1
+    store v44, v4+24
+    v45 = iconst.i64 0
+    v46 = func_addr.i64 fn6
+    v47 = func_addr.i64 fn7
+    v48 = iconst.i64 0
+    v49 = call fn8(v39, v48, v5, v1, v45, v46, v47)  ; v48 = 0, v45 = 0
+    v50 = load.i64 v49
+    v51 = load.i64 v49+8
+    v52 = load.i64 v49+16
+    return_call_indirect sig11, v50(v51, v52)
 
 block4:
-    v59 = iconst.i64 4
-    v60 = sshr_imm.i64 v6, 1
-    v61 = imul v60, v59  ; v59 = 4
-    v62 = load.i64 v4+24
-    v63 = sshr_imm v62, 1
-    v64 = iadd v63, v61
-    v65 = ishl_imm v64, 1
-    v66 = iadd_imm.i64 v0, -8
-    store v65, v66
-    v67 = load.i64 v1+16
-    v68 = load.i64 v67+8
-    v69 = ishl_imm v68, 3
-    v70 = iadd.i64 v0, v69
-    v71 = load.i64 v67
-    return_call_indirect sig12, v71(v70, v67, v66)
+    v53 = iconst.i64 4
+    v54 = sshr_imm.i64 v6, 1
+    v55 = imul v54, v53  ; v53 = 4
+    v56 = load.i64 v4+24
+    v57 = sshr_imm v56, 1
+    v58 = iadd v57, v55
+    v59 = ishl_imm v58, 1
+    v60 = iadd_imm.i64 v0, 0
+    store v59, v60
+    v61 = load.i64 v1+16
+    v62 = load.i64 v61+8
+    v63 = ishl_imm v62, 3
+    v64 = iadd.i64 v0, v63
+    v65 = load.i64 v61
+    return_call_indirect sig12, v65(v64, v61, v60)
 }
 
 

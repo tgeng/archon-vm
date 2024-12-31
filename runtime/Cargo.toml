@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 enum-ordinalize = "4.3.0"
+itertools = "0.13.0"
