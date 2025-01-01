@@ -385,6 +385,8 @@ pub unsafe extern "C" fn runtime_process_simple_handler_result(
     simple_exception_continuation_impl: RawFuncPtr,
     runtime_disposer_loader_cps_impl: ContImplPtr,
 ) -> Uniform {
+    (*handler_ptr).parameter = simple_result.handler_parameter;
+
     let (value, tag) = match simple_handler_type {
         0 => (simple_result.result_value.as_uniform(), 0),
         1 => (simple_result.result_value.as_uniform(), 1),
