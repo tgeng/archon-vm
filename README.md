@@ -4,11 +4,11 @@ Low level IR and runtime for [Archon](https://github.com/tgeng/archon).
 
 ## What is this?
 
-Archon is a work-in-progress experimental language that combines dependent types, algebraic effects and handlers, and
-quantitative types. Since Archon has algebraic effects and handlers, which supports multi-shot continuations, compiling
-it to machine code is not straightforward. The low level IR in this project is close enough to the core type theory of
-Archon so that compiling Archon to this low level IR should be straightforward: basically just erase unneeded
-information.
+Archon is a work-in-progress experimental language that combines dependent types, lexical algebraic effects and
+handlers, and quantitative types. Since Archon has algebraic effects and handlers, which supports multi-shot
+continuations, compiling it to machine code is not straightforward. The low level IR in this project is close enough to
+the core type theory of Archon so that compiling Archon to this low level IR should be straightforward: basically just
+erase unneeded information.
 
 ## Some Design Choices
 
