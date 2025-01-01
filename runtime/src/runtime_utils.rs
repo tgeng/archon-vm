@@ -168,9 +168,9 @@ pub unsafe extern "C" fn runtime_alloc_stack() -> *mut usize {
 
 /// Returns the result of the operation in uniform representation
 pub unsafe fn debug_helper(
-    _eff_ins: *const EffIns,
-    _handler: *const usize,
-    _result: usize,
+    _base_address: *const usize,
+    _tip_address: *const usize,
+    _return_address: *const usize,
 ) -> usize {
     1 + 1
 }

@@ -613,12 +613,14 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
             self.function_builder.func,
         );
         let old_tip_address = self.tip_address;
-        let input_thunk_func_ptr = self.process_thunk(input);
 
         let eff_ins = self.convert_to_uniform(Some((eff_ins, Specialized(StructPtr))));
         // Push the eff_ins to the arg stack so that the input lambda can access it. This is a key
-        // step for lexical effect to work.
+        // step for lexical effect to work. Note that we push the eff_ins to the arg stack BEFORE
+        // processing thunk because the thunk argument needs to stay CLOSER to the base address.
         self.push_args(vec![eff_ins]);
+
+        let input_thunk_func_ptr = self.process_thunk(input);
 
         // stack grows downwards so if we expect positive offset, we subtract old tip address by new tip address.
         let offset_in_bytes = self
@@ -638,7 +640,16 @@ impl<'a, M: Module> SimpleFunctionTranslator<'a, M> {
                 .return_call(mark_handler_ref, args);
             None
         } else {
+            self.call_builtin_func(
+                BuiltinFunction::DebugHelper,
+                &[self.base_address, self.tip_address, input_thunk_func_ptr],
+            );
             let inst = self.function_builder.ins().call(mark_handler_ref, args);
+            let return_address = self.function_builder.inst_results(inst)[0];
+            self.call_builtin_func(
+                BuiltinFunction::DebugHelper,
+                &[self.base_address, self.tip_address, return_address],
+            );
             self.extract_return_value(inst)
         }
     }

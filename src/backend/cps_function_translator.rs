@@ -73,6 +73,7 @@ impl CpsFunctionTranslator {
 /// The translated native function takes the following arguments:
 /// - the base address on the argument stack
 /// - the next continuation that takes the final result of the current function
+/// 
 /// The translated function is what callers of the CPS function will call. The implementation
 /// does one of two things
 /// - if this function only tail calls another effectful function (aka, there is only one state

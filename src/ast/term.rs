@@ -89,7 +89,7 @@ pub enum VTerm {
         t: Box<CTerm>,
         effect: Effect,
     },
-    /// 51 bit integer represented as a machine word with highest bits sign-extended
+    /// 63 bit integer represented as a machine word
     Int {
         value: i64,
     },
