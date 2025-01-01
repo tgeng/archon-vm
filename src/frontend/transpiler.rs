@@ -647,6 +647,7 @@ mod tests {
     use cranelift_jit::JITModule;
     use std::fs;
     use std::path::PathBuf;
+    use ::function_name::named;
 
     fn check(test_input_path: &PathBuf) -> Result<(), String> {
         println!("checking {}", test_input_path.to_str().unwrap());
@@ -751,151 +752,188 @@ mod tests {
         }
     }
     #[test]
+    #[named]
     fn factorial() -> Result<(), String> {
-        run_test("factorial")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn factorial_effectful() -> Result<(), String> {
-        run_test("factorial_effectful")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_call_simple_operation_complexly_1() -> Result<(), String> {
-        run_test("handler_call_simple_operation_complexly_1")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_call_simple_operation_complexly_2() -> Result<(), String> {
-        run_test("handler_call_simple_operation_complexly_2")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_complex_1() -> Result<(), String> {
-        run_test("handler_complex_1")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_complex_2() -> Result<(), String> {
-        run_test("handler_complex_2")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_complex_3() -> Result<(), String> {
-        run_test("handler_complex_3")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_complex_4() -> Result<(), String> {
-        run_test("handler_complex_4")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_complex_5_sum_0_7() -> Result<(), String> {
-        run_test("handler_complex_5_sum_0_7")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_complex_exception_restores_execution() -> Result<(), String> {
-        run_test("handler_complex_exception_restores_execution")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_dispose() -> Result<(), String> {
-        run_test("handler_dispose")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_exception() -> Result<(), String> {
-        run_test("handler_exception")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_exception_dispose() -> Result<(), String> {
-        run_test("handler_exception_dispose")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_exception_exceptional() -> Result<(), String> {
-        run_test("handler_exception_exceptional")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_exception_restores_execution() -> Result<(), String> {
-        run_test("ler_exception_restores_execution")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_exception_restores_execution_exceptional() -> Result<(), String> {
-        run_test("handler_exception_restores_execution_exceptional")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_nearby_exception_in_disposer() -> Result<(), String> {
-        run_test("handler_nearby_exception_in_disposer")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_nested_complex() -> Result<(), String> {
-        run_test("handler_nested_complex")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_nested_simple() -> Result<(), String> {
-        run_test("handler_nested_simple")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_simple_1() -> Result<(), String> {
-        run_test("handler_simple_1")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_simple_2() -> Result<(), String> {
-        run_test("handler_simple_2")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_simple_3() -> Result<(), String> {
-        run_test("handler_simple_3")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_simple_3_linear() -> Result<(), String> {
-        run_test("handler_simple_3_linear")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn handler_trivial() -> Result<(), String> {
-        run_test("handler_trivial")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn high_level_function() -> Result<(), String> {
-        run_test("high_level_function")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn high_level_function_complex_effects() -> Result<(), String> {
-        run_test("high_level_function_complex_effects")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn immediate_redex() -> Result<(), String> {
-        run_test("immediate_redex")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn lambda() -> Result<(), String> {
-        run_test("lambda")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn lambda_as_arg() -> Result<(), String> {
-        run_test("lambda_as_arg")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn local_vars_with_same_name() -> Result<(), String> {
-        run_test("local_vars_with_same_name")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn mem_access() -> Result<(), String> {
-        run_test("mem_access")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn nested_redex() -> Result<(), String> {
-        run_test("nested_redex")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn partial_primitive_call() -> Result<(), String> {
-        run_test("partial_primitive_call")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn return_computation() -> Result<(), String> {
-        run_test("return_computation")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn simple() -> Result<(), String> {
-        run_test("simple")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn simple_expression() -> Result<(), String> {
-        run_test("simple_expression")
+        run_test(function_name!())
     }
     #[test]
+    #[named]
     fn thunk() -> Result<(), String> {
-        run_test("thunk")
+        run_test(function_name!())
     }
 }

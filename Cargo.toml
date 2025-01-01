@@ -23,6 +23,9 @@ home = "0.5.9"
 itertools = "0.13.0"
 enum-ordinalize = "4.3.0"
 
+[dev-dependencies]
+function_name = "0.3.0"
+
 [profile.dev]
 opt-level = 0
 
