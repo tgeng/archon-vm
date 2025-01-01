@@ -1,12 +1,14 @@
 handler 0
-  "get" ## \p => {p, {1, p}}
-  "set" ## \p x => {x, {1, {}}}
-handler! 5
-  disposer \p => "set" # {p}
-  "exp" #!
-    \p cont =>
-      force cont 1 p
-      "get" # {}
-"exp" #! {}
-1
+  ##0 \p => {p, {1, p}}
+  ##1 \p x => {x, {1, {}}}
+\e1 =>
+  handler! 5
+    disposer \p => e1 #1 {p}
+    #!0
+      \p cont =>
+        force cont 1 p
+        e1 #0 {}
+  \e2 =>
+    e2 #!0 {}
+    1
 

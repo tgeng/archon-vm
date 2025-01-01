@@ -1,25 +1,28 @@
 handler 1
   # \p r => p * 100 + r
-  "track" ## \p v => {p * v, {1, {}}}
+  ##0 \p v => {p * v, {1, {}}}
 
-handler
-  disposer \p => "track" # {11}
-  "outerExp" ##
-    \p v =>
-      "track" # {2}
-      {p, {0, v}}
+\e1 =>
+  handler
+    disposer \p => e1 #0 {11}
+    ##0
+      \p v =>
+        e1 #0 {2}
+        {p, {0, v}}
 
-handler
-  disposer \p => "track" # {7}
-  "innerExp" ##
-    \p v =>
-      "track" # {3}
-      {p, {0, v}}
+  \e2 =>
+    handler
+      disposer \p => e1 #0 {7}
+      ##0
+        \p v =>
+          e1 #0 {3}
+          {p, {0, v}}
 
-handler
-  disposer \p =>
-             "track" # {5}
-             "innerExp" # {2}
+    \e3 =>
+      handler
+        disposer \p =>
+                   e1 #0 {5}
+                   e3 #0 {2}
 
-"outerExp" # {1}
-0
+      e2 #0 {1}
+      0

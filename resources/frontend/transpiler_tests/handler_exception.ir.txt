@@ -25,9 +25,9 @@ Handler {
     },
     handlers: [
         (
-            Str {
-                value: "exp",
-            },
+            [
+                0,
+            ],
             Lambda {
                 arg_names: [
                     (
@@ -59,18 +59,29 @@ Handler {
         ),
     ],
     input: Thunk {
-        computation: Let {
-            name: "_",
-            t: OperationCall {
-                eff: Str {
-                    value: "exp",
+        computation: Lambda {
+            arg_names: [
+                (
+                    "e",
+                    Uniform,
+                ),
+            ],
+            body: Let {
+                name: "_",
+                t: OperationCall {
+                    eff_ins: Identifier {
+                        name: "e",
+                        effect: Simple,
+                    },
+                    op_idx: 0,
+                    args: [],
+                    effect: Simple,
                 },
-                args: [],
-                effect: Simple,
+                body: Int {
+                    value: 1,
+                },
             },
-            body: Int {
-                value: 1,
-            },
+            effect: Simple,
         },
         effect: Simple,
     },
@@ -101,9 +112,9 @@ Defs
                 },
                 handlers: [
                     (
-                        Str {
-                            value: "exp",
-                        },
+                        [
+                            0,
+                        ],
                         Thunk {
                             t: Redex {
                                 function: Def {
@@ -202,16 +213,22 @@ Defs
     (
         "main$__lambda_2",
         FunctionDefinition {
-            args: [],
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
             body: Let {
                 t: OperationCall {
-                    eff: Str {
-                        value: "exp",
+                    eff_ins: Var {
+                        index: 0,
                     },
+                    op_idx: 0,
                     args: [],
                     effect: Simple,
                 },
-                bound_index: 0,
+                bound_index: 1,
                 body: Return {
                     value: Int {
                         value: 1,
@@ -219,7 +236,7 @@ Defs
                 },
             },
             c_type: Default,
-            var_bound: 1,
+            var_bound: 2,
             need_simple: false,
             need_cps: true,
             need_specialized: false,

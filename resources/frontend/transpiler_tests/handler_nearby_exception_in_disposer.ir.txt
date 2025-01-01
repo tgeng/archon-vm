@@ -48,9 +48,9 @@ Handler {
     },
     handlers: [
         (
-            Str {
-                value: "track",
-            },
+            [
+                0,
+            ],
             Lambda {
                 arg_names: [
                     (
@@ -98,205 +98,124 @@ Handler {
         ),
     ],
     input: Thunk {
-        computation: Handler {
-            parameter: Struct {
-                values: [],
-            },
-            parameter_disposer: Some(
-                Lambda {
-                    arg_names: [
-                        (
-                            "p",
-                            Uniform,
-                        ),
-                    ],
-                    body: OperationCall {
-                        eff: Str {
-                            value: "track",
-                        },
-                        args: [
-                            Int {
-                                value: 11,
-                            },
-                        ],
-                        effect: Simple,
-                    },
-                    effect: Simple,
-                },
-            ),
-            parameter_replicator: None,
-            transform: Lambda {
-                arg_names: [
-                    (
-                        "p",
-                        Uniform,
-                    ),
-                    (
-                        "r",
-                        Uniform,
-                    ),
-                ],
-                body: Identifier {
-                    name: "r",
-                    effect: Simple,
-                },
-                effect: Simple,
-            },
-            handlers: [
+        computation: Lambda {
+            arg_names: [
                 (
-                    Str {
-                        value: "outerExp",
-                    },
+                    "e1",
+                    Uniform,
+                ),
+            ],
+            body: Handler {
+                parameter: Struct {
+                    values: [],
+                },
+                parameter_disposer: Some(
                     Lambda {
                         arg_names: [
                             (
                                 "p",
                                 Uniform,
                             ),
-                            (
-                                "v",
-                                Uniform,
-                            ),
                         ],
-                        body: Let {
-                            name: "_",
-                            t: OperationCall {
-                                eff: Str {
-                                    value: "track",
-                                },
-                                args: [
-                                    Int {
-                                        value: 2,
-                                    },
-                                ],
+                        body: OperationCall {
+                            eff_ins: Identifier {
+                                name: "e1",
                                 effect: Simple,
                             },
-                            body: Struct {
-                                values: [
-                                    Identifier {
-                                        name: "p",
-                                        effect: Simple,
-                                    },
-                                    Struct {
-                                        values: [
-                                            Int {
-                                                value: 0,
-                                            },
-                                            Identifier {
-                                                name: "v",
-                                                effect: Simple,
-                                            },
-                                        ],
-                                    },
-                                ],
-                            },
+                            op_idx: 0,
+                            args: [
+                                Int {
+                                    value: 11,
+                                },
+                            ],
+                            effect: Simple,
                         },
                         effect: Simple,
                     },
-                    Affine,
                 ),
-            ],
-            input: Thunk {
-                computation: Handler {
-                    parameter: Struct {
-                        values: [],
+                parameter_replicator: None,
+                transform: Lambda {
+                    arg_names: [
+                        (
+                            "p",
+                            Uniform,
+                        ),
+                        (
+                            "r",
+                            Uniform,
+                        ),
+                    ],
+                    body: Identifier {
+                        name: "r",
+                        effect: Simple,
                     },
-                    parameter_disposer: Some(
+                    effect: Simple,
+                },
+                handlers: [
+                    (
+                        [
+                            0,
+                        ],
                         Lambda {
                             arg_names: [
                                 (
                                     "p",
                                     Uniform,
                                 ),
+                                (
+                                    "v",
+                                    Uniform,
+                                ),
                             ],
-                            body: OperationCall {
-                                eff: Str {
-                                    value: "track",
-                                },
-                                args: [
-                                    Int {
-                                        value: 7,
+                            body: Let {
+                                name: "_",
+                                t: OperationCall {
+                                    eff_ins: Identifier {
+                                        name: "e1",
+                                        effect: Simple,
                                     },
-                                ],
-                                effect: Simple,
+                                    op_idx: 0,
+                                    args: [
+                                        Int {
+                                            value: 2,
+                                        },
+                                    ],
+                                    effect: Simple,
+                                },
+                                body: Struct {
+                                    values: [
+                                        Identifier {
+                                            name: "p",
+                                            effect: Simple,
+                                        },
+                                        Struct {
+                                            values: [
+                                                Int {
+                                                    value: 0,
+                                                },
+                                                Identifier {
+                                                    name: "v",
+                                                    effect: Simple,
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
                             },
                             effect: Simple,
                         },
+                        Affine,
                     ),
-                    parameter_replicator: None,
-                    transform: Lambda {
+                ],
+                input: Thunk {
+                    computation: Lambda {
                         arg_names: [
                             (
-                                "p",
-                                Uniform,
-                            ),
-                            (
-                                "r",
+                                "e2",
                                 Uniform,
                             ),
                         ],
-                        body: Identifier {
-                            name: "r",
-                            effect: Simple,
-                        },
-                        effect: Simple,
-                    },
-                    handlers: [
-                        (
-                            Str {
-                                value: "innerExp",
-                            },
-                            Lambda {
-                                arg_names: [
-                                    (
-                                        "p",
-                                        Uniform,
-                                    ),
-                                    (
-                                        "v",
-                                        Uniform,
-                                    ),
-                                ],
-                                body: Let {
-                                    name: "_",
-                                    t: OperationCall {
-                                        eff: Str {
-                                            value: "track",
-                                        },
-                                        args: [
-                                            Int {
-                                                value: 3,
-                                            },
-                                        ],
-                                        effect: Simple,
-                                    },
-                                    body: Struct {
-                                        values: [
-                                            Identifier {
-                                                name: "p",
-                                                effect: Simple,
-                                            },
-                                            Struct {
-                                                values: [
-                                                    Int {
-                                                        value: 0,
-                                                    },
-                                                    Identifier {
-                                                        name: "v",
-                                                        effect: Simple,
-                                                    },
-                                                ],
-                                            },
-                                        ],
-                                    },
-                                },
-                                effect: Simple,
-                            },
-                            Affine,
-                        ),
-                    ],
-                    input: Thunk {
-                        computation: Handler {
+                        body: Handler {
                             parameter: Struct {
                                 values: [],
                             },
@@ -308,30 +227,18 @@ Handler {
                                             Uniform,
                                         ),
                                     ],
-                                    body: Let {
-                                        name: "_",
-                                        t: OperationCall {
-                                            eff: Str {
-                                                value: "track",
-                                            },
-                                            args: [
-                                                Int {
-                                                    value: 5,
-                                                },
-                                            ],
+                                    body: OperationCall {
+                                        eff_ins: Identifier {
+                                            name: "e1",
                                             effect: Simple,
                                         },
-                                        body: OperationCall {
-                                            eff: Str {
-                                                value: "innerExp",
+                                        op_idx: 0,
+                                        args: [
+                                            Int {
+                                                value: 7,
                                             },
-                                            args: [
-                                                Int {
-                                                    value: 2,
-                                                },
-                                            ],
-                                            effect: Simple,
-                                        },
+                                        ],
+                                        effect: Simple,
                                     },
                                     effect: Simple,
                                 },
@@ -354,33 +261,167 @@ Handler {
                                 },
                                 effect: Simple,
                             },
-                            handlers: [],
-                            input: Thunk {
-                                computation: Let {
-                                    name: "_",
-                                    t: OperationCall {
-                                        eff: Str {
-                                            value: "outerExp",
-                                        },
-                                        args: [
-                                            Int {
-                                                value: 1,
-                                            },
+                            handlers: [
+                                (
+                                    [
+                                        0,
+                                    ],
+                                    Lambda {
+                                        arg_names: [
+                                            (
+                                                "p",
+                                                Uniform,
+                                            ),
+                                            (
+                                                "v",
+                                                Uniform,
+                                            ),
                                         ],
+                                        body: Let {
+                                            name: "_",
+                                            t: OperationCall {
+                                                eff_ins: Identifier {
+                                                    name: "e1",
+                                                    effect: Simple,
+                                                },
+                                                op_idx: 0,
+                                                args: [
+                                                    Int {
+                                                        value: 3,
+                                                    },
+                                                ],
+                                                effect: Simple,
+                                            },
+                                            body: Struct {
+                                                values: [
+                                                    Identifier {
+                                                        name: "p",
+                                                        effect: Simple,
+                                                    },
+                                                    Struct {
+                                                        values: [
+                                                            Int {
+                                                                value: 0,
+                                                            },
+                                                            Identifier {
+                                                                name: "v",
+                                                                effect: Simple,
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        },
                                         effect: Simple,
                                     },
-                                    body: Int {
-                                        value: 0,
+                                    Affine,
+                                ),
+                            ],
+                            input: Thunk {
+                                computation: Lambda {
+                                    arg_names: [
+                                        (
+                                            "e3",
+                                            Uniform,
+                                        ),
+                                    ],
+                                    body: Handler {
+                                        parameter: Struct {
+                                            values: [],
+                                        },
+                                        parameter_disposer: Some(
+                                            Lambda {
+                                                arg_names: [
+                                                    (
+                                                        "p",
+                                                        Uniform,
+                                                    ),
+                                                ],
+                                                body: Let {
+                                                    name: "_",
+                                                    t: OperationCall {
+                                                        eff_ins: Identifier {
+                                                            name: "e1",
+                                                            effect: Simple,
+                                                        },
+                                                        op_idx: 0,
+                                                        args: [
+                                                            Int {
+                                                                value: 5,
+                                                            },
+                                                        ],
+                                                        effect: Simple,
+                                                    },
+                                                    body: OperationCall {
+                                                        eff_ins: Identifier {
+                                                            name: "e3",
+                                                            effect: Simple,
+                                                        },
+                                                        op_idx: 0,
+                                                        args: [
+                                                            Int {
+                                                                value: 2,
+                                                            },
+                                                        ],
+                                                        effect: Simple,
+                                                    },
+                                                },
+                                                effect: Simple,
+                                            },
+                                        ),
+                                        parameter_replicator: None,
+                                        transform: Lambda {
+                                            arg_names: [
+                                                (
+                                                    "p",
+                                                    Uniform,
+                                                ),
+                                                (
+                                                    "r",
+                                                    Uniform,
+                                                ),
+                                            ],
+                                            body: Identifier {
+                                                name: "r",
+                                                effect: Simple,
+                                            },
+                                            effect: Simple,
+                                        },
+                                        handlers: [],
+                                        input: Thunk {
+                                            computation: Let {
+                                                name: "_",
+                                                t: OperationCall {
+                                                    eff_ins: Identifier {
+                                                        name: "e2",
+                                                        effect: Simple,
+                                                    },
+                                                    op_idx: 0,
+                                                    args: [
+                                                        Int {
+                                                            value: 1,
+                                                        },
+                                                    ],
+                                                    effect: Simple,
+                                                },
+                                                body: Int {
+                                                    value: 0,
+                                                },
+                                            },
+                                            effect: Simple,
+                                        },
                                     },
+                                    effect: Simple,
                                 },
                                 effect: Simple,
                             },
                         },
                         effect: Simple,
                     },
+                    effect: Simple,
                 },
-                effect: Simple,
             },
+            effect: Simple,
         },
         effect: Simple,
     },
@@ -411,9 +452,9 @@ Defs
                 },
                 handlers: [
                     (
-                        Str {
-                            value: "track",
-                        },
+                        [
+                            0,
+                        ],
                         Thunk {
                             t: Redex {
                                 function: Def {
@@ -550,12 +591,18 @@ Defs
     (
         "main$__lambda_10",
         FunctionDefinition {
-            args: [],
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
             body: Let {
                 t: OperationCall {
-                    eff: Str {
-                        value: "outerExp",
+                    eff_ins: Var {
+                        index: 0,
                     },
+                    op_idx: 0,
                     args: [
                         Int {
                             value: 1,
@@ -563,7 +610,7 @@ Defs
                     ],
                     effect: Simple,
                 },
-                bound_index: 0,
+                bound_index: 1,
                 body: Return {
                     value: Int {
                         value: 0,
@@ -571,7 +618,7 @@ Defs
                 },
             },
             c_type: Default,
-            var_bound: 1,
+            var_bound: 2,
             need_simple: false,
             need_cps: true,
             need_specialized: false,
@@ -580,7 +627,20 @@ Defs
     (
         "main$__lambda_11",
         FunctionDefinition {
-            args: [],
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+                (
+                    2,
+                    Uniform,
+                ),
+            ],
             body: Handler {
                 parameter: Struct {
                     values: [],
@@ -592,7 +652,14 @@ Defs
                                 name: "main$__lambda_8",
                                 effect: Simple,
                             },
-                            args: [],
+                            args: [
+                                Var {
+                                    index: 0,
+                                },
+                                Var {
+                                    index: 2,
+                                },
+                            ],
                         },
                         effect: Simple,
                     },
@@ -615,13 +682,17 @@ Defs
                             name: "main$__lambda_10",
                             effect: Simple,
                         },
-                        args: [],
+                        args: [
+                            Var {
+                                index: 1,
+                            },
+                        ],
                     },
                     effect: Simple,
                 },
             },
             c_type: Default,
-            var_bound: 0,
+            var_bound: 3,
             need_simple: false,
             need_cps: true,
             need_specialized: false,
@@ -630,7 +701,16 @@ Defs
     (
         "main$__lambda_12",
         FunctionDefinition {
-            args: [],
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+                (
+                    1,
+                    Uniform,
+                ),
+            ],
             body: Handler {
                 parameter: Struct {
                     values: [],
@@ -642,7 +722,11 @@ Defs
                                 name: "main$__lambda_5",
                                 effect: Simple,
                             },
-                            args: [],
+                            args: [
+                                Var {
+                                    index: 0,
+                                },
+                            ],
                         },
                         effect: Simple,
                     },
@@ -660,16 +744,20 @@ Defs
                 },
                 handlers: [
                     (
-                        Str {
-                            value: "innerExp",
-                        },
+                        [
+                            0,
+                        ],
                         Thunk {
                             t: Redex {
                                 function: Def {
                                     name: "main$__lambda_7",
                                     effect: Simple,
                                 },
-                                args: [],
+                                args: [
+                                    Var {
+                                        index: 0,
+                                    },
+                                ],
                             },
                             effect: Simple,
                         },
@@ -682,13 +770,20 @@ Defs
                             name: "main$__lambda_11",
                             effect: Simple,
                         },
-                        args: [],
+                        args: [
+                            Var {
+                                index: 0,
+                            },
+                            Var {
+                                index: 1,
+                            },
+                        ],
                     },
                     effect: Simple,
                 },
             },
             c_type: Default,
-            var_bound: 0,
+            var_bound: 2,
             need_simple: false,
             need_cps: true,
             need_specialized: false,
@@ -697,7 +792,12 @@ Defs
     (
         "main$__lambda_13",
         FunctionDefinition {
-            args: [],
+            args: [
+                (
+                    0,
+                    Uniform,
+                ),
+            ],
             body: Handler {
                 parameter: Struct {
                     values: [],
@@ -709,7 +809,11 @@ Defs
                                 name: "main$__lambda_2",
                                 effect: Simple,
                             },
-                            args: [],
+                            args: [
+                                Var {
+                                    index: 0,
+                                },
+                            ],
                         },
                         effect: Simple,
                     },
@@ -727,16 +831,20 @@ Defs
                 },
                 handlers: [
                     (
-                        Str {
-                            value: "outerExp",
-                        },
+                        [
+                            0,
+                        ],
                         Thunk {
                             t: Redex {
                                 function: Def {
                                     name: "main$__lambda_4",
                                     effect: Simple,
                                 },
-                                args: [],
+                                args: [
+                                    Var {
+                                        index: 0,
+                                    },
+                                ],
                             },
                             effect: Simple,
                         },
@@ -749,13 +857,17 @@ Defs
                             name: "main$__lambda_12",
                             effect: Simple,
                         },
-                        args: [],
+                        args: [
+                            Var {
+                                index: 0,
+                            },
+                        ],
                     },
                     effect: Simple,
                 },
             },
             c_type: Default,
-            var_bound: 0,
+            var_bound: 1,
             need_simple: false,
             need_cps: true,
             need_specialized: false,
@@ -769,11 +881,16 @@ Defs
                     0,
                     Uniform,
                 ),
+                (
+                    1,
+                    Uniform,
+                ),
             ],
             body: OperationCall {
-                eff: Str {
-                    value: "track",
+                eff_ins: Var {
+                    index: 0,
                 },
+                op_idx: 0,
                 args: [
                     Int {
                         value: 11,
@@ -782,7 +899,7 @@ Defs
                 effect: Simple,
             },
             c_type: Default,
-            var_bound: 1,
+            var_bound: 2,
             need_simple: false,
             need_cps: true,
             need_specialized: false,
@@ -825,12 +942,17 @@ Defs
                     1,
                     Uniform,
                 ),
+                (
+                    2,
+                    Uniform,
+                ),
             ],
             body: Let {
                 t: OperationCall {
-                    eff: Str {
-                        value: "track",
+                    eff_ins: Var {
+                        index: 0,
                     },
+                    op_idx: 0,
                     args: [
                         Int {
                             value: 2,
@@ -838,12 +960,12 @@ Defs
                     ],
                     effect: Simple,
                 },
-                bound_index: 2,
+                bound_index: 3,
                 body: Return {
                     value: Struct {
                         values: [
                             Var {
-                                index: 0,
+                                index: 1,
                             },
                             Struct {
                                 values: [
@@ -851,7 +973,7 @@ Defs
                                         value: 0,
                                     },
                                     Var {
-                                        index: 1,
+                                        index: 2,
                                     },
                                 ],
                             },
@@ -860,7 +982,7 @@ Defs
                 },
             },
             c_type: Default,
-            var_bound: 3,
+            var_bound: 4,
             need_simple: false,
             need_cps: true,
             need_specialized: false,
@@ -874,11 +996,16 @@ Defs
                     0,
                     Uniform,
                 ),
+                (
+                    1,
+                    Uniform,
+                ),
             ],
             body: OperationCall {
-                eff: Str {
-                    value: "track",
+                eff_ins: Var {
+                    index: 0,
                 },
+                op_idx: 0,
                 args: [
                     Int {
                         value: 7,
@@ -887,7 +1014,7 @@ Defs
                 effect: Simple,
             },
             c_type: Default,
-            var_bound: 1,
+            var_bound: 2,
             need_simple: false,
             need_cps: true,
             need_specialized: false,
@@ -905,12 +1032,17 @@ Defs
                     1,
                     Uniform,
                 ),
+                (
+                    2,
+                    Uniform,
+                ),
             ],
             body: Let {
                 t: OperationCall {
-                    eff: Str {
-                        value: "track",
+                    eff_ins: Var {
+                        index: 0,
                     },
+                    op_idx: 0,
                     args: [
                         Int {
                             value: 3,
@@ -918,12 +1050,12 @@ Defs
                     ],
                     effect: Simple,
                 },
-                bound_index: 2,
+                bound_index: 3,
                 body: Return {
                     value: Struct {
                         values: [
                             Var {
-                                index: 0,
+                                index: 1,
                             },
                             Struct {
                                 values: [
@@ -931,7 +1063,7 @@ Defs
                                         value: 0,
                                     },
                                     Var {
-                                        index: 1,
+                                        index: 2,
                                     },
                                 ],
                             },
@@ -940,7 +1072,7 @@ Defs
                 },
             },
             c_type: Default,
-            var_bound: 3,
+            var_bound: 4,
             need_simple: false,
             need_cps: true,
             need_specialized: false,
@@ -954,12 +1086,21 @@ Defs
                     0,
                     Uniform,
                 ),
+                (
+                    1,
+                    Uniform,
+                ),
+                (
+                    2,
+                    Uniform,
+                ),
             ],
             body: Let {
                 t: OperationCall {
-                    eff: Str {
-                        value: "track",
+                    eff_ins: Var {
+                        index: 0,
                     },
+                    op_idx: 0,
                     args: [
                         Int {
                             value: 5,
@@ -967,11 +1108,12 @@ Defs
                     ],
                     effect: Simple,
                 },
-                bound_index: 1,
+                bound_index: 3,
                 body: OperationCall {
-                    eff: Str {
-                        value: "innerExp",
+                    eff_ins: Var {
+                        index: 1,
                     },
+                    op_idx: 0,
                     args: [
                         Int {
                             value: 2,
@@ -981,7 +1123,7 @@ Defs
                 },
             },
             c_type: Default,
-            var_bound: 2,
+            var_bound: 4,
             need_simple: false,
             need_cps: true,
             need_specialized: false,

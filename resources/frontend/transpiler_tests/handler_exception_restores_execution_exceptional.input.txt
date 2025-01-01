@@ -1,17 +1,19 @@
-def interruptAndRecover x: int -> int =>
+def interruptAndRecover e1 x: int -> int =>
   handler
-    "exp" #^ \p x => {p, x}
-  "exp" # {x}
-  "track" # {31}
-  31
+    #^0 \p x => {p, x}
+  \e2 =>
+    e2 #0 {x}
+    e1 #0 {31}
+    31
 
 
 handler 1
   # \p r => p * 100 + r
-  "track" ## \p v => {p * v, {1, {}}}
+  ##0 \p v => {p * v, {1, {}}}
 
-"track" # {2}
-"track" # {interruptAndRecover 3}
-"track" # {interruptAndRecover 5}
-"track" # {interruptAndRecover 7}
-1
+\e1 =>
+  e1 #0 {2}
+  e1 #0 {interruptAndRecover e1 3}
+  e1 #0 {interruptAndRecover e1 5}
+  e1 #0 {interruptAndRecover e1 7}
+  1
